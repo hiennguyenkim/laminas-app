@@ -1,0 +1,88 @@
+<?php
+$this->headTitle('Chi tiết sách');
+$this->layout('layout/library-layout');
+
+$statusMap = [
+    'available' => ['Sẵn sàng', 'badge-green'],
+    'borrowed' => ['Đang mượn hết', 'badge-orange'],
+    'unavailable' => ['Tạm khóa', 'badge-gray'],
+];
+[$statusLabel, $statusClass] = $statusMap[$book->status] ?? [$book->status, 'badge-gray'];
+?>
+<div class="page-header">
+    <div class="d-flex align-center gap-3">
+        <a href="<?= $this->url('library/book') ?>" class="btn btn-outline btn-icon"><i class="bi bi-arrow-left"></i></a>
+        <div>
+            <div class="page-title">Chi tiết sách</div>
+            <div class="page-subtitle">Xem thông tin đầy đủ và trạng thái vận hành của đầu sách trong hệ thống.</div>
+        </div>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="<?= $this->url('library/book', ['action' => 'edit', 'id' => $book->id]) ?>" class="btn btn-primary">
+            <i class="bi bi-pencil-square"></i>Chỉnh sửa
+        </a>
+    </div>
+</div>
+
+<?php if ($hasActiveBorrow) : ?>
+    <div class="alert alert-danger" style="margin-bottom:20px">
+        <i class="bi bi-exclamation-triangle"></i>
+        Sách này đang có lượt mượn chưa trả, hệ thống tạm khóa tính năng xóa.
+    </div>
+<?php endif; ?>
+
+<div style="max-width:800px">
+    <div class="card">
+        <div class="card-body">
+            <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:20px">
+                <div>
+                    <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Mã sách</div>
+                    <div style="font-weight:600;font-size:15px;color:var(--accent-purple)">#<?= (int) $book->id ?></div>
+                </div>
+                <div>
+                    <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Trạng thái</div>
+                    <div><span class="badge <?= $statusClass ?>"><?= $statusLabel ?></span></div>
+                </div>
+                <div>
+                    <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Tên sách</div>
+                    <div style="font-weight:600;font-size:15px;color:var(--text-primary)"><?= htmlspecialchars($book->title) ?></div>
+                </div>
+                <div>
+                    <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Tác giả</div>
+                    <div style="color:var(--text-secondary)"><?= htmlspecialchars($book->author) ?></div>
+                </div>
+                <div>
+                    <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">ISBN</div>
+                    <div><code style="color:var(--accent-orange);background:var(--bg-secondary);padding:2px 6px;border-radius:4px"><?= htmlspecialchars($book->isbn !== '' ? $book->isbn : '—') ?></code></div>
+                </div>
+                <div>
+                    <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Thể loại</div>
+                    <div><span class="badge badge-purple"><?= htmlspecialchars($book->category) ?></span></div>
+                </div>
+                <div>
+                    <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Số bản khả dụng</div>
+                    <div style="font-weight:600;font-size:15px;color:var(--text-primary)"><?= (int) $book->quantity ?></div>
+                </div>
+                <div>
+                    <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Ngày tạo</div>
+                    <div style="color:var(--text-secondary)"><?= htmlspecialchars($book->createdAt !== '' ? $book->createdAt : '—') ?></div>
+                </div>
+            </div>
+
+            <div style="height:1px;background:var(--border-color);margin:24px 0 18px"></div>
+
+            <div class="d-flex gap-2">
+                <form method="POST"
+                      action="<?= $this->url('library/book', ['action' => 'delete', 'id' => $book->id]) ?>"
+                      data-confirm="Bạn có chắc muốn xóa sách '<?= htmlspecialchars($book->title) ?>'?"
+                      style="margin:0">
+                    <button type="submit" class="btn btn-sm"
+                            style="background:rgba(239,68,68,.12);color:#ef4444;border:1px solid rgba(239,68,68,.2)"
+                            <?= $hasActiveBorrow ? 'disabled' : '' ?>>
+                        <i class="bi bi-trash"></i>Xóa sách
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

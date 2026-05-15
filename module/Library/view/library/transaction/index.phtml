@@ -1,0 +1,206 @@
+<?php
+$this->headTitle($isAdmin ? 'Mượn / Trả sách' : 'Phiếu mượn của tôi');
+$this->layout('layout/library-layout');
+$statusMap = [
+    'borrowed' => ['Đang mượn', 'badge-purple'],
+    'returned' => ['Đã trả',    'badge-green'],
+    'overdue'  => ['Quá hạn',   'badge-red'],
+];
+$avatarColors = ['#7c6aff','#22c55e','#f97316','#ec4899','#3b82f6','#14b8a6'];
+$bookColors   = ['#7c6aff','#f97316','#14b8a6','#3b82f6','#ec4899','#22c55e'];
+$initials = function(string $name): string {
+    $words = explode(' ', trim($name));
+    if (count($words)>=2) return strtoupper(substr($words[0],0,1).substr(end($words),0,1));
+    return strtoupper(substr($name,0,2));
+};
+$filterStatus = (string)($filters['status']??'');
+?>
+
+<!-- PAGE HEADER -->
+<div class="page-header">
+    <div>
+        <div class="page-title">Lịch sử mượn / trả</div>
+        <div class="page-subtitle"><?= number_format((int)($summary['total']??array_sum(array_column((array)($records??[]),'id')))) ?> giao dịch gần đây</div>
+    </div>
+    <div class="d-flex gap-2">
+        <span class="btn btn-outline" style="opacity:0.45;cursor:not-allowed" title="Chức năng này đang được phát triển"><i class="bi bi-file-earmark-excel"></i>Xuất Excel</span>
+        <?php if ($isAdmin): ?>
+        <a href="<?= $this->url('library/transaction', ['action' => 'borrow']) ?>" class="btn btn-primary">
+            <i class="bi bi-plus-lg"></i>Tạo phiếu mượn
+        </a>
+        <?php else: ?>
+        <a href="<?= $this->url('library/transaction', ['action' => 'borrow']) ?>" class="btn btn-success">
+            <i class="bi bi-bookmark-plus"></i>Mượn sách
+        </a>
+        <?php endif; ?>
+    </div>
+</div>
+
+<!-- MINI STAT CARDS -->
+<div class="stat-cards" style="grid-template-columns:repeat(4,1fr);margin-bottom:22px">
+    <div class="stat-card purple" style="padding:18px">
+        <div class="d-flex align-center gap-3">
+            <div class="stat-icon purple" style="width:36px;height:36px;font-size:16px;margin-bottom:0"><i class="bi bi-bookmark-check"></i></div>
+            <div>
+                <div class="stat-value" style="font-size:24px"><?= (int)($summary['borrowed']??0) ?></div>
+                <div class="stat-label">Đang mượn</div>
+            </div>
+        </div>
+    </div>
+    <div class="stat-card green" style="padding:18px">
+        <div class="d-flex align-center gap-3">
+            <div class="stat-icon green" style="width:36px;height:36px;font-size:16px;margin-bottom:0"><i class="bi bi-check-circle"></i></div>
+            <div>
+                <div class="stat-value" style="font-size:24px"><?= (int)($summary['returned']??0) ?></div>
+                <div class="stat-label">Đã trả</div>
+            </div>
+        </div>
+    </div>
+    <div class="stat-card pink" style="padding:18px">
+        <div class="d-flex align-center gap-3">
+            <div class="stat-icon pink" style="width:36px;height:36px;font-size:16px;margin-bottom:0"><i class="bi bi-exclamation-triangle"></i></div>
+            <div>
+                <div class="stat-value" style="font-size:24px"><?= (int)($summary['overdue']??0) ?></div>
+                <div class="stat-label">Quá hạn</div>
+            </div>
+        </div>
+    </div>
+    <div class="stat-card orange" style="padding:18px">
+        <div class="d-flex align-center gap-3">
+            <div class="stat-icon orange" style="width:36px;height:36px;font-size:16px;margin-bottom:0"><i class="bi bi-lightning-charge"></i></div>
+            <div>
+                <div class="stat-value" style="font-size:24px"><?= (int)($summary['borrowed']??0)+(int)($summary['returned']??0)+(int)($summary['overdue']??0) ?></div>
+                <div class="stat-label">Tổng</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- FILTER TABS + SEARCH -->
+<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:22px">
+    <div class="filter-tabs" style="margin-bottom:0">
+        <a href="<?= $this->url('library/transaction') ?>" class="filter-tab <?= $filterStatus===''?'active':'' ?>">
+            Tất cả <span class="count"><?= (int)($summary['borrowed']??0)+(int)($summary['returned']??0)+(int)($summary['overdue']??0) ?></span>
+        </a>
+        <a href="<?= $this->url('library/transaction',[],['query'=>['status'=>'borrowed']]) ?>" class="filter-tab <?= $filterStatus==='borrowed'?'active':'' ?>">
+            Đang mượn <span class="count"><?= (int)($summary['borrowed']??0) ?></span>
+        </a>
+        <a href="<?= $this->url('library/transaction',[],['query'=>['status'=>'returned']]) ?>" class="filter-tab <?= $filterStatus==='returned'?'active':'' ?>">
+            Đã trả <span class="count"><?= (int)($summary['returned']??0) ?></span>
+        </a>
+        <a href="<?= $this->url('library/transaction',[],['query'=>['status'=>'overdue']]) ?>" class="filter-tab <?= $filterStatus==='overdue'?'active':'' ?>">
+            Quá hạn <span class="count"><?= (int)($summary['overdue']??0) ?></span>
+        </a>
+    </div>
+    <form method="GET" style="display:flex;gap:8px">
+        <div class="topbar-search" style="max-width:260px;flex:1">
+            <i class="bi bi-search"></i>
+            <input type="text" name="search" value="<?= htmlspecialchars($filters['search']??'') ?>" placeholder="Tìm theo sách, thành viên...">
+        </div>
+        <input type="hidden" name="status" value="<?= htmlspecialchars($filterStatus) ?>">
+        <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-search"></i>Tìm</button>
+    </form>
+</div>
+
+<!-- TRANSACTION TABLE -->
+<div class="card">
+    <div style="overflow-x:auto">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Thành viên</th>
+                    <th>Sách</th>
+                    <th>Ngày mượn</th>
+                    <th>Hạn trả</th>
+                    <th>Trạng thái</th>
+                    <th>Thao tác</th>
+                </tr>
+            </thead>
+            <tbody>
+            <?php if ($records === []): ?>
+                <tr>
+                    <td colspan="6" style="text-align:center;padding:50px;color:var(--text-muted)">
+                        <i class="bi bi-inbox" style="font-size:32px;display:block;margin-bottom:10px"></i>
+                        Chưa có phiếu mượn nào.
+                    </td>
+                </tr>
+            <?php else: ?>
+                <?php $idx=0; foreach ($records as $record): ?>
+                <?php
+                [$statusLabel, $statusClass] = $statusMap[$record->status] ?? [$record->status, 'badge-gray'];
+                $aColor = $avatarColors[$idx % count($avatarColors)];
+                $bColor = $bookColors[$idx % count($bookColors)];
+                $isOverdue = $record->status === 'overdue' || ($record->status === 'borrowed' && $record->returnDate < date('Y-m-d'));
+                $idx++;
+                ?>
+                <tr>
+                    <td>
+                        <div class="avatar-row">
+                            <div class="avatar" style="background:<?= $aColor ?>">
+                                <?php if ($isAdmin): ?>
+                                    <?= substr($initials(htmlspecialchars($record->userFullName)),0,2) ?>
+                                <?php else: ?>
+                                    <i class="bi bi-person"></i>
+                                <?php endif; ?>
+                            </div>
+                            <div>
+                                <?php if ($isAdmin): ?>
+                                <div class="fw-medium"><?= htmlspecialchars($record->userFullName) ?></div>
+                                <div class="text-muted"><?= htmlspecialchars($record->username) ?></div>
+                                <?php else: ?>
+                                <div class="fw-medium">Tôi</div>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="avatar-row">
+                            <div class="avatar" style="background:<?= $bColor ?>;border-radius:6px">
+                                <i class="bi bi-book" style="font-size:14px"></i>
+                            </div>
+                            <div>
+                                <div class="fw-medium"><?= htmlspecialchars($record->bookTitle) ?></div>
+                                <div class="text-muted"><?= htmlspecialchars($record->bookIsbn !== '' ? $record->bookIsbn : '—') ?></div>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="d-flex align-center gap-2">
+                            <i class="bi bi-calendar3" style="color:var(--text-muted)"></i>
+                            <?= htmlspecialchars($record->borrowDate) ?>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="d-flex align-center gap-2" style="<?= $isOverdue ? 'color:#ef4444;font-weight:600' : '' ?>">
+                            <i class="bi bi-clock" style="color:<?= $isOverdue ? '#ef4444' : 'var(--text-muted)' ?>"></i>
+                            <?= htmlspecialchars($record->returnDate) ?>
+                        </div>
+                    </td>
+                    <td><span class="badge <?= $statusClass ?>"><?= $statusLabel ?></span></td>
+                    <td>
+                        <?php if ($isAdmin && in_array($record->status, ['borrowed','overdue'], true)): ?>
+                        <form method="POST" action="<?= $this->url('library/transaction', ['action' => 'return', 'id' => $record->id]) ?>"
+                              data-confirm="Xác nhận '<?= htmlspecialchars($record->userFullName ?? '') ?>' đã trả sách '<?= htmlspecialchars($record->bookTitle) ?>'?">
+                            <button type="submit" class="btn btn-success btn-sm">
+                                <i class="bi bi-check-circle"></i>Xác nhận trả
+                            </button>
+                        </form>
+                        <?php elseif ($isAdmin && $record->status === 'overdue'): ?>
+                        <span class="badge badge-red"><i class="bi bi-bell"></i>Nhắc nhở</span>
+                        <?php elseif (!$isAdmin && in_array($record->status, ['borrowed','overdue'], true)): ?>
+                        <span style="font-size:12px;color:var(--text-muted)">Liên hệ thủ thư để trả</span>
+                        <?php else: ?>
+                        <?php if ($record->returnedAt): ?>
+                        <span style="font-size:12px;color:var(--text-muted)">Trả: <?= htmlspecialchars($record->returnedAt) ?></span>
+                        <?php else: ?>
+                        <span style="font-size:12px;color:var(--text-muted)">Hoàn tất</span>
+                        <?php endif; ?>
+                        <?php endif; ?>
+                    </td>
+                </tr>
+                <?php endforeach; ?>
+            <?php endif; ?>
+            </tbody>
+        </table>
+    </div>
+</div>

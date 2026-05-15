@@ -1,0 +1,152 @@
+<?php
+$this->headTitle('Chi tiết tài khoản');
+$this->layout('layout/library-layout');
+
+$statusMap = [
+    'borrowed' => ['Đang mượn', 'badge-orange'],
+    'returned' => ['Đã trả', 'badge-green'],
+    'overdue'  => ['Quá hạn', 'badge-red'],
+];
+?>
+<div class="page-header">
+    <div class="d-flex align-center gap-3">
+        <a href="<?= $this->url('library/user') ?>" class="btn btn-outline btn-icon"><i class="bi bi-arrow-left"></i></a>
+        <div>
+            <div class="page-title">Chi tiết tài khoản</div>
+            <div class="page-subtitle">Xem thông tin định danh và theo dõi hoạt động mượn trả của độc giả.</div>
+        </div>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="<?= $this->url('library/user', ['action' => 'edit', 'id' => $user->id]) ?>" class="btn btn-primary">
+            <i class="bi bi-pencil-square"></i>Chỉnh sửa
+        </a>
+    </div>
+</div>
+
+<?php if (! $canDelete && $deleteBlockedReason !== null) : ?>
+    <div class="alert alert-danger" style="margin-bottom:20px">
+        <i class="bi bi-exclamation-triangle"></i>
+        <?= htmlspecialchars($deleteBlockedReason) ?>
+    </div>
+<?php endif; ?>
+
+<div class="stat-cards" style="grid-template-columns:repeat(3,1fr)">
+    <div class="stat-card purple">
+        <div class="stat-label">Lượt mượn đang hoạt động</div>
+        <div class="stat-value" style="margin-top:8px;font-size:26px"><?= (int) $activeLoans ?></div>
+    </div>
+    <div class="stat-card <?= $hasOverdueLoans ? 'pink' : 'green' ?>">
+        <div class="stat-label">Tình trạng quá hạn</div>
+        <div class="stat-value" style="margin-top:8px;font-size:20px;color:<?= $hasOverdueLoans ? '#ef4444' : 'var(--accent-green)' ?>">
+            <?= $hasOverdueLoans ? 'Có quá hạn' : 'Không có quá hạn' ?>
+        </div>
+    </div>
+    <div class="stat-card orange">
+        <div class="stat-label">Lịch sử mượn/trả</div>
+        <div class="stat-value" style="margin-top:8px;font-size:20px;color:<?= $hasBorrowHistory ? 'var(--accent-orange)' : 'var(--accent-green)' ?>">
+            <?= $hasBorrowHistory ? 'Đã phát sinh' : 'Chưa phát sinh' ?>
+        </div>
+    </div>
+</div>
+
+<div class="card" style="margin-bottom:24px">
+    <div class="card-body">
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:20px">
+            <div>
+                <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Mã tài khoản</div>
+                <div style="font-weight:600;font-size:15px;color:var(--accent-purple)">#<?= (int) $user->id ?></div>
+            </div>
+            <div>
+                <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Vai trò</div>
+                <div>
+                    <span class="badge <?= $user->role === 'admin' ? 'badge-orange' : 'badge-purple' ?>">
+                        <?= $user->role === 'admin' ? 'Quản trị viên' : 'Độc giả' ?>
+                    </span>
+                    <?php if ((int) $user->id === (int) $currentId) : ?>
+                        <span class="badge badge-gray" style="margin-left:4px">Bạn</span>
+                    <?php endif; ?>
+                </div>
+            </div>
+            <div>
+                <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Họ và tên</div>
+                <div style="font-weight:600;font-size:15px;color:var(--text-primary)"><?= htmlspecialchars($user->fullName) ?></div>
+            </div>
+            <div>
+                <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Tên đăng nhập</div>
+                <div><code style="color:var(--accent-blue);background:var(--bg-secondary);padding:2px 6px;border-radius:4px">@<?= htmlspecialchars($user->username) ?></code></div>
+            </div>
+            <div>
+                <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Email</div>
+                <div style="color:var(--text-secondary)"><?= htmlspecialchars($user->email) ?></div>
+            </div>
+            <div>
+                <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Ngày tạo</div>
+                <div style="color:var(--text-secondary)"><?= htmlspecialchars($user->createdAt !== '' ? $user->createdAt : '—') ?></div>
+            </div>
+        </div>
+
+        <div style="height:1px;background:var(--border-color);margin:24px 0 18px"></div>
+
+        <div class="d-flex gap-2">
+            <form method="POST"
+                  action="<?= $this->url('library/user', ['action' => 'delete', 'id' => $user->id]) ?>"
+                  data-confirm="Bạn có chắc muốn xóa tài khoản '<?= htmlspecialchars($user->fullName) ?>'?"
+                  style="margin:0">
+                <button type="submit" class="btn btn-sm"
+                        style="background:rgba(239,68,68,.12);color:#ef4444;border:1px solid rgba(239,68,68,.2)"
+                        <?= $canDelete ? '' : 'disabled' ?>>
+                    <i class="bi bi-trash"></i>Xóa tài khoản
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <div class="card-title" style="display:flex;align-items:center;gap:8px">
+            <i class="bi bi-clock-history" style="color:var(--accent-purple)"></i>Lịch sử mượn / trả
+        </div>
+        <a href="<?= $this->url('library/transaction', [], ['query' => ['user_id' => (int) $user->id]]) ?>"
+           class="btn btn-outline btn-sm">
+            <i class="bi bi-box-arrow-up-right"></i>Quản lý mượn/trả
+        </a>
+    </div>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>#Phiếu</th>
+                <th>Tên sách</th>
+                <th>ISBN</th>
+                <th>Ngày mượn</th>
+                <th>Hạn trả</th>
+                <th>Ngày trả</th>
+                <th>Trạng thái</th>
+            </tr>
+        </thead>
+        <tbody>
+        <?php if ($borrowRecords === []) : ?>
+            <tr>
+                <td colspan="7" style="text-align:center;padding:32px 16px;color:var(--text-muted)">
+                    Tài khoản này chưa có lịch sử phát sinh mượn/trả.
+                </td>
+            </tr>
+        <?php else : ?>
+            <?php foreach ($borrowRecords as $record) : ?>
+                <?php [$statusLabel, $statusClass] = $statusMap[$record->status] ?? [$record->status, 'badge-gray']; ?>
+                <tr>
+                    <td style="color:var(--text-muted)">#<?= (int) $record->id ?></td>
+                    <td style="font-weight:600"><?= htmlspecialchars($record->bookTitle) ?></td>
+                    <td><code style="color:var(--accent-orange);background:var(--bg-secondary);padding:2px 6px;border-radius:4px"><?= htmlspecialchars($record->bookIsbn !== '' ? $record->bookIsbn : '—') ?></code></td>
+                    <td><?= htmlspecialchars($record->borrowDate) ?></td>
+                    <td style="<?= in_array($record->status, ['borrowed', 'overdue'], true) && $record->returnDate < date('Y-m-d') ? 'color:#ef4444;font-weight:700' : '' ?>">
+                        <?= htmlspecialchars($record->returnDate) ?>
+                    </td>
+                    <td><?= htmlspecialchars($record->returnedAt !== '' ? $record->returnedAt : '—') ?></td>
+                    <td><span class="badge <?= $statusClass ?>"><?= $statusLabel ?></span></td>
+                </tr>
+            <?php endforeach; ?>
+        <?php endif; ?>
+        </tbody>
+    </table>
+</div>

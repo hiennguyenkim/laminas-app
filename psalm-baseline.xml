@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<files psalm-version="5.26.1@d747f6500b38ac4f7dfc5edbcae6e4b637d7add0">
+  <file src="module/Library/src/Controller/AuthController.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[loginAction]]></code>
+      <code><![CDATA[logoutAction]]></code>
+      <code><![CDATA[registerAction]]></code>
+    </PossiblyUnusedMethod>
+  </file>
+  <file src="module/Library/src/Controller/BookController.php">
+    <InvalidReturnStatement>
+      <code><![CDATA[$response]]></code>
+    </InvalidReturnStatement>
+    <PossiblyUnusedMethod>
+      <code><![CDATA[addAction]]></code>
+      <code><![CDATA[deleteAction]]></code>
+      <code><![CDATA[editAction]]></code>
+      <code><![CDATA[viewAction]]></code>
+    </PossiblyUnusedMethod>
+  </file>
+  <file src="module/Library/src/Controller/DashboardController.php">
+    <InvalidReturnStatement>
+      <code><![CDATA[$response]]></code>
+    </InvalidReturnStatement>
+  </file>
+  <file src="module/Library/src/Controller/TransactionController.php">
+    <InvalidReturnStatement>
+      <code><![CDATA[$response]]></code>
+    </InvalidReturnStatement>
+    <PossiblyUnusedMethod>
+      <code><![CDATA[borrowAction]]></code>
+      <code><![CDATA[returnAction]]></code>
+    </PossiblyUnusedMethod>
+  </file>
+  <file src="module/Library/src/Controller/UserController.php">
+    <InvalidReturnStatement>
+      <code><![CDATA[$response]]></code>
+    </InvalidReturnStatement>
+    <PossiblyUnusedMethod>
+      <code><![CDATA[addAction]]></code>
+      <code><![CDATA[deleteAction]]></code>
+      <code><![CDATA[editAction]]></code>
+      <code><![CDATA[viewAction]]></code>
+    </PossiblyUnusedMethod>
+  </file>
+  <file src="module/Library/src/Factory/Form/LoginFormFactory.php">
+    <PossiblyUnusedParam>
+      <code><![CDATA[$container]]></code>
+    </PossiblyUnusedParam>
+  </file>
+  <file src="module/Library/src/Factory/Form/RegisterFormFactory.php">
+    <PossiblyUnusedParam>
+      <code><![CDATA[$container]]></code>
+    </PossiblyUnusedParam>
+  </file>
+  <file src="module/Library/src/Factory/Form/UserCreateFormFactory.php">
+    <PossiblyUnusedParam>
+      <code><![CDATA[$container]]></code>
+    </PossiblyUnusedParam>
+  </file>
+  <file src="module/Library/src/Factory/Form/UserEditFormFactory.php">
+    <PossiblyUnusedParam>
+      <code><![CDATA[$container]]></code>
+    </PossiblyUnusedParam>
+  </file>
+  <file src="module/Library/src/Factory/Table/BookTableFactory.php">
+    <InvalidArgument>
+      <code><![CDATA[new Book()]]></code>
+    </InvalidArgument>
+  </file>
+  <file src="module/Library/src/Factory/Table/BorrowTableFactory.php">
+    <InvalidArgument>
+      <code><![CDATA[new BorrowRecord()]]></code>
+    </InvalidArgument>
+  </file>
+  <file src="module/Library/src/Factory/Table/UserTableFactory.php">
+    <InvalidArgument>
+      <code><![CDATA[new User()]]></code>
+    </InvalidArgument>
+  </file>
+  <file src="module/Library/src/Model/Entity/User.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[isAdmin]]></code>
+    </PossiblyUnusedMethod>
+  </file>
+  <file src="module/Library/test/Controller/HomeControllerTest.php">
+    <UnnecessaryVarAnnotation>
+      <code><![CDATA[AuthSessionContainer]]></code>
+      <code><![CDATA[AuthSessionContainer]]></code>
+    </UnnecessaryVarAnnotation>
+  </file>
+  <file src="module/Library/test/ModuleTest.php">
+    <MixedArgument>
+      <code><![CDATA[$config['router']['routes']]]></code>
+      <code><![CDATA[$config['router']['routes']['library']['child_routes'] ?? []]]></code>
+    </MixedArgument>
+    <MixedArrayAccess>
+      <code><![CDATA[$config['router']['routes']]]></code>
+      <code><![CDATA[$config['router']['routes']['library']]]></code>
+      <code><![CDATA[$config['router']['routes']['library']['child_routes']]]></code>
+    </MixedArrayAccess>
+  </file>
+</files>

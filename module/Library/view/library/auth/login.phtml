@@ -1,0 +1,41 @@
+<?php $this->headTitle('Đăng nhập');
+$this->layout('layout/library-layout'); ?>
+<div class="login-card">
+    <div class="login-logo"><i class="bi bi-bookshelf"></i></div>
+    <div class="login-title">Thư Viện HDPE</div>
+    <div class="login-sub">Hệ thống Quản lý Thư viện</div>
+    <form method="POST" action="<?= $this->url('library/auth', ['action' => 'login']) ?>">
+        <div class="form-group">
+            <label class="form-label">Tên đăng nhập</label>
+            <input type="text" name="username" class="form-control" placeholder="username"
+                value="<?= htmlspecialchars((string) $form->get('username')->getValue()) ?>" autofocus required>
+            <?php $msgs = $form->get('username')->getMessages();
+            if ($msgs): ?>
+                <div class="login-error-msg"><?= htmlspecialchars(implode(', ', $msgs)) ?></div>
+            <?php endif; ?>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Mật khẩu</label>
+            <input type="password" name="password" class="form-control" placeholder="••••••" required>
+            <?php $msgs = $form->get('password')->getMessages();
+            if ($msgs): ?>
+                <div class="login-error-msg"><?= htmlspecialchars(implode(', ', $msgs)) ?></div>
+            <?php endif; ?>
+        </div>
+        <?= $this->formHidden($form->get('csrf')) ?>
+        <?php $msgs = $form->get('csrf')->getMessages();
+        if ($msgs): ?>
+            <div class="login-error-msg-mb"><?= htmlspecialchars(implode(', ', $msgs)) ?></div>
+        <?php endif; ?>
+        <button type="submit" class="btn btn-primary w-100 login-btn">
+            <i class="bi bi-box-arrow-in-right"></i>Đăng nhập
+        </button>
+    </form>
+    <p class="login-footer-text">
+        Chưa có tài khoản?
+        <a href="<?= $this->url('library/auth', ['action' => 'register']) ?>" class="login-footer-link">Đăng ký</a>
+    </p>
+    <div class="login-copyright">
+        © 2026 Bản quyền thuộc về <span class="login-footer-link">Thư Viện HDPE</span>
+    </div>
+</div>

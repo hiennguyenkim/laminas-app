@@ -1,0 +1,209 @@
+<?php
+$this->headTitle('Thư Viện HDPE')->setSeparator(' | ')->setAutoEscape(false);
+$authUser       = $this->currentUser();
+$guestCatalogMode = !$authUser && (bool) ($guestCatalogMode ?? false);
+$bookRouteName  = ($authUser['role'] ?? '') === 'admin' ? 'library/book' : 'catalog';
+$currentUri     = $_SERVER['REQUEST_URI'] ?? '';
+$isAdmin        = ($authUser['role'] ?? '') === 'admin';
+
+$initials = function(string $name): string {
+    $words = explode(' ', trim($name));
+    $i = strtoupper(substr(end($words), 0, 1));
+    if (count($words) > 1) $i = strtoupper(substr($words[0], 0, 1)) . strtoupper(substr(end($words), 0, 1));
+    return $i;
+};
+
+$navItems = [];
+if ($authUser) {
+    $navItems[] = ['url' => $this->url('library/dashboard'), 'icon' => 'bi-grid-1x2-fill', 'label' => 'Tổng quan', 'key' => 'dashboard', 'color' => '#7c6aff'];
+    $navItems[] = ['url' => $this->url($bookRouteName), 'icon' => 'bi-book', 'label' => $isAdmin ? 'Sách' : 'Danh mục sách', 'key' => 'book', 'color' => '#f97316'];
+    if ($isAdmin) {
+        $navItems[] = ['url' => $this->url('library/user'), 'icon' => 'bi-people', 'label' => 'Thành viên', 'key' => 'user', 'color' => '#22c55e'];
+    }
+    $navItems[] = ['url' => $this->url('library/transaction'), 'icon' => 'bi-arrow-left-right', 'label' => 'Mượn / Trả', 'key' => 'transaction', 'color' => '#ec4899'];
+}
+
+$pageColors = ['dashboard' => '#7c6aff', 'book' => '#f97316', 'user' => '#22c55e', 'transaction' => '#ec4899'];
+$activeKey  = 'dashboard';
+// Match actual route segments: /admin/books, /admin/users, /admin/borrow
+if      (strpos($currentUri, '/books')  !== false) $activeKey = 'book';
+elseif  (strpos($currentUri, '/users')  !== false) $activeKey = 'user';
+elseif  (strpos($currentUri, '/borrow') !== false) $activeKey = 'transaction';
+if (strpos($currentUri, '/auth') !== false) $activeKey = '';
+$activeColor = $pageColors[$activeKey] ?? '#7c6aff';
+
+$pageLabels = [
+    'dashboard'   => 'Tổng quan',
+    'book'        => ($isAdmin ? 'Sách' : 'Danh mục sách'),
+    'user'        => 'Thành viên',
+    'transaction' => 'Mượn / Trả',
+];
+$pageLabel = $authUser ? ($pageLabels[$activeKey] ?? '') : 'Đăng nhập';
+?>
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <?= $this->headTitle() ?>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="<?= $this->basePath('css/app.css') ?>" rel="stylesheet">
+</head>
+<body>
+
+<?php if (!$authUser && !$guestCatalogMode): ?>
+<!-- LOGIN SHELL -->
+<div class="login-shell">
+    <?php $flash = $this->flashMessenger(); ?>
+    <?php if ($flash->hasErrorMessages()): foreach ($flash->getErrorMessages() as $msg): ?>
+        <div class="alert alert-danger" style="position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:999;min-width:320px">
+            <i class="bi bi-exclamation-triangle"></i> <?= htmlspecialchars($msg) ?>
+        </div>
+    <?php endforeach; endif; ?>
+    <?= $this->content ?>
+</div>
+
+<?php else: ?>
+<div class="app-shell">
+
+    <?php if ($authUser): ?>
+    <!-- SIDEBAR -->
+    <nav class="sidebar" id="sidebar">
+        <div class="sidebar-brand">
+            <div class="sidebar-brand-icon"><i class="bi bi-bookshelf"></i></div>
+            <div class="sidebar-brand-text">
+                <div class="name">Thư Viện HDPE</div>
+                <div class="sub">Hệ thống quản lý thư viện</div>
+            </div>
+        </div>
+
+        <div class="sidebar-nav">
+            <?php foreach ($navItems as $item): ?>
+            <?php $isActive = ($item['key'] === $activeKey); ?>
+            <a href="<?= $item['url'] ?>" class="nav-item-link <?= $isActive ? 'active' : '' ?>"
+               style="<?= $isActive ? '--active-color:'.$item['color'] : '' ?>">
+                <i class="bi <?= $item['icon'] ?>" style="color:<?= $isActive ? $item['color'] : '' ?>"></i>
+                <?= $item['label'] ?>
+            </a>
+            <?php endforeach; ?>
+
+
+
+            <div style="margin-top:24px;padding:0 14px;font-size:11px;color:var(--text-muted)">
+                <span>© 2026 Bản quyền thuộc về<br><strong style="color:var(--text-secondary)">Thư Viện HDPE</strong></span>
+            </div>
+        </div>
+
+        <div class="sidebar-footer">
+            <div class="sidebar-user">
+                <div class="sidebar-user-avatar">
+                    <?= $initials(htmlspecialchars($authUser['full_name'] ?? 'QL')) ?>
+                </div>
+                <div class="sidebar-user-info" style="flex:1;min-width:0">
+                    <div class="uname"><?= $isAdmin ? 'Quản Lý' : htmlspecialchars($authUser['full_name'] ?? '') ?></div>
+                    <div class="uemail"><?= htmlspecialchars($authUser['email'] ?? 'admin@library.vn') ?></div>
+                </div>
+                <a href="<?= $this->url('library/auth', ['action' => 'logout']) ?>"
+                   title="Đăng xuất" style="color:var(--text-muted);font-size:16px;text-decoration:none">
+                    <i class="bi bi-box-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+    </nav>
+    <?php endif; ?>
+
+    <!-- MAIN CONTENT -->
+    <div class="main-content">
+
+        <?php if ($authUser): ?>
+        <!-- TOPBAR -->
+        <header class="topbar">
+            <div class="topbar-left">
+                <div class="page-breadcrumb"><?= $pageLabel ?></div>
+            </div>
+            <div class="topbar-right">
+                <div class="topbar-page-label">
+                    <div class="topbar-dot" style="background:<?= $activeColor ?>"></div>
+                    <?= $pageLabel ?>
+                </div>
+            </div>
+        </header>
+        <?php else: ?>
+        <!-- PREMIUM TOPBAR FOR GUEST READERS -->
+        <header class="topbar" style="justify-content:space-between;padding:0 32px">
+            <div style="display:flex;align-items:center;gap:12px">
+                <i class="bi bi-bookshelf" style="font-size:22px;color:var(--accent-purple)"></i>
+                <span style="font-weight:700;font-size:16px;color:var(--text-primary);letter-spacing:0.5px">Thư Viện HDPE</span>
+                <span class="badge badge-purple" style="font-size:10px">Cổng tra cứu</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px">
+                <a href="<?= $this->url('library/auth', ['action' => 'login']) ?>" class="btn btn-primary btn-sm" style="padding:8px 16px">
+                    <i class="bi bi-box-arrow-in-right"></i>Đăng nhập
+                </a>
+                <a href="<?= $this->url('library/auth', ['action' => 'register']) ?>" class="btn btn-outline btn-sm" style="padding:8px 16px">
+                    Đăng ký
+                </a>
+            </div>
+        </header>
+        <?php endif; ?>
+
+        <!-- FLASH MESSAGES -->
+        <?php $flash = $this->flashMessenger(); ?>
+        <?php if ($flash->hasSuccessMessages()): ?>
+        <div style="padding:16px 28px 0">
+            <?php foreach ($flash->getSuccessMessages() as $msg): ?>
+            <div class="alert alert-success">
+                <i class="bi bi-check-circle"></i> <?= htmlspecialchars($msg) ?>
+            </div>
+            <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
+        <?php if ($flash->hasErrorMessages()): ?>
+        <div style="padding:16px 28px 0">
+            <?php foreach ($flash->getErrorMessages() as $msg): ?>
+            <div class="alert alert-danger">
+                <i class="bi bi-exclamation-triangle"></i> <?= htmlspecialchars($msg) ?>
+            </div>
+            <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
+        <?php if ($flash->hasInfoMessages()): ?>
+        <div style="padding:16px 28px 0">
+            <?php foreach ($flash->getInfoMessages() as $msg): ?>
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i> <?= htmlspecialchars($msg) ?>
+            </div>
+            <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
+
+        <!-- PAGE CONTENT -->
+        <?php if ($authUser): ?>
+        <div class="page-body"><?= $this->content ?></div>
+        <?php else: ?>
+        <div style="padding:32px 28px;flex:1;max-width:1200px;margin:0 auto;width:100%"><?= $this->content ?></div>
+        <?php endif; ?>
+
+    </div><!-- /.main-content -->
+</div><!-- /.app-shell -->
+<?php endif; ?>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+// Confirm dialogs
+document.querySelectorAll('[data-confirm]').forEach(el => {
+    el.addEventListener('submit', e => { if (!confirm(el.dataset.confirm)) e.preventDefault(); });
+});
+// Auto-dismiss flash after 4s
+setTimeout(() => {
+    document.querySelectorAll('.alert').forEach(a => {
+        a.style.transition = 'opacity .4s';
+        a.style.opacity = '0';
+        setTimeout(() => a.remove(), 400);
+    });
+}, 4000);
+</script>
+</body>
+</html>

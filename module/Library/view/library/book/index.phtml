@@ -1,0 +1,170 @@
+<?php
+$canManage  = (bool) ($canManage ?? false);
+$canBorrow  = (bool) ($canBorrow ?? false);
+$isGuest    = (bool) ($isGuest ?? false);
+$indexRoute = (string) ($indexRoute ?? 'library/book');
+$this->headTitle($canManage ? 'Quản lý sách' : 'Danh mục sách');
+$this->layout('layout/library-layout');
+
+$pagination  = is_array($pagination ?? null) ? $pagination : [];
+$page        = (int) ($pagination['page'] ?? 1);
+$perPage     = (int) ($pagination['perPage'] ?? 10);
+$totalItems  = (int) ($pagination['totalItems'] ?? 0);
+$totalPages  = (int) ($pagination['totalPages'] ?? 1);
+
+$queryBase = [
+    'search'   => (string) ($filters['search'] ?? ''),
+    'category' => (string) ($filters['category'] ?? ''),
+    'status'   => (string) ($filters['status'] ?? ''),
+];
+
+$buildPageUrl = function(int $p) use ($queryBase, $indexRoute): string {
+    $q = $queryBase; $q['page'] = $p;
+    $q = array_filter($q, fn($v, $k) => $k === 'page' || $v !== '', ARRAY_FILTER_USE_BOTH);
+    return $this->url($indexRoute, [], ['query' => $q]);
+};
+
+$coverGradients = [
+    'purple'  => 'linear-gradient(135deg,#7c6aff,#5b4fcf)',
+    'orange'  => 'linear-gradient(135deg,#f97316,#ea580c)',
+    'teal'    => 'linear-gradient(135deg,#14b8a6,#0d9488)',
+    'blue'    => 'linear-gradient(135deg,#3b82f6,#2563eb)',
+    'pink'    => 'linear-gradient(135deg,#ec4899,#db2777)',
+    'green'   => 'linear-gradient(135deg,#22c55e,#16a34a)',
+];
+$gradKeys = array_keys($coverGradients);
+$gradVals = array_values($coverGradients);
+
+$statusMap = [
+    'available'   => ['Sẵn sàng',       'badge-green'],
+    'borrowed'    => ['Đang mượn hết',   'badge-orange'],
+    'unavailable' => ['Tạm khóa',        'badge-gray'],
+];
+
+$catBadgeColors = ['Văn học'=>'badge-purple','Khoa học'=>'badge-blue','Lịch sử'=>'badge-orange','Kỹ thuật'=>'badge-green','Tâm lý'=>'badge-pink'];
+?>
+
+<!-- PAGE HEADER -->
+<div class="page-header">
+    <div>
+        <div class="page-title"><?= $canManage ? 'Quản lý sách' : 'Danh mục sách' ?></div>
+        <div class="page-subtitle"><?= number_format((int)($summary['total_titles'] ?? 0)) ?> đầu sách trong thư viện</div>
+    </div>
+    <?php if ($canManage): ?>
+    <a href="<?= $this->url('library/book', ['action' => 'add']) ?>" class="btn btn-orange">
+        <i class="bi bi-plus-lg"></i>Thêm sách mới
+    </a>
+    <?php elseif ($canBorrow): ?>
+    <a href="<?= $this->url('library/transaction', ['action' => 'borrow']) ?>" class="btn btn-success">
+        <i class="bi bi-bookmark-plus"></i>Mượn sách
+    </a>
+    <?php endif; ?>
+</div>
+
+<!-- FILTER TABS -->
+<?php
+$allCats = ['Tất cả', 'Văn học', 'Khoa học', 'Lịch sử', 'Kỹ thuật', 'Kinh tế', 'Tâm lý'];
+$activeCat = (string) ($filters['category'] ?? '');
+?>
+<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:22px">
+    <div class="filter-tabs" style="margin-bottom:0">
+        <?php foreach ($allCats as $cat): ?>
+        <a href="<?= $this->url($indexRoute, [], ['query' => array_merge($queryBase, ['category' => $cat === 'Tất cả' ? '' : $cat, 'page' => 1])]) ?>"
+           class="filter-tab <?= ($cat === 'Tất cả' && $activeCat === '') || $activeCat === $cat ? 'active' : '' ?>">
+            <?= $cat ?>
+        </a>
+        <?php endforeach; ?>
+    </div>
+    <?php if ($canManage): ?>
+    <form method="GET" style="display:flex;gap:8px">
+        <div class="topbar-search" style="max-width:260px;flex:1">
+            <i class="bi bi-search"></i>
+            <input type="text" name="search" value="<?= htmlspecialchars($filters['search'] ?? '') ?>" placeholder="Tìm sách, tác giả...">
+        </div>
+        <select name="status" class="form-select" style="width:auto">
+            <option value="">Tất cả trạng thái</option>
+            <option value="available" <?= ($filters['status']??'')==='available'?'selected':'' ?>>Sẵn sàng</option>
+            <option value="borrowed"  <?= ($filters['status']??'')==='borrowed'?'selected':'' ?>>Đang mượn hết</option>
+            <option value="unavailable" <?= ($filters['status']??'')==='unavailable'?'selected':'' ?>>Tạm khóa</option>
+        </select>
+        <button type="submit" class="btn btn-primary"><i class="bi bi-funnel"></i><?= number_format($totalItems) ?> kết quả</button>
+    </form>
+    <?php endif; ?>
+</div>
+
+<!-- BOOK GRID -->
+<div class="book-grid">
+<?php if (!count($books)): ?>
+    <div style="grid-column:1/-1;text-align:center;padding:60px;color:var(--text-muted)">
+        <i class="bi bi-inbox" style="font-size:40px;display:block;margin-bottom:12px"></i>
+        Không tìm thấy đầu sách phù hợp.
+    </div>
+<?php else: ?>
+    <?php $idx = 0; foreach ($books as $book): ?>
+    <?php
+    $grad     = $gradVals[$idx % count($gradVals)];
+    $leftQty  = (int) $book->quantity;
+    $available = $book->status === 'available' && $leftQty > 0;
+    [$statusLabel, $statusClass] = $statusMap[$book->status] ?? [$book->status, 'badge-gray'];
+    $catClass = $catBadgeColors[$book->category] ?? 'badge-gray';
+    $idx++;
+    ?>
+    <div class="book-card">
+        <div class="book-cover" style="background:<?= $grad ?>">
+            <i class="bi bi-book-open"></i>
+            <?php if ($leftQty > 0): ?>
+            <span class="book-cover-badge available">Còn <?= $leftQty ?></span>
+            <?php else: ?>
+            <span class="book-cover-badge none">Hết</span>
+            <?php endif; ?>
+        </div>
+        <div class="book-info">
+            <div class="book-title"><?= htmlspecialchars($book->title) ?></div>
+            <div class="book-author"><?= htmlspecialchars($book->author) ?></div>
+            <div class="book-meta">
+                <span class="badge <?= $catClass ?>" style="font-size:10px"><?= htmlspecialchars($book->category) ?></span>
+                <div class="book-rating"><i class="bi bi-star-fill"></i><?= number_format(4.5 + ($idx%5)*.1, 1) ?></div>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;font-size:11px;color:var(--text-muted)">
+                <span><i class="bi bi-arrow-left-right" style="margin-right:3px"></i><?= rand(20,60) ?> lượt</span>
+                <span><?= htmlspecialchars($book->publishYear ?? date('Y')) ?></span>
+            </div>
+            <div class="book-progress" style="margin-top:8px">
+                <div class="book-progress-bar" style="width:<?= min(100, $leftQty * 20) ?>%;background:<?= $available ? '#22c55e' : '#f97316' ?>"></div>
+            </div>
+            <?php if ($canManage): ?>
+            <div style="display:flex;gap:6px;margin-top:12px">
+                <a href="<?= $this->url('library/book', ['action' => 'view', 'id' => $book->id]) ?>" class="btn btn-outline btn-sm btn-icon" title="Xem"><i class="bi bi-eye"></i></a>
+                <a href="<?= $this->url('library/book', ['action' => 'edit', 'id' => $book->id]) ?>" class="btn btn-outline btn-sm btn-icon" title="Sửa"><i class="bi bi-pencil"></i></a>
+                <form method="POST" action="<?= $this->url('library/book', ['action' => 'delete', 'id' => $book->id]) ?>"
+                      data-confirm="Xóa sách '<?= htmlspecialchars($book->title) ?>'?" style="display:inline">
+                    <button type="submit" class="btn btn-sm btn-icon" style="background:rgba(239,68,68,.12);color:#ef4444;border:1px solid rgba(239,68,68,.2)" title="Xóa"><i class="bi bi-trash"></i></button>
+                </form>
+            </div>
+            <?php elseif ($canBorrow && $available): ?>
+            <a href="<?= $this->url('library/transaction', ['action' => 'borrow'], ['query' => ['book_id' => (int)$book->id]]) ?>"
+               class="btn btn-success w-100 btn-sm" style="margin-top:12px;justify-content:center">
+                <i class="bi bi-bookmark-plus"></i>Mượn sách
+            </a>
+            <?php endif; ?>
+        </div>
+    </div>
+    <?php endforeach; ?>
+<?php endif; ?>
+</div>
+
+<!-- PAGINATION -->
+<?php if ($totalPages > 1): ?>
+<div style="display:flex;align-items:center;justify-content:space-between;margin-top:24px">
+    <div style="font-size:12px;color:var(--text-muted)">
+        Hiển thị <?= min(($page-1)*$perPage+1,$totalItems) ?> – <?= min($page*$perPage,$totalItems) ?> / <?= $totalItems ?> sách
+    </div>
+    <div class="pagination">
+        <a class="page-btn <?= $page<=1?'disabled':'' ?>" href="<?= $page>1?$buildPageUrl($page-1):'#' ?>"><i class="bi bi-chevron-left"></i></a>
+        <?php for ($p=max(1,$page-2); $p<=min($totalPages,$page+2); $p++): ?>
+        <a class="page-btn <?= $p===$page?'active':'' ?>" href="<?= $buildPageUrl($p) ?>"><?= $p ?></a>
+        <?php endfor; ?>
+        <a class="page-btn <?= $page>=$totalPages?'disabled':'' ?>" href="<?= $page<$totalPages?$buildPageUrl($page+1):'#' ?>"><i class="bi bi-chevron-right"></i></a>
+    </div>
+</div>
+<?php endif; ?>

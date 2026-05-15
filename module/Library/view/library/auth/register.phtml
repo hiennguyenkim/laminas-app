@@ -1,0 +1,53 @@
+<?php $this->headTitle('Đăng ký');
+$this->layout('layout/library-layout'); ?>
+<div class="login-card register-card">
+    <div class="login-logo"><i class="bi bi-person-plus"></i></div>
+    <div class="login-title">Đăng ký tài khoản</div>
+    <div class="login-sub">Hệ thống Quản lý Thư viện</div>
+    <form method="POST" action="<?= $this->url('library/auth', ['action' => 'register']) ?>">
+        <div class="form-group mb-3">
+            <label class="form-label">Tên đăng nhập</label>
+            <input type="text" name="username" class="form-control" placeholder="username"
+                   value="<?= htmlspecialchars((string) $form->get('username')->getValue()) ?>" required>
+            <?php $messages = $form->get('username')->getMessages(); if ($messages) : ?>
+                <div class="login-error-msg"><?= htmlspecialchars(implode(', ', $messages)) ?></div>
+            <?php endif; ?>
+        </div>
+        <div class="form-group mb-3">
+            <label class="form-label">Email</label>
+            <input type="email" name="email" class="form-control" placeholder="name@example.com"
+                   value="<?= htmlspecialchars((string) $form->get('email')->getValue()) ?>" required>
+            <?php $messages = $form->get('email')->getMessages(); if ($messages) : ?>
+                <div class="login-error-msg"><?= htmlspecialchars(implode(', ', $messages)) ?></div>
+            <?php endif; ?>
+        </div>
+        <div class="form-group mb-3">
+            <label class="form-label">Mật khẩu</label>
+            <input type="password" name="password" class="form-control" placeholder="Tối thiểu 8 ký tự" required>
+            <?php $messages = $form->get('password')->getMessages(); if ($messages) : ?>
+                <div class="login-error-msg"><?= htmlspecialchars(implode(', ', $messages)) ?></div>
+            <?php endif; ?>
+        </div>
+        <div class="form-group mb-4">
+            <label class="form-label">Xác nhận mật khẩu</label>
+            <input type="password" name="password_confirm" class="form-control" placeholder="Nhập lại mật khẩu" required>
+            <?php $messages = $form->get('password_confirm')->getMessages(); if ($messages) : ?>
+                <div class="login-error-msg"><?= htmlspecialchars(implode(', ', $messages)) ?></div>
+            <?php endif; ?>
+        </div>
+        <?= $this->formHidden($form->get('csrf')) ?>
+        <?php $messages = $form->get('csrf')->getMessages(); if ($messages) : ?>
+            <div class="login-error-msg-mb"><?= htmlspecialchars(implode(', ', $messages)) ?></div>
+        <?php endif; ?>
+        <button type="submit" class="btn btn-primary w-100 login-btn">
+            <i class="bi bi-check-circle"></i>Đăng ký
+        </button>
+    </form>
+    <p class="login-footer-text">
+        Đã có tài khoản?
+        <a href="<?= $this->url('library/auth', ['action' => 'login']) ?>" class="login-footer-link">Đăng nhập ngay</a>
+    </p>
+    <div class="login-copyright">
+        © 2026 Bản quyền thuộc về <span class="login-footer-link">Thư Viện HDPE</span>
+    </div>
+</div>

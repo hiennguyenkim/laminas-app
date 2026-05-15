@@ -1,0 +1,3 @@
+RewriteEngine On
+RewriteRule ^$ /laminas-app/public/ [R,L]
+RewriteRule ^(.*)$ public/$1 [L]

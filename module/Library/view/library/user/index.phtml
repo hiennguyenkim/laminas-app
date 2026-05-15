@@ -1,0 +1,104 @@
+<?php
+$this->headTitle($isAdmin ? 'Quản lý thành viên' : 'Thành viên');
+$this->layout('layout/library-layout');
+$avatarColors = ['#7c6aff','#22c55e','#f97316','#ec4899','#3b82f6','#14b8a6','#ef4444','#fbbf24'];
+$initials = function(string $name): string {
+    $words = explode(' ', trim($name));
+    if (count($words) >= 2) return strtoupper(substr($words[0], 0, 1).substr(end($words), 0, 1));
+    return strtoupper(substr($name, 0, 2));
+};
+?>
+
+<!-- PAGE HEADER -->
+<div class="page-header">
+    <div>
+        <div class="page-title">Quản lý thành viên</div>
+        <div class="page-subtitle"><?= number_format((int)($summary['total'] ?? 0)) ?> thành viên đã đăng ký</div>
+    </div>
+    <a href="<?= $this->url('library/user', ['action' => 'add']) ?>" class="btn btn-success">
+        <i class="bi bi-person-plus"></i>Thêm thành viên
+    </a>
+</div>
+
+<!-- FILTER TABS -->
+<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:22px">
+    <div class="filter-tabs" style="margin-bottom:0">
+        <a href="<?= $this->url('library/user') ?>" class="filter-tab <?= !($filters['role']??'') ? 'active' : '' ?>">
+            Tất cả <span class="count"><?= (int)($summary['total']??0) ?></span>
+        </a>
+        <a href="<?= $this->url('library/user', [], ['query' => ['role' => 'student']]) ?>" class="filter-tab <?= ($filters['role']??'')==='student'?'active':'' ?>">
+            Độc giả <span class="count"><?= (int)($summary['students']??0) ?></span>
+        </a>
+    </div>
+    <form method="GET" style="display:flex;gap:8px">
+        <div class="topbar-search" style="max-width:260px;flex:1">
+            <i class="bi bi-search"></i>
+            <input type="text" name="search" value="<?= htmlspecialchars($filters['search']??'') ?>" placeholder="Tìm theo tên, username...">
+        </div>
+        <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-search"></i>Tìm</button>
+    </form>
+</div>
+
+<!-- MEMBER CARDS GRID -->
+<div class="member-grid">
+<?php if (!count($users)): ?>
+    <div style="grid-column:1/-1;text-align:center;padding:60px;color:var(--text-muted)">
+        <i class="bi bi-people" style="font-size:40px;display:block;margin-bottom:12px"></i>
+        Không tìm thấy thành viên phù hợp.
+    </div>
+<?php else: ?>
+    <?php $idx = 0; foreach ($users as $user): ?>
+    <?php
+    $color   = $avatarColors[$idx % count($avatarColors)];
+    $isNew   = isset($user->createdAt) && strtotime($user->createdAt) > strtotime('-30 days');
+    $statusBadge = $user->role === 'admin'
+        ? '<span class="badge badge-orange"><span style="width:6px;height:6px;background:#f97316;border-radius:50%;display:inline-block"></span>Admin</span>'
+        : '<span class="badge badge-green"><span style="width:6px;height:6px;background:#22c55e;border-radius:50%;display:inline-block"></span>Hoạt động</span>';
+    $borrowCount = (int)($user->borrowCount ?? 0);
+    $totalBorrow = (int)($user->totalBorrows ?? 0);
+    $idx++;
+    ?>
+    <div class="member-card">
+        <div class="member-card-top">
+            <div class="d-flex gap-3 align-center">
+                <div class="member-avatar-lg" style="background:<?= $color ?>">
+                    <?= $initials(htmlspecialchars($user->fullName)) ?>
+                    <?php if ($user->role === 'admin'): ?><span class="star">⭐</span><?php endif; ?>
+                </div>
+                <div>
+                    <div class="member-name"><?= htmlspecialchars($user->fullName) ?></div>
+                    <div class="member-email"><?= htmlspecialchars($user->email) ?></div>
+                </div>
+            </div>
+            <?= $statusBadge ?>
+        </div>
+        <div class="member-stats">
+            <div class="member-stat-box">
+                <div class="member-stat-value"><?= $borrowCount ?></div>
+                <div class="member-stat-label">Đang mượn</div>
+            </div>
+            <div class="member-stat-box">
+                <div class="member-stat-value"><?= $totalBorrow ?></div>
+                <div class="member-stat-label">Tổng mượn</div>
+            </div>
+        </div>
+        <div class="member-join">
+            <i class="bi bi-calendar3"></i>
+            Tham gia <?= htmlspecialchars($user->createdAt ?? date('d/m/Y')) ?>
+        </div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:6px">Mức độ hoạt động</div>
+        <div class="member-activity">
+            <div style="height:100%;border-radius:2px;background:<?= $color ?>;width:<?= min(100, $totalBorrow * 2) ?>%;transition:width .6s"></div>
+        </div>
+        <div style="display:flex;gap:6px;margin-top:14px">
+            <a href="<?= $this->url('library/user', ['action' => 'view', 'id' => $user->id]) ?>" class="btn btn-outline btn-sm" style="flex:1;justify-content:center">
+                <i class="bi bi-eye"></i>Chi tiết
+            </a>
+            <a href="<?= $this->url('library/user', ['action' => 'edit', 'id' => $user->id]) ?>" class="btn btn-primary btn-sm" style="flex:1;justify-content:center">
+                <i class="bi bi-pencil"></i>Sửa
+            </a>
+        </div>
+    </div>
+    <?php endforeach; ?>
+<?php endif; ?>
+</div>

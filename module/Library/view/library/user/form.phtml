@@ -1,0 +1,106 @@
+<?php
+$isEdit = ($mode === 'edit');
+$title = $isEdit ? 'Cập nhật tài khoản' : 'Tạo tài khoản mới';
+$actionUrl = $isEdit
+    ? $this->url('library/user', ['action' => 'edit', 'id' => $user->id])
+    : $this->url('library/user', ['action' => 'add']);
+
+$this->headTitle($title);
+$this->layout('layout/library-layout');
+?>
+<div class="page-header">
+    <div class="d-flex align-center gap-3">
+        <a href="<?= $this->url('library/user') ?>" class="btn btn-outline btn-icon"><i class="bi bi-arrow-left"></i></a>
+        <div>
+            <div class="page-title"><?= $title ?></div>
+            <div class="page-subtitle">Thiết lập thông tin định danh và phân quyền truy cập cho người dùng thư viện.</div>
+        </div>
+    </div>
+</div>
+
+<div style="max-width:720px">
+    <div class="card">
+        <div class="card-body">
+            <form method="POST" action="<?= $actionUrl ?>">
+                <?= $this->formHidden($form->get('id')) ?>
+
+                <div style="display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:16px">
+                    <div class="form-group" style="margin-bottom:0">
+                        <label class="form-label">Họ và tên *</label>
+                        <input type="text" name="full_name" class="form-control"
+                               value="<?= htmlspecialchars((string) ($form->get('full_name')->getValue() ?? '')) ?>"
+                               maxlength="100" required>
+                        <?php $messages = $form->get('full_name')->getMessages(); if ($messages) : ?>
+                            <div style="color:#ef4444;font-size:12px;margin-top:5px"><?= htmlspecialchars(implode(', ', $messages)) ?></div>
+                        <?php endif; ?>
+                    </div>
+                    <div class="form-group" style="margin-bottom:0">
+                        <label class="form-label">Vai trò *</label>
+                        <?= $this->formSelect($form->get('role')->setAttribute('class', 'form-select')) ?>
+                        <?php $messages = $form->get('role')->getMessages(); if ($messages) : ?>
+                            <div style="color:#ef4444;font-size:12px;margin-top:5px"><?= htmlspecialchars(implode(', ', $messages)) ?></div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+                    <div class="form-group" style="margin-bottom:0">
+                        <label class="form-label">Tên đăng nhập *</label>
+                        <input type="text" name="username" class="form-control"
+                               value="<?= htmlspecialchars((string) ($form->get('username')->getValue() ?? '')) ?>"
+                               maxlength="50" required>
+                        <?php $messages = $form->get('username')->getMessages(); if ($messages) : ?>
+                            <div style="color:#ef4444;font-size:12px;margin-top:5px"><?= htmlspecialchars(implode(', ', $messages)) ?></div>
+                        <?php endif; ?>
+                    </div>
+                    <div class="form-group" style="margin-bottom:0">
+                        <label class="form-label">Email *</label>
+                        <input type="email" name="email" class="form-control"
+                               value="<?= htmlspecialchars((string) ($form->get('email')->getValue() ?? '')) ?>"
+                               maxlength="100" required>
+                        <?php $messages = $form->get('email')->getMessages(); if ($messages) : ?>
+                            <div style="color:#ef4444;font-size:12px;margin-top:5px"><?= htmlspecialchars(implode(', ', $messages)) ?></div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+
+                <div style="background:rgba(124,106,255,.08);border:1px solid rgba(124,106,255,.2);border-radius:8px;padding:14px;margin-bottom:20px;font-size:13px;color:var(--text-secondary)">
+                    <div style="font-weight:600;color:var(--text-primary);margin-bottom:4px"><i class="bi bi-shield-check" style="color:var(--accent-purple);margin-right:6px"></i>Chính sách an toàn</div>
+                    Mật khẩu tối thiểu 8 ký tự. Nên sử dụng mật khẩu mạnh chứa số và ký tự đặc biệt để đảm bảo an toàn.
+                </div>
+
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+                    <div class="form-group" style="margin-bottom:0">
+                        <label class="form-label"><?= $isEdit ? 'Mật khẩu mới' : 'Mật khẩu *' ?></label>
+                        <input type="password" name="password" class="form-control" <?= $isEdit ? '' : 'required' ?>>
+                        <?php if ($isEdit) : ?>
+                            <div style="font-size:11px;color:var(--text-muted);margin-top:4px">Bỏ trống nếu giữ nguyên mật khẩu cũ.</div>
+                        <?php endif; ?>
+                        <?php $messages = $form->get('password')->getMessages(); if ($messages) : ?>
+                            <div style="color:#ef4444;font-size:12px;margin-top:5px"><?= htmlspecialchars(implode(', ', $messages)) ?></div>
+                        <?php endif; ?>
+                    </div>
+                    <div class="form-group" style="margin-bottom:0">
+                        <label class="form-label"><?= $isEdit ? 'Xác nhận mật khẩu mới' : 'Xác nhận mật khẩu *' ?></label>
+                        <input type="password" name="password_confirm" class="form-control" <?= $isEdit ? '' : 'required' ?>>
+                        <?php $messages = $form->get('password_confirm')->getMessages(); if ($messages) : ?>
+                            <div style="color:#ef4444;font-size:12px;margin-top:5px"><?= htmlspecialchars(implode(', ', $messages)) ?></div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+
+                <?= $this->formHidden($form->get('csrf')) ?>
+                <?php $messages = $form->get('csrf')->getMessages(); if ($messages) : ?>
+                    <div style="color:#ef4444;font-size:12px;margin-bottom:14px"><?= htmlspecialchars(implode(', ', $messages)) ?></div>
+                <?php endif; ?>
+
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save"></i><?= $isEdit ? 'Lưu thay đổi' : 'Tạo tài khoản' ?>
+                    </button>
+                    <a href="<?= $this->url('library/user') ?>" class="btn btn-outline">Hủy</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,75 @@
+<?php
+$this->headTitle($isAdmin ? 'Lập phiếu mượn' : 'Mượn sách');
+$this->layout('layout/library-layout');
+$bookOptions = $form->get('book_id')->getValueOptions();
+$userOptions = $form->get('user_id')->getValueOptions();
+$currentUserLabel = htmlspecialchars((string)(($currentUser['full_name'] ?? '') !== '' ? $currentUser['full_name'] : ($currentUser['username'] ?? '')));
+?>
+<div class="page-header">
+    <div class="d-flex align-center gap-3">
+        <a href="<?= $this->url('library/transaction') ?>" class="btn btn-outline btn-icon"><i class="bi bi-arrow-left"></i></a>
+        <div>
+            <div class="page-title"><?= $isAdmin ? 'Lập phiếu mượn sách' : 'Mượn sách' ?></div>
+            <div class="page-subtitle">Tạo giao dịch mượn sách cho thư viện.</div>
+        </div>
+    </div>
+</div>
+
+<div style="max-width:540px">
+<div class="card">
+    <div class="card-body">
+        <form method="POST" action="<?= $this->url('library/transaction', ['action' => 'borrow']) ?>">
+            <?php if ($bookOptions === []): ?>
+            <div class="alert alert-info" style="margin-bottom:16px"><i class="bi bi-info-circle"></i>Hiện chưa có sách khả dụng để mượn.</div>
+            <?php endif; ?>
+            <div class="form-group">
+                <label class="form-label">Sách *</label>
+                <?= $this->formSelect($form->get('book_id')->setAttribute('class', 'form-select')) ?>
+                <?php $msgs = $form->get('book_id')->getMessages(); if ($msgs): ?>
+                <div style="color:#ef4444;font-size:12px;margin-top:5px"><?= htmlspecialchars(implode(', ', $msgs)) ?></div>
+                <?php endif; ?>
+            </div>
+            <?php if ($isAdmin): ?>
+            <div class="form-group">
+                <label class="form-label">Thành viên *</label>
+                <?= $this->formSelect($form->get('user_id')->setAttribute('class', 'form-select')) ?>
+                <?php $msgs = $form->get('user_id')->getMessages(); if ($msgs): ?>
+                <div style="color:#ef4444;font-size:12px;margin-top:5px"><?= htmlspecialchars(implode(', ', $msgs)) ?></div>
+                <?php endif; ?>
+            </div>
+            <?php else: ?>
+            <div class="form-group">
+                <label class="form-label">Người mượn</label>
+                <input type="text" class="form-control" value="<?= $currentUserLabel ?>" disabled style="opacity:.7">
+                <input type="hidden" name="user_id" value="<?= (int)($currentUser['id'] ?? 0) ?>">
+            </div>
+            <?php endif; ?>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+                <div class="form-group" style="margin-bottom:0">
+                    <label class="form-label">Ngày mượn *</label>
+                    <input type="date" name="borrow_date" class="form-control"
+                           value="<?= htmlspecialchars((string)$form->get('borrow_date')->getValue()) ?>" required>
+                </div>
+                <div class="form-group" style="margin-bottom:0">
+                    <label class="form-label">Hạn trả *</label>
+                    <input type="date" name="return_date" class="form-control"
+                           value="<?= htmlspecialchars((string)$form->get('return_date')->getValue()) ?>" required>
+                    <?php $msgs = $form->get('return_date')->getMessages(); if ($msgs): ?>
+                    <div style="color:#ef4444;font-size:12px;margin-top:5px"><?= htmlspecialchars(implode(', ', $msgs)) ?></div>
+                    <?php endif; ?>
+                </div>
+            </div>
+            <?= $this->formHidden($form->get('csrf')) ?>
+            <?php $msgs = $form->get('csrf')->getMessages(); if ($msgs): ?>
+            <div style="color:#ef4444;font-size:12px;margin:10px 0"><?= htmlspecialchars(implode(', ', $msgs)) ?></div>
+            <?php endif; ?>
+            <div class="d-flex gap-2" style="margin-top:20px">
+                <button type="submit" class="btn btn-success" <?= $bookOptions===[]||$userOptions===[] ? 'disabled' : '' ?>>
+                    <i class="bi bi-check-circle"></i>Xác nhận mượn
+                </button>
+                <a href="<?= $this->url('library/transaction') ?>" class="btn btn-outline">Hủy</a>
+            </div>
+        </form>
+    </div>
+</div>
+</div>

@@ -1,0 +1,88 @@
+<?php
+$isEdit    = ($mode === 'edit');
+$title     = $isEdit ? 'Cập nhật sách' : 'Thêm sách mới';
+$actionUrl = $isEdit
+    ? $this->url('library/book', ['action' => 'edit', 'id' => $book->id])
+    : $this->url('library/book', ['action' => 'add']);
+$statusValue = $form->get('status')->getValue() === 'unavailable' ? 'unavailable' : 'available';
+$this->headTitle($title);
+$this->layout('layout/library-layout');
+?>
+<div class="page-header">
+    <div class="d-flex align-center gap-3">
+        <a href="<?= $this->url('library/book') ?>" class="btn btn-outline btn-icon"><i class="bi bi-arrow-left"></i></a>
+        <div>
+            <div class="page-title"><?= $title ?></div>
+            <div class="page-subtitle">Chuẩn hoá thông tin thư mục trước khi xuất bản trong hệ thống.</div>
+        </div>
+    </div>
+</div>
+
+<?php if ($isEdit && isset($book) && $book->status === 'borrowed'): ?>
+<div class="alert alert-info" style="margin-bottom:20px"><i class="bi bi-info-circle"></i>Sách này hiện hết bản khả dụng — trạng thái đang mượn.</div>
+<?php endif; ?>
+
+<div style="max-width:720px">
+<div class="card">
+    <div class="card-body">
+        <form method="POST" action="<?= $actionUrl ?>">
+            <?= $this->formHidden($form->get('id')) ?>
+            <div style="display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:16px">
+                <div class="form-group" style="margin-bottom:0">
+                    <label class="form-label">Nhan đề *</label>
+                    <input type="text" name="title" class="form-control"
+                           value="<?= htmlspecialchars((string)($form->get('title')->getValue() ?? '')) ?>"
+                           maxlength="255" required>
+                    <?php $msgs = $form->get('title')->getMessages(); if ($msgs): ?>
+                    <div style="color:#ef4444;font-size:12px;margin-top:5px"><?= htmlspecialchars(implode(', ', $msgs)) ?></div>
+                    <?php endif; ?>
+                </div>
+                <div class="form-group" style="margin-bottom:0">
+                    <label class="form-label">ISBN</label>
+                    <input type="text" name="isbn" class="form-control"
+                           value="<?= htmlspecialchars((string)($form->get('isbn')->getValue() ?? '')) ?>"
+                           placeholder="978-..." maxlength="30">
+                </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px">
+                <div class="form-group" style="margin-bottom:0">
+                    <label class="form-label">Tác giả *</label>
+                    <input type="text" name="author" class="form-control"
+                           value="<?= htmlspecialchars((string)($form->get('author')->getValue() ?? '')) ?>" required>
+                    <?php $msgs = $form->get('author')->getMessages(); if ($msgs): ?>
+                    <div style="color:#ef4444;font-size:12px;margin-top:5px"><?= htmlspecialchars(implode(', ', $msgs)) ?></div>
+                    <?php endif; ?>
+                </div>
+                <div class="form-group" style="margin-bottom:0">
+                    <label class="form-label">Thể loại *</label>
+                    <?= $this->formSelect($form->get('category')->setAttribute('class', 'form-select')) ?>
+                </div>
+                <div class="form-group" style="margin-bottom:0">
+                    <label class="form-label">Số lượng *</label>
+                    <input type="number" name="quantity" class="form-control" min="1" max="999"
+                           value="<?= htmlspecialchars((string)($form->get('quantity')->getValue() ?: 1)) ?>" required>
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Trạng thái vận hành</label>
+                <select name="status" class="form-select" style="max-width:240px">
+                    <option value="available"   <?= $statusValue==='available'?'selected':'' ?>>Khả dụng</option>
+                    <option value="unavailable" <?= $statusValue==='unavailable'?'selected':'' ?>>Không khả dụng</option>
+                </select>
+            </div>
+            <div style="background:rgba(124,106,255,.08);border:1px solid rgba(124,106,255,.2);border-radius:8px;padding:14px;margin-bottom:20px;font-size:13px;color:var(--text-secondary)">
+                <i class="bi bi-info-circle" style="color:var(--accent-purple);margin-right:8px"></i>
+                Trạng thái <strong style="color:var(--text-primary)">đang mượn</strong> được hệ thống tự tính. Dùng <strong style="color:var(--text-primary)">không khả dụng</strong> để khoá đầu sách khỏi quy trình mượn trả.
+            </div>
+            <?= $this->formHidden($form->get('csrf')) ?>
+            <?php $msgs = $form->get('csrf')->getMessages(); if ($msgs): ?>
+            <div style="color:#ef4444;font-size:12px;margin-bottom:14px"><?= htmlspecialchars(implode(', ', $msgs)) ?></div>
+            <?php endif; ?>
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i><?= $isEdit ? 'Lưu thay đổi' : 'Tạo đầu sách' ?></button>
+                <a href="<?= $this->url('library/book') ?>" class="btn btn-outline">Hủy</a>
+            </div>
+        </form>
+    </div>
+</div>
+</div>

@@ -1,0 +1,222 @@
+<?php
+$this->headTitle('Tổng quan');
+$this->layout('layout/library-layout');
+$statusLabels = [
+    'borrowed' => ['label' => 'Đang mượn', 'class' => 'badge-purple'],
+    'returned' => ['label' => 'Đã trả',    'class' => 'badge-green'],
+    'overdue'  => ['label' => 'Quá hạn',   'class' => 'badge-red'],
+];
+?>
+
+<!-- PAGE HEADER -->
+<div class="page-header">
+    <div>
+        <div class="page-title">Tổng quan</div>
+        <div class="page-subtitle"><?= $isAdmin ? 'Bảng điều hành vận hành thư viện dành cho quản trị viên.' : 'Không gian theo dõi hoạt động mượn đọc của bạn.' ?></div>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="<?= $this->url('library/book') ?>" class="btn btn-outline"><i class="bi bi-book"></i><?= $isAdmin ? 'Mở kho sách' : 'Xem danh mục' ?></a>
+        <?php if ($isAdmin): ?>
+        <a href="<?= $this->url('library/transaction', ['action' => 'borrow']) ?>" class="btn btn-primary"><i class="bi bi-plus-circle"></i>Lập phiếu mượn</a>
+        <?php endif; ?>
+    </div>
+</div>
+
+<!-- STAT CARDS -->
+<div class="stat-cards">
+    <!-- Total Books -->
+    <div class="stat-card purple">
+        <div class="stat-icon purple"><i class="bi bi-book-half"></i></div>
+        <div class="stat-value"><?= number_format((int)$totalBooks) ?></div>
+        <div class="stat-label">Tổng số sách</div>
+        <div class="stat-bar"><div class="stat-bar-fill" style="width:<?= min(100, (int)$totalBooks * 5) ?>%;background:#7c6aff"></div></div>
+    </div>
+    <!-- Members -->
+    <div class="stat-card green">
+        <div class="stat-icon green"><i class="bi bi-people"></i></div>
+        <div class="stat-value"><?= number_format((int)($totalMembers ?? 0)) ?></div>
+        <div class="stat-label">Thành viên</div>
+        <div class="stat-bar"><div class="stat-bar-fill" style="width:<?= min(100, (int)($totalMembers ?? 0) * 10) ?>%;background:#22c55e"></div></div>
+    </div>
+    <!-- Borrowing -->
+    <div class="stat-card orange">
+        <div class="stat-icon orange"><i class="bi bi-bookmark-check"></i></div>
+        <div class="stat-value"><?= number_format((int)$totalBorrowed) ?></div>
+        <div class="stat-label">Đang mượn</div>
+        <div class="stat-bar"><div class="stat-bar-fill" style="width:<?= min(100, (int)$totalBorrowed * 5) ?>%;background:#f97316"></div></div>
+    </div>
+    <!-- Overdue -->
+    <div class="stat-card pink">
+        <div class="stat-icon pink"><i class="bi bi-exclamation-triangle"></i></div>
+        <div class="stat-value"><?= number_format((int)$totalOverdue) ?></div>
+        <div class="stat-label">Quá hạn</div>
+        <div class="stat-bar"><div class="stat-bar-fill" style="width:<?= min(100, (int)$totalOverdue * 10) ?>%;background:#ec4899"></div></div>
+    </div>
+</div>
+
+<!-- CHARTS ROW -->
+<div class="charts-row">
+    <!-- Line Chart: Borrow/Return Stats -->
+    <div class="card">
+        <div class="card-header">
+            <div>
+                <div class="card-title">Thống kê mượn / trả sách</div>
+                <div class="card-subtitle">Theo tháng trong năm <?= date('Y') ?></div>
+            </div>
+            <div class="d-flex gap-2 align-center" style="font-size:12px;color:var(--text-muted)">
+                <span style="display:flex;align-items:center;gap:5px"><span style="width:10px;height:10px;background:#7c6aff;border-radius:2px;display:inline-block"></span>Mượn</span>
+                <span style="display:flex;align-items:center;gap:5px"><span style="width:10px;height:10px;background:#22c55e;border-radius:2px;display:inline-block"></span>Trả</span>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="chart-area" style="height:220px">
+                <canvas id="borrowChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Donut Chart: Book Categories -->
+    <div class="card">
+        <div class="card-header">
+            <div>
+                <div class="card-title">Thể loại sách</div>
+                <div class="card-subtitle">Phân bố danh mục</div>
+            </div>
+        </div>
+        <div class="card-body">
+            <div style="height:160px;display:flex;align-items:center;justify-content:center">
+                <canvas id="categoryChart" style="max-height:160px"></canvas>
+            </div>
+            <?php
+            $catPalette = ['#7c6aff','#22c55e','#f97316','#ec4899','#3b82f6','#14b8a6','#fbbf24','#ef4444'];
+            $catStatsView = $categoryStats ?? [];
+            $catTotal = array_sum($catStatsView) ?: 1;
+            $ci = 0;
+            ?>
+            <div class="donut-legend">
+                <?php foreach ($catStatsView as $catName => $catCount): ?>
+                <?php $catPct = round($catCount / $catTotal * 100); $catClr = $catPalette[$ci % count($catPalette)]; $ci++; ?>
+                <div class="donut-legend-item">
+                    <div class="donut-legend-label"><div class="donut-legend-dot" style="background:<?= $catClr ?>"></div><?= htmlspecialchars($catName) ?></div>
+                    <div class="donut-legend-bar"><div class="donut-legend-bar-fill" style="width:<?= $catPct ?>%;background:<?= $catClr ?>"></div></div>
+                    <div class="donut-legend-pct"><?= $catPct ?>%</div>
+                </div>
+                <?php endforeach; ?>
+                <?php if (!$catStatsView): ?>
+                <div style="color:var(--text-muted);font-size:12px;text-align:center;padding:12px 0">Chưa có dữ liệu</div>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- RECENT TRANSACTIONS -->
+<div class="card">
+    <div class="card-header">
+        <div>
+            <div class="card-title"><i class="bi bi-clock-history" style="color:#7c6aff;margin-right:8px"></i><?= $isAdmin ? 'Phiếu mượn gần đây' : 'Hoạt động mượn gần đây' ?></div>
+        </div>
+        <a href="<?= $this->url('library/transaction') ?>" class="btn btn-outline btn-sm">Xem tất cả</a>
+    </div>
+    <div style="overflow-x:auto">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>#ID</th>
+                    <th>Tên sách</th>
+                    <?php if ($isAdmin): ?><th>Thành viên</th><?php endif; ?>
+                    <th>Ngày mượn</th>
+                    <th>Hạn trả</th>
+                    <th>Ngày trả</th>
+                    <th>Trạng thái</th>
+                </tr>
+            </thead>
+            <tbody>
+            <?php if ($recentBorrows === []): ?>
+                <tr><td colspan="<?= $isAdmin ? 7 : 6 ?>" style="text-align:center;padding:40px;color:var(--text-muted)">Chưa có dữ liệu mượn trả gần đây.</td></tr>
+            <?php else: ?>
+                <?php foreach ($recentBorrows as $record): ?>
+                <?php $s = $statusLabels[$record->status] ?? ['label' => $record->status, 'class' => 'badge-gray']; ?>
+                <tr>
+                    <td class="text-muted">#<?= (int)$record->id ?></td>
+                    <td class="fw-medium"><?= htmlspecialchars($record->bookTitle) ?></td>
+                    <?php if ($isAdmin): ?><td><?= htmlspecialchars($record->userFullName) ?></td><?php endif; ?>
+                    <td><?= htmlspecialchars($record->borrowDate) ?></td>
+                    <td><?= htmlspecialchars($record->returnDate) ?></td>
+                    <td><?= htmlspecialchars($record->returnedAt !== '' ? $record->returnedAt : '—') ?></td>
+                    <td><span class="badge <?= $s['class'] ?>"><?= $s['label'] ?></span></td>
+                </tr>
+                <?php endforeach; ?>
+            <?php endif; ?>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+<?php
+$monthlyStats  = $monthlyStats ?? ['borrow' => array_fill(0, 12, 0), 'return' => array_fill(0, 12, 0)];
+$borrowData    = json_encode(array_values($monthlyStats['borrow']));
+$returnData    = json_encode(array_values($monthlyStats['return']));
+
+// Category chart
+$catColors = ['#7c6aff','#22c55e','#f97316','#ec4899','#3b82f6','#14b8a6','#fbbf24','#ef4444'];
+$categoryStats = $categoryStats ?? [];
+$catLabels = json_encode(array_keys($categoryStats));
+$catData   = json_encode(array_values($categoryStats));
+$catColorsUsed = json_encode(array_slice($catColors, 0, count($categoryStats)));
+?>
+// Line Chart
+(function() {
+    const ctx = document.getElementById('borrowChart');
+    if (!ctx) return;
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: ['T1','T2','T3','T4','T5','T6','T7','T8','T9','T10','T11','T12'],
+            datasets: [{
+                label: 'Mượn', data: <?= $borrowData ?>,
+                borderColor: '#7c6aff', backgroundColor: 'rgba(124,106,255,0.12)',
+                fill: true, tension: 0.45, pointRadius: 3, borderWidth: 2.5
+            },{
+                label: 'Trả', data: <?= $returnData ?>,
+                borderColor: '#22c55e', backgroundColor: 'rgba(34,197,94,0.08)',
+                fill: true, tension: 0.45, pointRadius: 3, borderWidth: 2.5
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#5a6282', font: { size: 11 } } },
+                y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#5a6282', font: { size: 11 }, precision: 0 } }
+            }
+        }
+    });
+})();
+
+// Donut Chart
+(function() {
+    const ctx = document.getElementById('categoryChart');
+    if (!ctx) return;
+    const labels  = <?= $catLabels ?>;
+    const data    = <?= $catData ?>;
+    const colors  = <?= $catColorsUsed ?>;
+    if (!data.length) return;
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: data,
+                backgroundColor: colors,
+                borderWidth: 0, hoverOffset: 6
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false, cutout: '68%',
+            plugins: { legend: { display: false }, tooltip: { enabled: true } }
+        }
+    });
+})();
+</script>
