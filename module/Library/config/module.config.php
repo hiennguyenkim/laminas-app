@@ -134,6 +134,20 @@ return [
                                 'controller' => BookApiController::class,
                             ],
                         ],
+                        'may_terminate' => true,
+                        'child_routes' => [
+                            // GET /api/books/search?q=...&available_only=1
+                            'search' => [
+                                'type'    => Literal::class,
+                                'options' => [
+                                    'route'    => '/search',
+                                    'defaults' => [
+                                        'controller' => BookApiController::class,
+                                        'action'     => 'search',
+                                    ],
+                                ],
+                            ],
+                        ],
                     ],
                     'users' => [
                         'type' => Segment::class,

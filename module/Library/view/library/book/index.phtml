@@ -104,7 +104,8 @@ $activeCat = (string) ($filters['category'] ?? '');
     <?php
     $grad     = $gradVals[$idx % count($gradVals)];
     $leftQty  = (int) $book->quantity;
-    $available = $book->status === 'available' && $leftQty > 0;
+    // FIX: Dùng >= 1 thay vì > 0 — sách khả dụng khi có ít nhất 1 cuốn và status = 'available'
+    $available = $book->status === 'available' && $leftQty >= 1;
     [$statusLabel, $statusClass] = $statusMap[$book->status] ?? [$book->status, 'badge-gray'];
     $catClass = $catBadgeColors[$book->category] ?? 'badge-gray';
     $idx++;

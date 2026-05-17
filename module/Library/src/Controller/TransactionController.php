@@ -75,14 +75,20 @@ class TransactionController extends BaseController
         $currentUser = $this->currentUser() ?? [];
         $currentUserId = $currentUser['id'] ?? 0;
 
-        // Build dropdown options
+        // Build danh sách sách khả dụng cho Laminas Form validation
+        // (điều kiện: quantity >= 1 VÀ status = 'available')
+        // NOTE: UI mới dùng AJAX autocomplete, nhưng vẫn cần bookOptions
+        //       để BorrowForm validate book_id hợp lệ phía server.
         $bookOptions = [];
         foreach ($this->bookTable->fetchAll() as $book) {
             if (! $book instanceof Book) {
                 continue;
             }
 
-            if ($book->quantity > 0 && $book->status !== 'unavailable') {
+            // FIX: Dùng >= 1 thay vì > 0 để tường minh hơn.
+            // Cả hai đều bằng nhau với số nguyên, nhưng >= 1 phản ánh
+            // đúng nghĩa "còn ít nhất 1 cuốn có thể mượn".
+            if ($book->quantity >= 1 && $book->status === 'available') {
                 $bookOptions[$book->id] = $book->title . ' (còn ' . $book->quantity . ')';
             }
         }
@@ -108,6 +114,7 @@ class TransactionController extends BaseController
         }
         $form->setSelectionOptions($bookOptions, $userOptions);
 
+        // Book ID để prefill UI (từ ?book_id=... trong URL)
         $prefillBookId = (int) $this->queryString('book_id');
 
         if ($this->httpRequest()->isPost()) {
@@ -129,9 +136,10 @@ class TransactionController extends BaseController
                     ]);
 
                     return new ViewModel([
-                        'form' => $form,
-                        'isAdmin' => $isAdmin,
-                        'currentUser' => $currentUser,
+                        'form'         => $form,
+                        'isAdmin'      => $isAdmin,
+                        'currentUser'  => $currentUser,
+                        'prefillBookId' => $prefillBookId,
                     ]);
                 }
 
@@ -159,9 +167,10 @@ class TransactionController extends BaseController
         }
 
         return new ViewModel([
-            'form' => $form,
-            'isAdmin' => $isAdmin,
-            'currentUser' => $currentUser,
+            'form'          => $form,
+            'isAdmin'       => $isAdmin,
+            'currentUser'   => $currentUser,
+            'prefillBookId' => $prefillBookId,
         ]);
     }
 
