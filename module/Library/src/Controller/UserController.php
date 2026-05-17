@@ -290,4 +290,55 @@ class UserController extends BaseController
 
         return $this->redirect()->toRoute('library/user');
     }
+
+    public function lockAction(): Response
+    {
+        if ($response = $this->requireAdmin()) {
+            return $response;
+        }
+
+        if (!$this->httpRequest()->isPost()) {
+            return $this->redirect()->toRoute('library/user');
+        }
+
+        $id = $this->routeInt('id');
+        $reason = trim((string)($this->postData()['reason'] ?? ''));
+
+        try {
+            $user = $this->userTable->getUser($id);
+            if ($user->role !== 'student') {
+                $this->flash()->addErrorMessage('Chỉ có thể khóa tài khoản sinh viên.');
+                return $this->redirect()->toRoute('library/user');
+            }
+            $this->userTable->lockUser($id, $reason);
+            $this->flash()->addSuccessMessage('Đã khóa tài khoản ' . $user->username . '.');
+        } catch (\Exception $e) {
+            $this->flash()->addErrorMessage($e->getMessage());
+        }
+
+        return $this->redirect()->toRoute('library/user');
+    }
+
+    public function unlockAction(): Response
+    {
+        if ($response = $this->requireAdmin()) {
+            return $response;
+        }
+
+        if (!$this->httpRequest()->isPost()) {
+            return $this->redirect()->toRoute('library/user');
+        }
+
+        $id = $this->routeInt('id');
+
+        try {
+            $user = $this->userTable->getUser($id);
+            $this->userTable->unlockUser($id);
+            $this->flash()->addSuccessMessage('Đã mở khóa tài khoản ' . $user->username . '.');
+        } catch (\Exception $e) {
+            $this->flash()->addErrorMessage($e->getMessage());
+        }
+
+        return $this->redirect()->toRoute('library/user');
+    }
 }

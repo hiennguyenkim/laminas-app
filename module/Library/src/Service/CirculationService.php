@@ -46,6 +46,11 @@ class CirculationService
             throw new DomainException('Chỉ tài khoản sinh viên mới được lập phiếu mượn.');
         }
 
+        if ($borrower->isLocked()) {
+            $reason = $borrower->lockReason !== '' ? ' (' . $borrower->lockReason . ')' : '';
+            throw new DomainException('Tài khoản sinh viên đã bị khóa mượn sách' . $reason . '.');
+        }
+
         if ($this->borrowTable->hasOverdueLoans($userId)) {
             throw new DomainException('Sinh viên này đang có sách quá hạn, vui lòng xử lý quá hạn trước khi mượn mới.');
         }

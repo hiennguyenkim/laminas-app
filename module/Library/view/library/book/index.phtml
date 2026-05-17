@@ -169,3 +169,42 @@ $activeCat = (string) ($filters['category'] ?? '');
     </div>
 </div>
 <?php endif; ?>
+
+<!-- DASHBOARD / NEWS BOARD (Bảng tin) -->
+<?php if (!empty($announcements)): ?>
+<div style="margin-top:40px;">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
+        <i class="bi bi-megaphone-fill" style="color:#ef4444;font-size:24px;"></i>
+        <h2 style="margin:0;font-size:20px;font-weight:700;">Bảng tin Thư viện</h2>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(300px, 1fr));gap:20px;">
+        <?php foreach ($announcements as $ann): ?>
+        <?php 
+            $bg = 'linear-gradient(135deg, #f8fafc, #f1f5f9)';
+            $badge = 'Thông báo';
+            $badgeColor = '#3b82f6';
+            if ($ann['type'] === 'event') { $badge = 'Sự kiện'; $badgeColor = '#ec4899'; }
+            if ($ann['type'] === 'contest') { $badge = 'Cuộc thi'; $badgeColor = '#f97316'; }
+            if ($ann['type'] === 'holiday') { $badge = 'Nghỉ lễ'; $badgeColor = '#22c55e'; }
+        ?>
+        <div class="card" style="border:1px solid var(--border);border-top:4px solid <?= $badgeColor ?>;background:<?= $bg ?>;box-shadow:0 4px 15px rgba(0,0,0,0.03);">
+            <div class="card-body">
+                <div style="display:flex;justify-content:space-between;margin-bottom:12px;">
+                    <span class="badge" style="background:<?= $badgeColor ?>;color:#fff;"><?= $badge ?></span>
+                    <span style="font-size:12px;color:var(--text-muted);"><i class="bi bi-clock"></i> <?= date('d/m/Y', strtotime($ann['created_at'])) ?></span>
+                </div>
+                <h3 style="margin:0 0 10px 0;font-size:16px;font-weight:700;color:var(--text-primary);"><?= htmlspecialchars($ann['title']) ?></h3>
+                <p style="margin:0;font-size:13.5px;color:var(--text-secondary);line-height:1.5;">
+                    <?= nl2br(htmlspecialchars($ann['content'])) ?>
+                </p>
+                <?php if ($ann['start_date'] && $ann['end_date']): ?>
+                <div style="margin-top:12px;font-size:12px;font-weight:600;color:var(--text-primary);">
+                    <i class="bi bi-calendar-check" style="color:<?= $badgeColor ?>"></i> Thời gian: <?= date('d/m', strtotime($ann['start_date'])) ?> - <?= date('d/m/Y', strtotime($ann['end_date'])) ?>
+                </div>
+                <?php endif; ?>
+            </div>
+        </div>
+        <?php endforeach; ?>
+    </div>
+</div>
+<?php endif; ?>

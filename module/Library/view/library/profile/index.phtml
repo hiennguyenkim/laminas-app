@@ -1,0 +1,133 @@
+<?php
+$this->headTitle('Hồ sơ cá nhân');
+$this->layout('layout/library-layout');
+?>
+
+<div class="page-header">
+    <div class="d-flex align-center gap-3">
+        <div>
+            <div class="page-title">Hồ sơ cá nhân</div>
+            <div class="page-subtitle">Quản lý thông tin và theo dõi lịch sử thư viện của bạn.</div>
+        </div>
+    </div>
+</div>
+
+<div class="d-flex gap-4 flex-wrap">
+    <!-- Left Column: Profile Form -->
+    <div style="flex: 1; min-width: 320px;">
+        <div class="card">
+            <div class="card-body">
+                <form method="POST" action="<?= $this->url('library/profile', ['action' => 'update']) ?>" enctype="multipart/form-data">
+                    <div style="display: flex; gap: 20px; align-items: flex-start; margin-bottom: 20px;">
+                        <div class="avatar-preview" style="width: 80px; height: 80px; border-radius: 50%; overflow: hidden; background: var(--bg-card); border: 2px solid var(--border);">
+                            <?php if ($user->avatarUrl): ?>
+                                <img src="<?= $this->basePath($user->avatarUrl) ?>" style="width: 100%; height: 100%; object-fit: cover;">
+                            <?php else: ?>
+                                <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg,#7c6aff,#a78bfa); color: #fff; font-size: 24px; font-weight: bold;">
+                                    <?= substr($user->fullName ?: $user->username, 0, 1) ?>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                        <div style="flex: 1;">
+                            <label class="form-label">Ảnh đại diện</label>
+                            <input type="file" name="avatar" class="form-control" accept="image/*">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Họ tên (Chỉ xem)</label>
+                        <input type="text" class="form-control" value="<?= htmlspecialchars($user->fullName) ?>" disabled>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Email (Chỉ xem)</label>
+                        <input type="email" class="form-control" value="<?= htmlspecialchars($user->email) ?>" disabled>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Biệt danh</label>
+                        <input type="text" name="nickname" class="form-control" value="<?= htmlspecialchars($user->nickname) ?>" placeholder="Nhập biệt danh của bạn...">
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                        <div class="form-group">
+                            <label class="form-label">Ngày sinh</label>
+                            <input type="date" name="date_of_birth" class="form-control" value="<?= htmlspecialchars($user->dateOfBirth) ?>">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Số điện thoại</label>
+                            <input type="text" name="phone" class="form-control" value="<?= htmlspecialchars($user->phone) ?>" placeholder="09xxxxxxx">
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary" style="margin-top: 10px;">
+                        <i class="bi bi-save"></i> Cập nhật hồ sơ
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column: Stats & History -->
+    <div style="flex: 1.5; min-width: 400px;">
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px;">
+            <div class="card" style="padding: 16px; text-align: center;">
+                <div style="font-size: 24px; font-weight: bold; color: var(--accent-purple);"><?= $stats['total_borrowed'] ?></div>
+                <div style="font-size: 13px; color: var(--text-muted);">Đã mượn</div>
+            </div>
+            <div class="card" style="padding: 16px; text-align: center;">
+                <div style="font-size: 24px; font-weight: bold; color: var(--accent-blue);"><?= $stats['active_loans'] ?></div>
+                <div style="font-size: 13px; color: var(--text-muted);">Đang mượn</div>
+            </div>
+            <div class="card" style="padding: 16px; text-align: center;">
+                <div style="font-size: 24px; font-weight: bold; color: #ef4444;"><?= $stats['overdue_count'] ?></div>
+                <div style="font-size: 13px; color: var(--text-muted);">Trễ hạn</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header" style="padding: 16px; border-bottom: 1px solid var(--border); font-weight: 600;">
+                <i class="bi bi-clock-history"></i> Lịch sử mượn trả
+            </div>
+            <div class="card-body" style="padding: 0;">
+                <?php if (empty($history)): ?>
+                    <div style="padding: 30px; text-align: center; color: var(--text-muted);">
+                        <i class="bi bi-inbox" style="font-size: 32px; opacity: 0.5;"></i>
+                        <p style="margin-top: 10px;">Bạn chưa mượn cuốn sách nào.</p>
+                    </div>
+                <?php else: ?>
+                    <table class="table" style="margin: 0;">
+                        <thead>
+                            <tr>
+                                <th>Sách</th>
+                                <th>Ngày mượn</th>
+                                <th>Trạng thái</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($history as $record): ?>
+                            <tr>
+                                <td>
+                                    <div style="font-weight: 600; color: var(--text-primary); font-size: 13px;">
+                                        <?= htmlspecialchars($record->bookTitle) ?>
+                                    </div>
+                                </td>
+                                <td><?= htmlspecialchars($record->borrowDate) ?></td>
+                                <td>
+                                    <?php if ($record->status === 'returned'): ?>
+                                        <span class="badge badge-green">Đã trả</span>
+                                    <?php elseif ($record->status === 'overdue'): ?>
+                                        <span class="badge badge-red">Quá hạn</span>
+                                    <?php else: ?>
+                                        <span class="badge badge-blue">Đang mượn</span>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+</div>

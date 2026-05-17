@@ -157,13 +157,37 @@ class UserTable
         $this->tableGateway->delete([self::PK => $id]);
     }
 
+    public function lockUser(int $id, string $reason = ''): void
+    {
+        $this->tableGateway->update([
+            'account_status' => 'locked',
+            'lock_reason'    => $reason,
+            'locked_at'      => new Expression('NOW()'),
+        ], [self::PK => $id]);
+    }
+
+    public function unlockUser(int $id): void
+    {
+        $this->tableGateway->update([
+            'account_status' => 'active',
+            'lock_reason'    => null,
+            'locked_at'      => null,
+        ], [self::PK => $id]);
+    }
+
     public function saveUser(User $user, ?string $passwordHash = null): void
     {
         $data = [
-            'username'  => $user->username,
-            'email'     => $user->email,
-            'full_name' => $user->fullName,
-            'role'      => $user->role,
+            'username'       => $user->username,
+            'email'          => $user->email,
+            'full_name'      => $user->fullName,
+            'role'           => $user->role,
+            'nickname'       => $user->nickname,
+            'date_of_birth'  => $user->dateOfBirth !== '' ? $user->dateOfBirth : null,
+            'avatar_url'     => $user->avatarUrl !== '' ? $user->avatarUrl : null,
+            'account_status' => $user->accountStatus,
+            'lock_reason'    => $user->lockReason !== '' ? $user->lockReason : null,
+            'phone'          => $user->phone !== '' ? $user->phone : null,
         ];
 
         if ($passwordHash !== null) {

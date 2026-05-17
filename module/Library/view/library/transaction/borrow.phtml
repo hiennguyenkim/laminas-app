@@ -313,7 +313,7 @@ $due14d   = date('Y-m-d', strtotime('+14 days'));
     'use strict';
 
     // ── Cấu hình ──────────────────────────────────────────
-    const SEARCH_API   = '/api/books/search';
+    const SEARCH_API   = '<?= $this->url('api/books/search') ?>';
     const MIN_CHARS    = 1;          // Bắt đầu tìm từ 1 ký tự
     const DEBOUNCE_MS  = 280;        // Tránh spam request
 

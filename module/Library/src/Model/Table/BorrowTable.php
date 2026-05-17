@@ -13,7 +13,7 @@ use Laminas\Db\TableGateway\TableGateway;
 class BorrowTable
 {
     private const PK = 'borrow_id';
-    private const RETURNED_HISTORY_RETENTION_DAYS = 30;
+    private const RETURNED_HISTORY_RETENTION_DAYS = 3650;
 
     private TableGateway $tableGateway;
     private bool $expiredReturnedHistoryCleaned = false;

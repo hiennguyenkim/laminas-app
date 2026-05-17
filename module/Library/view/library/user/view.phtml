@@ -65,6 +65,9 @@ $statusMap = [
                     <?php if ((int) $user->id === (int) $currentId) : ?>
                         <span class="badge badge-gray" style="margin-left:4px">Bạn</span>
                     <?php endif; ?>
+                    <?php if ($user->isLocked()) : ?>
+                        <span class="badge badge-red" style="margin-left:4px">Bị khóa</span>
+                    <?php endif; ?>
                 </div>
             </div>
             <div>
@@ -98,6 +101,23 @@ $statusMap = [
                     <i class="bi bi-trash"></i>Xóa tài khoản
                 </button>
             </form>
+
+            <?php if ($user->role === 'student'): ?>
+                <?php if ($user->isLocked()): ?>
+                <form method="POST" action="<?= $this->url('library/user', ['action' => 'unlock', 'id' => $user->id]) ?>" style="margin:0">
+                    <button type="submit" class="btn btn-sm btn-outline" style="color:#22c55e;border-color:#22c55e">
+                        <i class="bi bi-unlock"></i>Mở khóa tài khoản
+                    </button>
+                </form>
+                <?php else: ?>
+                <form method="POST" action="<?= $this->url('library/user', ['action' => 'lock', 'id' => $user->id]) ?>" style="margin:0">
+                    <input type="hidden" name="reason" value="Khóa từ trang chi tiết">
+                    <button type="submit" class="btn btn-sm btn-outline" style="color:#ef4444;border-color:#ef4444" onclick="return confirm('Bạn có chắc muốn khóa người dùng này?');">
+                        <i class="bi bi-lock"></i>Khóa tài khoản
+                    </button>
+                </form>
+                <?php endif; ?>
+            <?php endif; ?>
         </div>
     </div>
 </div>

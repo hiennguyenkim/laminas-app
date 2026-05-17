@@ -110,6 +110,11 @@ class BookTable
             'category' => $book->category,
             'quantity' => $book->quantity,
             'status'   => $status,
+            'description'    => $book->description !== '' ? $book->description : null,
+            'publisher'      => $book->publisher !== '' ? $book->publisher : null,
+            'published_year' => $book->publishedYear !== '' ? $book->publishedYear : null,
+            'import_date'    => $book->importDate !== '' ? $book->importDate : null,
+            'cover_image_url'=> $book->coverImageUrl !== '' ? $book->coverImageUrl : null,
         ];
 
         $book->status = $status;
@@ -342,7 +347,7 @@ class BookTable
 
         $category = trim((string) ($filters['category'] ?? ''));
         if ($category !== '') {
-            $select->where(['category' => $category]);
+            $select->where->like('category', '%' . $category . '%');
         }
 
         $status = trim((string) ($filters['status'] ?? ''));

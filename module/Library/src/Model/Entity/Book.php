@@ -19,6 +19,13 @@ class Book
     public string $createdAt = '';
     public string $lastReturnedAt = '';
 
+    // Phase 3.2
+    public string $description   = '';
+    public string $publisher     = '';
+    public string $publishedYear = '';
+    public string $importDate    = '';
+    public string $coverImageUrl = '';
+
     public function exchangeArray(array $data): void
     {
         $this->id        = (int)    ($data['id'] ?? $data['book_id'] ?? 0);
@@ -30,6 +37,13 @@ class Book
         $this->status    = (string) ($data['status'] ?? 'available');
         $this->createdAt = (string) ($data['created_at'] ?? '');
         $this->lastReturnedAt = (string) ($data['last_returned_at'] ?? '');
+
+        // Phase 3.2
+        $this->description   = (string) ($data['description'] ?? '');
+        $this->publisher     = (string) ($data['publisher'] ?? '');
+        $this->publishedYear = (string) ($data['published_year'] ?? '');
+        $this->importDate    = (string) ($data['import_date'] ?? '');
+        $this->coverImageUrl = (string) ($data['cover_image_url'] ?? '');
     }
 
     public function getArrayCopy(): array
@@ -42,6 +56,11 @@ class Book
             'category' => $this->category,
             'quantity' => $this->quantity,
             'status'   => $this->status,
+            'description'    => $this->description,
+            'publisher'      => $this->publisher,
+            'published_year' => $this->publishedYear,
+            'import_date'    => $this->importDate,
+            'cover_image_url'=> $this->coverImageUrl,
         ];
     }
 }

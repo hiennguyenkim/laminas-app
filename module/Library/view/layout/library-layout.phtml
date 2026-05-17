@@ -8,8 +8,10 @@ $isAdmin        = ($authUser['role'] ?? '') === 'admin';
 
 $initials = function(string $name): string {
     $words = explode(' ', trim($name));
-    $i = strtoupper(substr(end($words), 0, 1));
-    if (count($words) > 1) $i = strtoupper(substr($words[0], 0, 1)) . strtoupper(substr(end($words), 0, 1));
+    $i = mb_strtoupper(mb_substr(end($words), 0, 1, 'UTF-8'), 'UTF-8');
+    if (count($words) > 1) {
+        $i = mb_strtoupper(mb_substr($words[0], 0, 1, 'UTF-8'), 'UTF-8') . mb_strtoupper(mb_substr(end($words), 0, 1, 'UTF-8'), 'UTF-8');
+    }
     return $i;
 };
 
@@ -21,14 +23,16 @@ if ($authUser) {
         $navItems[] = ['url' => $this->url('library/user'), 'icon' => 'bi-people', 'label' => 'Thành viên', 'key' => 'user', 'color' => '#22c55e'];
     }
     $navItems[] = ['url' => $this->url('library/transaction'), 'icon' => 'bi-arrow-left-right', 'label' => 'Mượn / Trả', 'key' => 'transaction', 'color' => '#ec4899'];
+    $navItems[] = ['url' => $this->url('library/profile'), 'icon' => 'bi-person-circle', 'label' => 'Hồ sơ', 'key' => 'profile', 'color' => '#3b82f6'];
 }
 
-$pageColors = ['dashboard' => '#7c6aff', 'book' => '#f97316', 'user' => '#22c55e', 'transaction' => '#ec4899'];
+$pageColors = ['dashboard' => '#7c6aff', 'book' => '#f97316', 'user' => '#22c55e', 'transaction' => '#ec4899', 'profile' => '#3b82f6'];
 $activeKey  = 'dashboard';
 // Match actual route segments: /admin/books, /admin/users, /admin/borrow
 if      (strpos($currentUri, '/books')  !== false) $activeKey = 'book';
 elseif  (strpos($currentUri, '/users')  !== false) $activeKey = 'user';
 elseif  (strpos($currentUri, '/borrow') !== false) $activeKey = 'transaction';
+elseif  (strpos($currentUri, '/profile')!== false) $activeKey = 'profile';
 if (strpos($currentUri, '/auth') !== false) $activeKey = '';
 $activeColor = $pageColors[$activeKey] ?? '#7c6aff';
 
@@ -37,6 +41,7 @@ $pageLabels = [
     'book'        => ($isAdmin ? 'Sách' : 'Danh mục sách'),
     'user'        => 'Thành viên',
     'transaction' => 'Mượn / Trả',
+    'profile'     => 'Hồ sơ cá nhân',
 ];
 $pageLabel = $authUser ? ($pageLabels[$activeKey] ?? '') : 'Đăng nhập';
 ?>
@@ -102,8 +107,10 @@ $pageLabel = $authUser ? ($pageLabels[$activeKey] ?? '') : 'Đăng nhập';
                     <?= $initials(htmlspecialchars($authUser['full_name'] ?? 'QL')) ?>
                 </div>
                 <div class="sidebar-user-info" style="flex:1;min-width:0">
-                    <div class="uname"><?= $isAdmin ? 'Quản Lý' : htmlspecialchars($authUser['full_name'] ?? '') ?></div>
-                    <div class="uemail"><?= htmlspecialchars($authUser['email'] ?? 'admin@library.vn') ?></div>
+                    <a href="<?= $this->url('library/profile') ?>" style="text-decoration:none;">
+                        <div class="uname"><?= $isAdmin ? 'Quản Lý' : htmlspecialchars($authUser['full_name'] ?? '') ?></div>
+                        <div class="uemail"><?= htmlspecialchars($authUser['email'] ?? 'admin@library.vn') ?></div>
+                    </a>
                 </div>
                 <a href="<?= $this->url('library/auth', ['action' => 'logout']) ?>"
                    title="Đăng xuất" style="color:var(--text-muted);font-size:16px;text-decoration:none">
@@ -205,5 +212,140 @@ setTimeout(() => {
     });
 }, 4000);
 </script>
+
+    <!-- AI CHATBOX WIDGET -->
+    <div id="ai-chatbox" class="chatbox-container">
+        <div class="chatbox-header" onclick="toggleChatbox()">
+            <div style="display:flex;align-items:center;gap:10px;">
+                <div style="width:32px;height:32px;background:#fff;color:var(--accent-purple);border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:bold;">
+                    <i class="bi bi-robot"></i>
+                </div>
+                <div>
+                    <div style="font-weight:bold;font-size:14px;">Trợ Lý AI Thư Viện</div>
+                    <div style="font-size:11px;opacity:0.8;">Online</div>
+                </div>
+            </div>
+            <i class="bi bi-chevron-down" id="chatbox-toggle-icon"></i>
+        </div>
+        <div class="chatbox-body" id="chatbox-body">
+            <div class="chat-msg ai-msg">
+                Xin chào <?= $authUser ? htmlspecialchars($authUser['full_name']) : 'bạn' ?>! Tôi có thể giúp gì cho bạn hôm nay? Nhập thể loại hoặc tên sách bạn đang tìm nhé.
+            </div>
+        </div>
+        <div class="chatbox-footer">
+            <input type="text" id="chatbox-input" placeholder="Nhập tin nhắn..." onkeypress="if(event.key === 'Enter') sendChat()">
+            <button onclick="sendChat()" class="btn btn-primary" style="padding:8px 12px;"><i class="bi bi-send"></i></button>
+        </div>
+    </div>
+    
+    <button id="chatbox-fab" class="chatbox-fab" onclick="toggleChatbox()">
+        <i class="bi bi-chat-dots-fill"></i>
+    </button>
+
+    <style>
+    .chatbox-container {
+        position: fixed; bottom: 20px; right: 20px; width: 340px; background: var(--bg-card);
+        border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); border: 1px solid var(--border);
+        display: flex; flex-direction: column; overflow: hidden; transition: all 0.3s;
+        z-index: 9999; transform-origin: bottom right; transform: scale(0); opacity: 0; pointer-events: none;
+    }
+    .chatbox-container.active { transform: scale(1); opacity: 1; pointer-events: auto; }
+    .chatbox-header {
+        background: linear-gradient(135deg, var(--accent-purple), var(--accent-blue)); color: white;
+        padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; cursor: pointer;
+    }
+    .chatbox-body {
+        height: 300px; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px;
+        background: var(--bg-body);
+    }
+    .chat-msg {
+        max-width: 85%; padding: 10px 14px; border-radius: 12px; font-size: 13.5px; line-height: 1.4;
+    }
+    .ai-msg { background: var(--bg-card); color: var(--text-primary); align-self: flex-start; border-bottom-left-radius: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border: 1px solid var(--border); }
+    .user-msg { background: var(--accent-purple); color: white; align-self: flex-end; border-bottom-right-radius: 4px; box-shadow: 0 2px 5px rgba(124,106,255,0.3); }
+    .chatbox-footer {
+        padding: 12px; display: flex; gap: 8px; border-top: 1px solid var(--border); background: var(--bg-card);
+    }
+    #chatbox-input {
+        flex: 1; padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-body); color: var(--text-primary); outline: none;
+    }
+    .chatbox-fab {
+        position: fixed; bottom: 20px; right: 20px; width: 56px; height: 56px; border-radius: 50%;
+        background: linear-gradient(135deg, var(--accent-purple), var(--accent-blue)); color: white;
+        border: none; font-size: 24px; box-shadow: 0 5px 15px rgba(124,106,255,0.4); cursor: pointer;
+        z-index: 9998; transition: transform 0.2s; display: flex; align-items: center; justify-content: center;
+    }
+    .chatbox-fab:hover { transform: scale(1.05); }
+    .chatbox-container.active + .chatbox-fab { transform: scale(0); pointer-events: none; }
+    .typing-indicator { display: inline-flex; align-items: center; gap: 4px; padding: 8px 12px; background: var(--bg-card); border-radius: 12px; align-self: flex-start; border: 1px solid var(--border); }
+    .typing-dot { width: 6px; height: 6px; background: var(--text-muted); border-radius: 50%; animation: typing 1.4s infinite ease-in-out both; }
+    .typing-dot:nth-child(1) { animation-delay: -0.32s; } .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+    @keyframes typing { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
+    .book-suggestion { margin-top: 8px; padding: 8px; border-radius: 6px; background: var(--bg-body); border: 1px solid var(--border); font-size: 12px; cursor: pointer; transition: background 0.2s; }
+    .book-suggestion:hover { background: var(--border); }
+    </style>
+
+    <script>
+    function toggleChatbox() {
+        document.getElementById('ai-chatbox').classList.toggle('active');
+        if (document.getElementById('ai-chatbox').classList.contains('active')) {
+            document.getElementById('chatbox-input').focus();
+        }
+    }
+
+    async function sendChat() {
+        const input = document.getElementById('chatbox-input');
+        const msg = input.value.trim();
+        if (!msg) return;
+
+        // Add user msg
+        const body = document.getElementById('chatbox-body');
+        body.innerHTML += `<div class="chat-msg user-msg">${escapeHtml(msg)}</div>`;
+        input.value = '';
+        body.scrollTop = body.scrollHeight;
+
+        // Show typing
+        const typingId = 'typing-' + Date.now();
+        body.innerHTML += `
+            <div id="${typingId}" class="typing-indicator">
+                <div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>
+            </div>`;
+        body.scrollTop = body.scrollHeight;
+
+        try {
+            const userId = <?= $authUser ? $authUser['id'] : 'null' ?>;
+            const res = await fetch('<?= $this->url('api/books/search') ?>'.replace('/search', '/chat'), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: msg, user_id: userId })
+            });
+            const data = await res.json();
+            
+            document.getElementById(typingId).remove();
+            
+            let aiHtml = `<div class="chat-msg ai-msg">${escapeHtml(data.reply)}`;
+            if (data.suggestions && data.suggestions.length > 0) {
+                data.suggestions.forEach(book => {
+                    aiHtml += `
+                    <div class="book-suggestion" onclick="window.location.href='<?= $this->url('catalog') ?>?q=' + encodeURIComponent('${book.title}')">
+                        <div style="font-weight:bold;color:var(--accent-purple)"><i class="bi bi-book"></i> ${escapeHtml(book.title)}</div>
+                        <div style="color:var(--text-muted)">${escapeHtml(book.author)}</div>
+                    </div>`;
+                });
+            }
+            aiHtml += `</div>`;
+            body.innerHTML += aiHtml;
+            body.scrollTop = body.scrollHeight;
+
+        } catch (e) {
+            document.getElementById(typingId).remove();
+            body.innerHTML += `<div class="chat-msg ai-msg" style="color:#ef4444">Lỗi kết nối. Vui lòng thử lại sau.</div>`;
+        }
+    }
+
+    function escapeHtml(unsafe) {
+        return (unsafe||'').replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    }
+    </script>
 </body>
 </html>

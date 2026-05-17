@@ -26,7 +26,8 @@ class BookController extends BaseController
         AuthSessionContainer $authSessionContainer,
         private BookTable $bookTable,
         private BorrowTable $borrowTable,
-        private FormElementManager $formElementManager
+        private FormElementManager $formElementManager,
+        private ?\Laminas\Db\Adapter\AdapterInterface $dbAdapter = null
     ) {
         parent::__construct($authSessionContainer);
     }
@@ -71,6 +72,18 @@ class BookController extends BaseController
         $totalPages = max(1, (int) ceil($totalItems / self::PER_PAGE));
         $page = min($page, $totalPages);
 
+        $announcements = [];
+        if ($this->dbAdapter) {
+            try {
+                $sql = 'SELECT * FROM announcements WHERE is_active = 1 AND (start_date IS NULL OR start_date <= CURDATE()) AND (end_date IS NULL OR end_date >= CURDATE()) ORDER BY created_at DESC LIMIT 5';
+                $statement = $this->dbAdapter->query($sql);
+                $announcements = $statement->execute();
+                $announcements = iterator_to_array($announcements);
+            } catch (\Exception $e) {
+                // ignore
+            }
+        }
+
         return new ViewModel([
             'books'      => $this->bookTable->fetchPage($filters, $page, self::PER_PAGE),
             'filters'    => $filters,
@@ -86,6 +99,7 @@ class BookController extends BaseController
                 'totalItems' => $totalItems,
                 'totalPages' => $totalPages,
             ],
+            'announcements' => $announcements,
         ]);
     }
 

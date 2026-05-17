@@ -8,13 +8,14 @@ use Laminas\Router\Http\Segment;
 use Library\Controller\AuthController;
 use Library\Controller\BookController;
 use Library\Controller\DashboardController;
-use Library\Controller\HomeController;
+use Library\Controller\ProfileController;
 use Library\Controller\TransactionController;
 use Library\Controller\UserController;
 use Library\Factory\Controller\AuthControllerFactory;
 use Library\Factory\Controller\BookControllerFactory;
 use Library\Factory\Controller\DashboardControllerFactory;
 use Library\Factory\Controller\HomeControllerFactory;
+use Library\Factory\Controller\ProfileControllerFactory;
 use Library\Factory\Controller\TransactionControllerFactory;
 use Library\Factory\Controller\UserControllerFactory;
 use Library\Factory\Form\BookFormFactory;
@@ -111,6 +112,14 @@ return [
                             'defaults'    => ['controller' => TransactionController::class, 'action' => 'index'],
                         ],
                     ],
+                    'profile' => [
+                        'type'    => Segment::class,
+                        'options' => [
+                            'route'       => '/profile[/:action]',
+                            'constraints' => ['action' => '[a-zA-Z][a-zA-Z0-9_-]*'],
+                            'defaults'    => ['controller' => ProfileController::class, 'action' => 'index'],
+                        ],
+                    ],
                 ],
             ],
             'api' => [
@@ -144,6 +153,17 @@ return [
                                     'defaults' => [
                                         'controller' => BookApiController::class,
                                         'action'     => 'search',
+                                    ],
+                                ],
+                            ],
+                            // POST /api/books/chat
+                            'chat' => [
+                                'type'    => Literal::class,
+                                'options' => [
+                                    'route'    => '/chat',
+                                    'defaults' => [
+                                        'controller' => BookApiController::class,
+                                        'action'     => 'chat',
                                     ],
                                 ],
                             ],
@@ -185,6 +205,7 @@ return [
             AuthController::class        => AuthControllerFactory::class,
             BookController::class        => BookControllerFactory::class,
             DashboardController::class   => DashboardControllerFactory::class,
+            ProfileController::class     => ProfileControllerFactory::class,
             TransactionController::class => TransactionControllerFactory::class,
             UserController::class        => UserControllerFactory::class,
             BookApiController::class     => BookApiControllerFactory::class,

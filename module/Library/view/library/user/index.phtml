@@ -51,9 +51,13 @@ $initials = function(string $name): string {
     <?php
     $color   = $avatarColors[$idx % count($avatarColors)];
     $isNew   = isset($user->createdAt) && strtotime($user->createdAt) > strtotime('-30 days');
-    $statusBadge = $user->role === 'admin'
-        ? '<span class="badge badge-orange"><span style="width:6px;height:6px;background:#f97316;border-radius:50%;display:inline-block"></span>Admin</span>'
-        : '<span class="badge badge-green"><span style="width:6px;height:6px;background:#22c55e;border-radius:50%;display:inline-block"></span>Hoạt động</span>';
+    if ($user->role === 'admin') {
+        $statusBadge = '<span class="badge badge-orange"><span style="width:6px;height:6px;background:#f97316;border-radius:50%;display:inline-block"></span>Admin</span>';
+    } elseif ($user->isLocked()) {
+        $statusBadge = '<span class="badge badge-red"><span style="width:6px;height:6px;background:#ef4444;border-radius:50%;display:inline-block"></span>Đã khóa</span>';
+    } else {
+        $statusBadge = '<span class="badge badge-green"><span style="width:6px;height:6px;background:#22c55e;border-radius:50%;display:inline-block"></span>Hoạt động</span>';
+    }
     $borrowCount = (int)($user->borrowCount ?? 0);
     $totalBorrow = (int)($user->totalBorrows ?? 0);
     $idx++;
@@ -96,8 +100,25 @@ $initials = function(string $name): string {
             </a>
             <a href="<?= $this->url('library/user', ['action' => 'edit', 'id' => $user->id]) ?>" class="btn btn-primary btn-sm" style="flex:1;justify-content:center">
                 <i class="bi bi-pencil"></i>Sửa
-            </a>
         </div>
+        <?php if ($user->role === 'student'): ?>
+            <div style="display:flex;gap:6px;margin-top:6px">
+                <?php if ($user->isLocked()): ?>
+                <form method="POST" action="<?= $this->url('library/user', ['action' => 'unlock', 'id' => $user->id]) ?>" style="flex:1;margin:0">
+                    <button type="submit" class="btn btn-outline btn-sm" style="width:100%;justify-content:center;color:#22c55e;border-color:#22c55e">
+                        <i class="bi bi-unlock"></i>Mở khóa
+                    </button>
+                </form>
+                <?php else: ?>
+                <form method="POST" action="<?= $this->url('library/user', ['action' => 'lock', 'id' => $user->id]) ?>" style="flex:1;margin:0">
+                    <input type="hidden" name="reason" value="Vi phạm nội quy">
+                    <button type="submit" class="btn btn-outline btn-sm" style="width:100%;justify-content:center;color:#ef4444;border-color:#ef4444" onclick="return confirm('Bạn có chắc muốn khóa người dùng này?');">
+                        <i class="bi bi-lock"></i>Khóa thẻ
+                    </button>
+                </form>
+                <?php endif; ?>
+            </div>
+        <?php endif; ?>
     </div>
     <?php endforeach; ?>
 <?php endif; ?>

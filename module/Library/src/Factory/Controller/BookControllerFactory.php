@@ -20,6 +20,7 @@ class BookControllerFactory
             $container->get(BookTable::class),
             $container->get(BorrowTable::class),
             $container->get(FormElementManager::class),
+            $container->get(\Laminas\Db\Adapter\AdapterInterface::class)
         );
     }
 }
