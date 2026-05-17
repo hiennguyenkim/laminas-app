@@ -253,6 +253,72 @@ class BookTable
         return $stats;
     }
 
+    /**
+     * Tìm kiếm sách cho AJAX autocomplete.
+     *
+     * @param string $query       Từ khóa tìm kiếm (title / author / isbn)
+     * @param bool   $availableOnly Chỉ trả về sách còn khả dụng (quantity > 0, status != unavailable)
+     * @param int    $limit        Số kết quả tối đa
+     * @return array<int, array{id:int,title:string,author:string,isbn:string,category:string,quantity:int,status:string}>
+     */
+    public function searchAvailable(string $query, bool $availableOnly = true, int $limit = 20): array
+    {
+        $sql    = $this->tableGateway->getSql();
+        $select = $sql->select()->columns([
+            'book_id',
+            'title',
+            'author',
+            'isbn',
+            'category',
+            'quantity',
+            'status',
+        ]);
+
+        // Tìm kiếm full-text theo title, author, isbn
+        if ($query !== '') {
+            $likeQuery = '%' . $query . '%';
+            $select->where(function (Where $where) use ($likeQuery): void {
+                $where->nest()
+                    ->like('title',  $likeQuery)
+                    ->or
+                    ->like('author', $likeQuery)
+                    ->or
+                    ->like('isbn',   $likeQuery)
+                    ->unnest();
+            });
+        }
+
+        // Chỉ lấy sách khả dụng: status != 'unavailable' VÀ quantity >= 1
+        if ($availableOnly) {
+            $select->where(['status' => 'available']);
+            $select->where('quantity >= 1');
+        }
+
+        $select->order('title ASC');
+        $select->limit(max(1, min($limit, 50))); // tối đa 50 kết quả
+
+        $stmt   = $sql->prepareStatementForSqlObject($select);
+        $result = $stmt->execute();
+
+        $books = [];
+        foreach ($result as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+            $books[] = [
+                'id'       => (int)    ($row['book_id']  ?? 0),
+                'title'    => (string) ($row['title']    ?? ''),
+                'author'   => (string) ($row['author']   ?? ''),
+                'isbn'     => (string) ($row['isbn']     ?? ''),
+                'category' => (string) ($row['category'] ?? ''),
+                'quantity' => (int)    ($row['quantity'] ?? 0),
+                'status'   => (string) ($row['status']   ?? ''),
+            ];
+        }
+
+        return $books;
+    }
+
     private function resolveAvailabilityStatus(int $quantity): string
     {
         return $quantity > 0 ? 'available' : 'borrowed';

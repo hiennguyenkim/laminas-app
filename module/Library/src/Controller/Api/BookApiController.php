@@ -86,6 +86,52 @@ class BookApiController extends AbstractRestfulController
     }
 
     /**
+     * GET /api/books/search?q=...&available_only=1&limit=20
+     *
+     * Endpoint AJAX autocomplete cho form mượn sách.
+     * Trả về JSON array các sách phù hợp với từ khóa tìm kiếm.
+     */
+    public function searchAction(): Response
+    {
+        /** @var \Laminas\Http\Request $request */
+        $request = $this->getRequest();
+
+        // Chỉ cho phép GET
+        if (! $request->isGet()) {
+            return $this->jsonResponse(['error' => 'Method not allowed'], 405);
+        }
+
+        // Lấy tham số từ query string
+        $query         = trim((string) $request->getQuery('q', ''));
+        $availableOnly = $request->getQuery('available_only', '1') !== '0';
+        $limit         = max(1, min(50, (int) $request->getQuery('limit', '20')));
+
+        // Cần ít nhất 1 ký tự để tìm kiếm
+        if ($query === '') {
+            return $this->jsonResponse([]);
+        }
+
+        $books = $this->table->searchAvailable($query, $availableOnly, $limit);
+
+        // Format kết quả cho autocomplete dropdown
+        $results = array_map(static function (array $book): array {
+            return [
+                'id'       => $book['id'],
+                'title'    => $book['title'],
+                'author'   => $book['author'],
+                'isbn'     => $book['isbn'],
+                'category' => $book['category'],
+                'quantity' => $book['quantity'],
+                // Label hiển thị trong dropdown
+                'label'    => $book['title'] . ' — ' . $book['author']
+                    . ' (còn ' . $book['quantity'] . ' cuốn)',
+            ];
+        }, $books);
+
+        return $this->jsonResponse($results);
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function requestJsonBody(): array
