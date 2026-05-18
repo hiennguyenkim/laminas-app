@@ -5,7 +5,8 @@ $this->layout('layout/library-layout');
 $statusMap = [
     'open' => ['Chưa phản hồi', 'badge-orange'],
     'in_progress' => ['Đã phản hồi', 'badge-green'],
-    'closed' => ['Đã phản hồi', 'badge-green']
+    'closed' => ['Đã phản hồi', 'badge-green'],
+    '' => ['Chưa phản hồi', 'badge-orange']
 ];
 [$statusLabel, $statusClass] = $statusMap[$ticket['status']] ?? ['Không rõ', 'badge-gray'];
 $isClosed = false; // Always allow reply since ticket closing is removed
