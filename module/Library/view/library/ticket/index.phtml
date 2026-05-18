@@ -1,0 +1,69 @@
+<?php
+$this->headTitle('Hỗ trợ / Hỏi đáp');
+$this->layout('layout/library-layout');
+
+$statusMap = [
+    'open' => ['Đang chờ', 'badge-orange'],
+    'answered' => ['Đã trả lời', 'badge-green'],
+    'closed' => ['Đã đóng', 'badge-gray']
+];
+?>
+
+<div class="page-header">
+    <div>
+        <div class="page-title">Hỗ trợ / Hỏi đáp</div>
+        <div class="page-subtitle">Quản lý các yêu cầu hỗ trợ và trao đổi giữa Thư viện và Độc giả.</div>
+    </div>
+    <?php if (!$isAdmin): ?>
+    <a href="<?= $this->url('library/ticket', ['action' => 'create']) ?>" class="btn btn-primary">
+        <i class="bi bi-plus-lg"></i>Gửi yêu cầu mới
+    </a>
+    <?php endif; ?>
+</div>
+
+<div class="card">
+    <div class="card-body" style="padding:0">
+        <table class="data-table" style="width:100%; border-collapse:collapse;">
+            <thead>
+                <tr>
+                    <th style="padding:16px;text-align:left;border-bottom:1px solid var(--border)">Mã Ticket</th>
+                    <th style="padding:16px;text-align:left;border-bottom:1px solid var(--border)">Tiêu đề</th>
+                    <?php if ($isAdmin): ?>
+                    <th style="padding:16px;text-align:left;border-bottom:1px solid var(--border)">Người gửi</th>
+                    <?php endif; ?>
+                    <th style="padding:16px;text-align:left;border-bottom:1px solid var(--border)">Cập nhật lần cuối</th>
+                    <th style="padding:16px;text-align:left;border-bottom:1px solid var(--border)">Trạng thái</th>
+                    <th style="padding:16px;text-align:right;border-bottom:1px solid var(--border)">Thao tác</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php if (empty($tickets)): ?>
+                <tr>
+                    <td colspan="<?= $isAdmin ? 6 : 5 ?>" style="text-align:center;padding:40px;color:var(--text-muted)">
+                        <i class="bi bi-inbox" style="font-size:32px;display:block;margin-bottom:8px"></i>
+                        Không có yêu cầu hỗ trợ nào.
+                    </td>
+                </tr>
+                <?php else: ?>
+                <?php foreach ($tickets as $t): ?>
+                <?php [$statusLabel, $statusClass] = $statusMap[$t['status']] ?? ['Không rõ', 'badge-gray']; ?>
+                <tr style="border-bottom:1px solid var(--border)">
+                    <td style="padding:16px;color:var(--text-muted)">#<?= $t['id'] ?></td>
+                    <td style="padding:16px;font-weight:600;color:var(--text-primary)"><?= htmlspecialchars($t['title']) ?></td>
+                    <?php if ($isAdmin): ?>
+                    <td style="padding:16px;color:var(--text-secondary)"><?= htmlspecialchars($t['author_name']) ?></td>
+                    <?php endif; ?>
+                    <td style="padding:16px;color:var(--text-secondary)"><?= date('d/m/Y H:i', strtotime($t['updated_at'])) ?></td>
+                    <td style="padding:16px;"><span class="badge <?= $statusClass ?>"><?= $statusLabel ?></span></td>
+                    <td style="padding:16px;text-align:right;">
+                        <a href="<?= $this->url('library/ticket', ['action' => 'view', 'id' => $t['id']]) ?>" class="btn btn-sm btn-outline">
+                            Chi tiết
+                        </a>
+                    </td>
+                </tr>
+                <?php endforeach; ?>
+                <?php endif; ?>
+            </tbody>
+        </table>
+    </div>
+</div>

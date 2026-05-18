@@ -62,7 +62,7 @@ $initials = function(string $name): string {
     $totalBorrow = (int)($user->totalBorrows ?? 0);
     $idx++;
     ?>
-    <div class="member-card">
+    <div class="member-card <?= $user->isLocked() ? 'locked' : '' ?>">
         <div class="member-card-top">
             <div class="d-flex gap-3 align-center">
                 <div class="member-avatar-lg" style="background:<?= $color ?>">
@@ -94,12 +94,24 @@ $initials = function(string $name): string {
         <div class="member-activity">
             <div style="height:100%;border-radius:2px;background:<?= $color ?>;width:<?= min(100, $totalBorrow * 2) ?>%;transition:width .6s"></div>
         </div>
+        <?php if ($user->isLocked()): ?>
+        <div class="lock-reason-banner" style="background:rgba(239,68,68,0.08);border:1px dashed rgba(239,68,68,0.25);color:#ef4444;padding:8px 12px;border-radius:6px;font-size:11px;margin-top:10px;display:flex;align-items:flex-start;gap:6px">
+            <i class="bi bi-shield-exclamation" style="font-size:14px;margin-top:1px"></i>
+            <div>
+                <strong>Lý do khóa:</strong> <?= htmlspecialchars($user->lockReason !== '' ? $user->lockReason : 'Vi phạm nội quy') ?>
+                <?php if ($user->lockedAt !== ''): ?>
+                    <br><span style="opacity:0.8;font-size:9px">Thời gian: <?= htmlspecialchars(date('d/m/Y H:i', strtotime($user->lockedAt))) ?></span>
+                <?php endif; ?>
+            </div>
+        </div>
+        <?php endif; ?>
         <div style="display:flex;gap:6px;margin-top:14px">
             <a href="<?= $this->url('library/user', ['action' => 'view', 'id' => $user->id]) ?>" class="btn btn-outline btn-sm" style="flex:1;justify-content:center">
                 <i class="bi bi-eye"></i>Chi tiết
             </a>
             <a href="<?= $this->url('library/user', ['action' => 'edit', 'id' => $user->id]) ?>" class="btn btn-primary btn-sm" style="flex:1;justify-content:center">
                 <i class="bi bi-pencil"></i>Sửa
+            </a>
         </div>
         <?php if ($user->role === 'student'): ?>
             <div style="display:flex;gap:6px;margin-top:6px">
@@ -112,7 +124,7 @@ $initials = function(string $name): string {
                 <?php else: ?>
                 <form method="POST" action="<?= $this->url('library/user', ['action' => 'lock', 'id' => $user->id]) ?>" style="flex:1;margin:0">
                     <input type="hidden" name="reason" value="Vi phạm nội quy">
-                    <button type="submit" class="btn btn-outline btn-sm" style="width:100%;justify-content:center;color:#ef4444;border-color:#ef4444" onclick="return confirm('Bạn có chắc muốn khóa người dùng này?');">
+                    <button type="submit" class="btn btn-outline btn-sm" style="width:100%;justify-content:center;color:#ef4444;border-color:#ef4444" onclick="const reason = prompt('Nhập lý do khóa thẻ:', 'Vi phạm nội quy thư viện'); if (reason === null) return false; this.form.reason.value = reason; return true;">
                         <i class="bi bi-lock"></i>Khóa thẻ
                     </button>
                 </form>

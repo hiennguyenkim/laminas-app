@@ -32,6 +32,7 @@ class CurrentUserHelper extends AbstractHelper
             'username'  => (string) ($user['username'] ?? ''),
             'full_name' => (string) ($user['full_name'] ?? ''),
             'role'      => (string) ($user['role'] ?? ''),
+            'email'     => (string) ($user['email'] ?? ''),
         ];
     }
 }

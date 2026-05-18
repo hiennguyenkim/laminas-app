@@ -125,6 +125,65 @@ class UserApiController extends AbstractRestfulController
     }
 
     /**
+     * GET /api/users/search?q=...&role=student&limit=20
+     *
+     * Endpoint AJAX autocomplete cho thành viên trong form mượn sách.
+     */
+    public function searchAction(): Response
+    {
+        /** @var \Laminas\Http\Request $request */
+        $request = $this->getRequest();
+
+        // Chỉ cho phép GET
+        if (! $request->isGet()) {
+            return $this->jsonResponse(['error' => 'Method not allowed'], 405);
+        }
+
+        // Lấy tham số
+        $query = trim((string) $request->getQuery('q', ''));
+        $role  = trim((string) $request->getQuery('role', ''));
+        $limit = max(1, min(50, (int) $request->getQuery('limit', '20')));
+
+        // Query users using fetchAll
+        $filters = [];
+        if ($query !== '') {
+            $filters['search'] = $query;
+        }
+        if ($role !== '') {
+            $filters['role'] = $role;
+        }
+
+        $users = $this->table->fetchAll($filters);
+        $results = [];
+        $count = 0;
+        foreach ($users as $user) {
+            if ($count >= $limit) {
+                break;
+            }
+            if (! $user instanceof User) {
+                continue;
+            }
+
+            // Chỉ cho phép tài khoản hoạt động mượn sách
+            if ($user->accountStatus === 'locked') {
+                continue;
+            }
+
+            $results[] = [
+                'id'        => $user->id,
+                'username'  => $user->username,
+                'full_name' => $user->fullName,
+                'email'     => $user->email,
+                'role'      => $user->role,
+                'label'     => $user->fullName . ' (@' . $user->username . ')',
+            ];
+            $count++;
+        }
+
+        return $this->jsonResponse($results);
+    }
+
+    /**
      * @return array<string, mixed>
      * @psalm-suppress MixedAssignment
      */

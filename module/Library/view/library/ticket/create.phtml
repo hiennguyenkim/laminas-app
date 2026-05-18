@@ -1,0 +1,33 @@
+<?php
+$this->headTitle('Tạo yêu cầu hỗ trợ');
+$this->layout('layout/library-layout');
+?>
+
+<div class="page-header">
+    <div class="d-flex align-center gap-3">
+        <a href="<?= $this->url('library/ticket') ?>" class="btn btn-outline btn-icon"><i class="bi bi-arrow-left"></i></a>
+        <div>
+            <div class="page-title">Gửi yêu cầu hỗ trợ</div>
+            <div class="page-subtitle">Nhập thông tin chi tiết để quản trị viên có thể hỗ trợ bạn tốt nhất.</div>
+        </div>
+    </div>
+</div>
+
+<div class="card" style="max-width:800px">
+    <div class="card-body">
+        <form method="POST" action="<?= $this->url('library/ticket', ['action' => 'create']) ?>">
+            <div class="form-group">
+                <label class="form-label">Tiêu đề yêu cầu <span style="color:#ef4444">*</span></label>
+                <input type="text" name="subject" class="form-control" required placeholder="Ví dụ: Xin gia hạn sách đang mượn">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Nội dung chi tiết <span style="color:#ef4444">*</span></label>
+                <textarea name="content" class="form-control" rows="6" required placeholder="Mô tả chi tiết vấn đề bạn đang gặp phải..."></textarea>
+            </div>
+            <div class="d-flex gap-2" style="margin-top:24px">
+                <button type="submit" class="btn btn-primary"><i class="bi bi-send"></i>Gửi yêu cầu</button>
+                <a href="<?= $this->url('library/ticket') ?>" class="btn btn-outline">Hủy bỏ</a>
+            </div>
+        </form>
+    </div>
+</div>

@@ -17,14 +17,16 @@ $statusMap = [
             <div class="page-subtitle">Xem thông tin đầy đủ và trạng thái vận hành của đầu sách trong hệ thống.</div>
         </div>
     </div>
+    <?php if ($canManage): ?>
     <div class="d-flex gap-2">
         <a href="<?= $this->url('library/book', ['action' => 'edit', 'id' => $book->id]) ?>" class="btn btn-primary">
             <i class="bi bi-pencil-square"></i>Chỉnh sửa
         </a>
     </div>
+    <?php endif; ?>
 </div>
 
-<?php if ($hasActiveBorrow) : ?>
+<?php if ($canManage && $hasActiveBorrow) : ?>
     <div class="alert alert-danger" style="margin-bottom:20px">
         <i class="bi bi-exclamation-triangle"></i>
         Sách này đang có lượt mượn chưa trả, hệ thống tạm khóa tính năng xóa.
@@ -60,6 +62,14 @@ $statusMap = [
                     <div><span class="badge badge-purple"><?= htmlspecialchars($book->category) ?></span></div>
                 </div>
                 <div>
+                    <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Nhà xuất bản</div>
+                    <div style="color:var(--text-secondary)"><?= htmlspecialchars($book->publisher ?: '—') ?></div>
+                </div>
+                <div>
+                    <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Năm xuất bản</div>
+                    <div style="color:var(--text-secondary)"><?= htmlspecialchars($book->publishedYear ?: '—') ?></div>
+                </div>
+                <div>
                     <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Số bản khả dụng</div>
                     <div style="font-weight:600;font-size:15px;color:var(--text-primary)"><?= (int) $book->quantity ?></div>
                 </div>
@@ -67,10 +77,17 @@ $statusMap = [
                     <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Ngày tạo</div>
                     <div style="color:var(--text-secondary)"><?= htmlspecialchars($book->createdAt !== '' ? $book->createdAt : '—') ?></div>
                 </div>
+                <?php if ($book->description): ?>
+                <div style="grid-column: span 2;">
+                    <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Mô tả sách</div>
+                    <div style="color:var(--text-secondary);line-height:1.6"><?= nl2br(htmlspecialchars($book->description)) ?></div>
+                </div>
+                <?php endif; ?>
             </div>
 
             <div style="height:1px;background:var(--border-color);margin:24px 0 18px"></div>
 
+            <?php if ($canManage): ?>
             <div class="d-flex gap-2">
                 <form method="POST"
                       action="<?= $this->url('library/book', ['action' => 'delete', 'id' => $book->id]) ?>"
@@ -83,6 +100,71 @@ $statusMap = [
                     </button>
                 </form>
             </div>
+            <?php elseif (isset($currentUser) && $currentUser['role'] === 'student' && $book->status === 'available' && $book->quantity > 0): ?>
+            <div class="d-flex gap-2">
+                <a href="<?= $this->url('library/transaction', ['action' => 'borrow'], ['query' => ['book_id' => $book->id]]) ?>" class="btn btn-success">
+                    <i class="bi bi-bookmark-plus"></i> Mượn ngay cuốn này
+                </a>
+            </div>
+            <?php endif; ?>
+        </div>
+    </div>
+
+    <!-- REVIEWS SECTION -->
+    <div class="card" style="margin-top:24px">
+        <div class="card-header" style="border-bottom:1px solid var(--border);padding-bottom:12px;margin-bottom:16px;">
+            <h3 style="margin:0;font-size:18px;"><i class="bi bi-star-fill" style="color:#f59e0b;margin-right:8px;"></i>Đánh giá & Nhận xét</h3>
+        </div>
+        <div class="card-body">
+            <?php if (isset($currentUser) && $currentUser['role'] === 'student'): ?>
+            <form method="POST" action="<?= $this->url('library/book', ['action' => 'review', 'id' => $book->id]) ?>" style="margin-bottom:24px;background:var(--bg-body);padding:16px;border-radius:8px;border:1px solid var(--border);">
+                <div style="font-weight:600;margin-bottom:8px;">Viết nhận xét của bạn</div>
+                <div style="margin-bottom:12px;">
+                    <label style="margin-right:12px;">Đánh giá:</label>
+                    <select name="rating" class="form-select" style="display:inline-block;width:auto;" required>
+                        <option value="5">5 Sao - Rất hay</option>
+                        <option value="4">4 Sao - Hay</option>
+                        <option value="3">3 Sao - Tạm được</option>
+                        <option value="2">2 Sao - Kém</option>
+                        <option value="1">1 Sao - Tệ</option>
+                    </select>
+                </div>
+                <textarea name="comment" class="form-control" rows="3" placeholder="Chia sẻ cảm nghĩ của bạn về cuốn sách này..." required></textarea>
+                <div style="margin-top:12px;text-align:right;">
+                    <button type="submit" class="btn btn-primary">Gửi nhận xét</button>
+                </div>
+            </form>
+            <?php endif; ?>
+
+            <?php if (empty($reviews)): ?>
+                <div style="text-align:center;padding:24px;color:var(--text-muted);">
+                    <i class="bi bi-chat-square-text" style="font-size:32px;display:block;margin-bottom:8px;opacity:0.5;"></i>
+                    Chưa có nhận xét nào.
+                </div>
+            <?php else: ?>
+                <div style="display:flex;flex-direction:column;gap:16px;">
+                <?php foreach ($reviews as $rev): ?>
+                    <div style="padding-bottom:16px;border-bottom:1px solid var(--border);">
+                        <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+                            <div style="font-weight:600;">
+                                <?= htmlspecialchars($rev['full_name']) ?>
+                                <?php if ($rev['role'] === 'admin'): ?>
+                                    <span class="badge badge-orange" style="margin-left:6px;font-size:10px;">Admin</span>
+                                <?php endif; ?>
+                            </div>
+                            <div style="font-size:12px;color:var(--text-muted);"><?= date('d/m/Y H:i', strtotime($rev['created_at'])) ?></div>
+                        </div>
+                        <div style="color:#f59e0b;font-size:12px;margin-bottom:8px;">
+                            <?= str_repeat('<i class="bi bi-star-fill"></i>', (int)$rev['rating']) ?>
+                            <?= str_repeat('<i class="bi bi-star"></i>', 5 - (int)$rev['rating']) ?>
+                        </div>
+                        <div style="color:var(--text-secondary);font-size:14px;line-height:1.5;">
+                            <?= nl2br(htmlspecialchars($rev['comment'])) ?>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
         </div>
     </div>
 </div>

@@ -28,6 +28,9 @@ class User
     public string $lockedAt       = '';
     public string $phone          = '';
 
+    public int    $borrowCount    = 0;
+    public int    $totalBorrows   = 0;
+
     public function exchangeArray(array $data): void
     {
         $this->id             = (int)    ($data['id'] ?? $data['user_id'] ?? 0);
@@ -47,6 +50,9 @@ class User
         $this->lockReason    = (string) ($data['lock_reason'] ?? '');
         $this->lockedAt      = (string) ($data['locked_at'] ?? '');
         $this->phone         = (string) ($data['phone'] ?? '');
+
+        $this->borrowCount   = (int)    ($data['borrowCount'] ?? $data['borrow_count'] ?? 0);
+        $this->totalBorrows  = (int)    ($data['totalBorrows'] ?? $data['total_borrows'] ?? 0);
     }
 
     public function isAdmin(): bool

@@ -43,9 +43,11 @@ use Library\View\Helper\CurrentUserHelper;
 use Library\Controller\Api\BookApiController;
 use Library\Controller\Api\UserApiController;
 use Library\Controller\Api\BorrowApiController;
+use Library\Controller\Api\NotificationApiController;
 use Library\Factory\Controller\Api\BookApiControllerFactory;
 use Library\Factory\Controller\Api\UserApiControllerFactory;
 use Library\Factory\Controller\Api\BorrowApiControllerFactory;
+use Library\Factory\Controller\Api\NotificationApiControllerFactory;
 
 return [
     // ── Routing ─────────────────────────────────────────────────────────
@@ -88,12 +90,36 @@ return [
                             'defaults'    => ['controller' => AuthController::class, 'action' => 'login'],
                         ],
                     ],
+                    'books-import' => [
+                        'type'    => Literal::class,
+                        'options' => [
+                            'route'    => '/books/import',
+                            'defaults' => [
+                                'controller' => Controller\BookController::class,
+                                'action'     => 'import',
+                            ],
+                        ],
+                    ],
                     'book' => [
                         'type'    => Segment::class,
                         'options' => [
-                            'route'       => '/books[/:action[/:id]]',
+                            'route'    => '/book[/:action[/:id]]',
                             'constraints' => ['action' => '[a-zA-Z][a-zA-Z0-9_-]*', 'id' => '[0-9]+'],
-                            'defaults'    => ['controller' => BookController::class, 'action' => 'index'],
+                            'defaults' => [
+                                'controller' => Controller\BookController::class,
+                                'action'     => 'index',
+                            ],
+                        ],
+                    ],
+                    'ticket' => [
+                        'type'    => Segment::class,
+                        'options' => [
+                            'route'    => '/ticket[/:action[/:id]]',
+                            'constraints' => ['action' => '[a-zA-Z][a-zA-Z0-9_-]*', 'id' => '[0-9]+'],
+                            'defaults' => [
+                                'controller' => Controller\TicketController::class,
+                                'action'     => 'index',
+                            ],
                         ],
                     ],
                     'user' => [
@@ -132,6 +158,38 @@ return [
                 ],
                 'may_terminate' => false,
                 'child_routes' => [
+                    'notifications' => [
+                        'type'    => Literal::class,
+                        'options' => [
+                            'route'    => '/notifications',
+                            'defaults' => [
+                                'controller' => NotificationApiController::class,
+                                'action'     => 'index',
+                            ],
+                        ],
+                    ],
+                    'books-search' => [
+                        // Literal route for URL assembly via $this->url('api/books-search')
+                        // Tách khỏi Segment parent để tránh lỗi Missing parameter "id"
+                        'type'    => Literal::class,
+                        'options' => [
+                            'route'    => '/books/search',
+                            'defaults' => [
+                                'controller' => BookApiController::class,
+                                'action'     => 'search',
+                            ],
+                        ],
+                    ],
+                    'books-chat' => [
+                        'type'    => Literal::class,
+                        'options' => [
+                            'route'    => '/books/chat',
+                            'defaults' => [
+                                'controller' => BookApiController::class,
+                                'action'     => 'chat',
+                            ],
+                        ],
+                    ],
                     'books' => [
                         'type' => Segment::class,
                         'options' => [
@@ -144,28 +202,14 @@ return [
                             ],
                         ],
                         'may_terminate' => true,
-                        'child_routes' => [
-                            // GET /api/books/search?q=...&available_only=1
-                            'search' => [
-                                'type'    => Literal::class,
-                                'options' => [
-                                    'route'    => '/search',
-                                    'defaults' => [
-                                        'controller' => BookApiController::class,
-                                        'action'     => 'search',
-                                    ],
-                                ],
-                            ],
-                            // POST /api/books/chat
-                            'chat' => [
-                                'type'    => Literal::class,
-                                'options' => [
-                                    'route'    => '/chat',
-                                    'defaults' => [
-                                        'controller' => BookApiController::class,
-                                        'action'     => 'chat',
-                                    ],
-                                ],
+                    ],
+                    'users-search' => [
+                        'type'    => Literal::class,
+                        'options' => [
+                            'route'    => '/users/search',
+                            'defaults' => [
+                                'controller' => UserApiController::class,
+                                'action'     => 'search',
                             ],
                         ],
                     ],
@@ -203,14 +247,16 @@ return [
         'factories' => [
             HomeController::class        => HomeControllerFactory::class,
             AuthController::class        => AuthControllerFactory::class,
-            BookController::class        => BookControllerFactory::class,
-            DashboardController::class   => DashboardControllerFactory::class,
+            Controller\BookController::class        => Factory\Controller\BookControllerFactory::class,
+            Controller\DashboardController::class   => Factory\Controller\DashboardControllerFactory::class,
+            Controller\TicketController::class      => Factory\Controller\TicketControllerFactory::class,
             ProfileController::class     => ProfileControllerFactory::class,
             TransactionController::class => TransactionControllerFactory::class,
             UserController::class        => UserControllerFactory::class,
             BookApiController::class     => BookApiControllerFactory::class,
             UserApiController::class     => UserApiControllerFactory::class,
             BorrowApiController::class   => BorrowApiControllerFactory::class,
+            NotificationApiController::class => NotificationApiControllerFactory::class,
         ],
     ],
 

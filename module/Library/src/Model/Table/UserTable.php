@@ -59,10 +59,26 @@ class UserTable
                 'full_name',
                 'role',
                 'created_at',
+                'nickname',
+                'date_of_birth',
+                'avatar_url',
+                'account_status',
+                'lock_reason',
+                'locked_at',
+                'phone',
                 'last_returned_at' => new Expression(
                     '(SELECT MAX(br.returned_at) FROM borrow_records br '
                     . 'WHERE br.user_id = users.user_id '
                     . 'AND br.returned_at IS NOT NULL)'
+                ),
+                'borrowCount' => new Expression(
+                    '(SELECT COUNT(*) FROM borrow_records br '
+                    . 'WHERE br.user_id = users.user_id '
+                    . 'AND br.status = \'borrowed\')'
+                ),
+                'totalBorrows' => new Expression(
+                    '(SELECT COUNT(*) FROM borrow_records br '
+                    . 'WHERE br.user_id = users.user_id)'
                 ),
             ]);
 

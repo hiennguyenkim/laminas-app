@@ -64,6 +64,31 @@ $this->layout('layout/library-layout');
                 </div>
             </div>
             <div class="form-group">
+                <label class="form-label">Mô tả sách</label>
+                <textarea name="description" class="form-control" rows="3"><?= htmlspecialchars((string)($form->get('description')->getValue() ?? '')) ?></textarea>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px">
+                <div class="form-group" style="margin-bottom:0">
+                    <label class="form-label">Nhà xuất bản</label>
+                    <input type="text" name="publisher" class="form-control" value="<?= htmlspecialchars((string)($form->get('publisher')->getValue() ?? '')) ?>">
+                </div>
+                <div class="form-group" style="margin-bottom:0">
+                    <label class="form-label">Năm xuất bản</label>
+                    <input type="text" name="published_year" class="form-control" value="<?= htmlspecialchars((string)($form->get('published_year')->getValue() ?? '')) ?>">
+                </div>
+                <div class="form-group" style="margin-bottom:0">
+                    <label class="form-label">Ngày nhập kho</label>
+                    <input type="date" name="import_date" class="form-control" value="<?= htmlspecialchars((string)($form->get('import_date')->getValue() ?? '')) ?>">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">URL Ảnh bìa</label>
+                <input type="text" name="cover_image_url" class="form-control" value="<?= htmlspecialchars((string)($form->get('cover_image_url')->getValue() ?? '')) ?>">
+            </div>
+
+            <div class="form-group">
                 <label class="form-label">Trạng thái vận hành</label>
                 <select name="status" class="form-select" style="max-width:240px">
                     <option value="available"   <?= $statusValue==='available'?'selected':'' ?>>Khả dụng</option>

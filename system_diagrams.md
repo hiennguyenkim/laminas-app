@@ -36,6 +36,8 @@ package "Hệ Thống Quản Lý Thư Viện HCMUE" {
 
 ' 
 Guest -- UC_View
+Guest -- UC_Search
+Guest -- UC_ViewDetail
 Guest -- UC_Login
 Guest -- UC_Register
 
@@ -610,8 +612,9 @@ stateDiagram-v2
 | Chức năng | Guest | Student | Admin |
 |---|:---:|:---:|:---:|
 | Xem danh mục sách công khai | ✅ | ✅ | ✅ |
+| Xem chi tiết sách công khai | ✅ | ✅ | ✅ |
 | Đăng nhập / Đăng ký | ✅ | — | — |
-| Tìm kiếm & lọc sách | — | ✅ | ✅ |
+| Tìm kiếm & lọc sách | ✅ | ✅ | ✅ |
 | Tự đăng ký mượn sách | — | ✅ | — |
 | Xem lịch sử mượn cá nhân | — | ✅ | ✅ |
 | Quản lý sách (CRUD) | — | — | ✅ |

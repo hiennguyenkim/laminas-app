@@ -405,6 +405,14 @@ body {
   transition: var(--transition);
 }
 .member-card:hover { border-color: rgba(124,106,255,.4); transform: translateY(-2px); }
+.member-card.locked {
+  border-color: rgba(239, 68, 68, 0.45) !important;
+  background: linear-gradient(135deg, var(--bg-card) 0%, rgba(239, 68, 68, 0.02) 100%) !important;
+}
+.member-card.locked:hover {
+  border-color: rgba(239, 68, 68, 0.75) !important;
+  box-shadow: 0 4px 15px rgba(239, 68, 68, 0.08);
+}
 
 .member-card-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 14px; }
 .member-avatar-lg {

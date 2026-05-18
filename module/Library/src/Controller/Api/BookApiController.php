@@ -109,11 +109,7 @@ class BookApiController extends AbstractRestfulController
         $availableOnly = $request->getQuery('available_only', '1') !== '0';
         $limit         = max(1, min(50, (int) $request->getQuery('limit', '20')));
 
-        // Cần ít nhất 1 ký tự để tìm kiếm
-        if ($query === '') {
-            return $this->jsonResponse([]);
-        }
-
+        // Lấy danh sách sách khớp từ khóa (hoặc sách khả dụng ban đầu nếu từ khóa rỗng)
         $books = $this->table->searchAvailable($query, $availableOnly, $limit);
 
         // Format kết quả cho autocomplete dropdown

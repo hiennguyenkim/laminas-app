@@ -12,6 +12,20 @@ $this->layout('layout/library-layout');
     </div>
 </div>
 
+<?php if ($user->isLocked()): ?>
+<div style="background:rgba(239,68,68,0.08);border:1px dashed rgba(239,68,68,0.3);color:#ef4444;padding:16px 20px;border-radius:10px;font-size:13px;margin-bottom:24px;display:flex;align-items:flex-start;gap:12px;width:100%">
+    <i class="bi bi-shield-slash" style="font-size:24px;line-height:1"></i>
+    <div>
+        <strong style="font-size:15px">Thẻ thư viện của bạn hiện đang BỊ KHÓA MƯỢN SÁCH</strong>
+        <div style="margin-top:6px;font-size:13px"><strong>Lý do khóa:</strong> <?= htmlspecialchars($user->lockReason !== '' ? $user->lockReason : 'Vi phạm nội quy thư viện') ?></div>
+        <?php if ($user->lockedAt !== ''): ?>
+            <div style="margin-top:2px;font-size:11px;opacity:0.85"><strong>Thời điểm khóa:</strong> <?= htmlspecialchars(date('d/m/Y H:i:s', strtotime($user->lockedAt))) ?></div>
+        <?php endif; ?>
+        <div style="margin-top:8px;font-size:12px;opacity:0.9">Vui lòng hoàn trả các sách trễ hạn hoặc liên hệ thủ thư tại quầy để được hỗ trợ mở khóa tài khoản.</div>
+    </div>
+</div>
+<?php endif; ?>
+
 <div class="d-flex gap-4 flex-wrap">
     <!-- Left Column: Profile Form -->
     <div style="flex: 1; min-width: 320px;">

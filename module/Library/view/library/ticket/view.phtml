@@ -1,0 +1,79 @@
+<?php
+$this->headTitle('Chi tiết Ticket #' . $ticket['id']);
+$this->layout('layout/library-layout');
+
+$statusMap = [
+    'open' => ['Đang chờ', 'badge-orange'],
+    'answered' => ['Đã trả lời', 'badge-green'],
+    'closed' => ['Đã đóng', 'badge-gray']
+];
+[$statusLabel, $statusClass] = $statusMap[$ticket['status']] ?? ['Không rõ', 'badge-gray'];
+$isClosed = $ticket['status'] === 'closed';
+?>
+
+<div class="page-header">
+    <div class="d-flex align-center gap-3">
+        <a href="<?= $this->url('library/ticket') ?>" class="btn btn-outline btn-icon"><i class="bi bi-arrow-left"></i></a>
+        <div>
+            <div class="page-title">Ticket #<?= $ticket['id'] ?> - <?= htmlspecialchars($ticket['title']) ?></div>
+            <div class="page-subtitle">Bởi: <?= htmlspecialchars($ticket['author_name']) ?> | Trạng thái: <span class="badge <?= $statusClass ?>" style="font-size:11px;margin-left:4px"><?= $statusLabel ?></span></div>
+        </div>
+    </div>
+    <?php if ($isAdmin && !$isClosed): ?>
+    <form method="POST" style="margin:0">
+        <input type="hidden" name="action" value="close">
+        <button type="submit" class="btn btn-sm btn-outline" style="color:#ef4444;border-color:#ef4444" onclick="return confirm('Đóng yêu cầu hỗ trợ này?')">
+            <i class="bi bi-x-circle"></i> Đóng Ticket
+        </button>
+    </form>
+    <?php endif; ?>
+</div>
+
+<div class="card" style="max-width:900px;margin-bottom:24px;">
+    <div class="card-body" style="padding:24px">
+        <div style="display:flex;flex-direction:column;gap:20px;">
+            <?php foreach ($messages as $msg): ?>
+            <?php $isOwn = $msg['sender_id'] == $currentUser['id']; ?>
+            <?php $isSystemAdmin = $msg['role'] === 'admin'; ?>
+            
+            <div style="display:flex;flex-direction:column;align-items:<?= $isOwn ? 'flex-end' : 'flex-start' ?>;width:100%;">
+                <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px;display:flex;align-items:center;gap:6px;">
+                    <?php if (!$isOwn): ?>
+                        <span style="font-weight:600;color:var(--text-primary)"><?= htmlspecialchars($msg['full_name']) ?></span>
+                        <?php if ($isSystemAdmin): ?><span class="badge badge-orange" style="font-size:10px">Admin</span><?php endif; ?>
+                        <span>•</span>
+                    <?php endif; ?>
+                    <?= date('d/m/Y H:i', strtotime($msg['sent_at'])) ?>
+                </div>
+                
+                <div style="max-width:85%;padding:14px 18px;border-radius:12px;font-size:14px;line-height:1.6;
+                            <?= $isOwn 
+                                ? 'background:linear-gradient(135deg, var(--accent-purple), var(--accent-blue));color:white;border-bottom-right-radius:4px;' 
+                                : 'background:var(--bg-body);color:var(--text-primary);border:1px solid var(--border);border-bottom-left-radius:4px;' ?>">
+                    <?= nl2br(htmlspecialchars($msg['message'])) ?>
+                </div>
+            </div>
+            <?php endforeach; ?>
+        </div>
+    </div>
+</div>
+
+<?php if (!$isClosed): ?>
+<div class="card" style="max-width:900px">
+    <div class="card-body">
+        <form method="POST">
+            <input type="hidden" name="action" value="reply">
+            <div class="form-group" style="margin-bottom:12px">
+                <textarea name="message" class="form-control" rows="4" placeholder="Nhập phản hồi của bạn..." required></textarea>
+            </div>
+            <div style="text-align:right">
+                <button type="submit" class="btn btn-primary"><i class="bi bi-send"></i>Gửi phản hồi</button>
+            </div>
+        </form>
+    </div>
+</div>
+<?php else: ?>
+<div class="alert alert-info" style="max-width:900px;display:flex;align-items:center;gap:10px">
+    <i class="bi bi-info-circle-fill"></i> Yêu cầu hỗ trợ này đã được đóng. Bạn không thể gửi thêm phản hồi.
+</div>
+<?php endif; ?>

@@ -153,6 +153,29 @@ class BorrowTable
         ]);
     }
 
+    public function requestBorrow(int $bookId, int $userId, string $borrowDate, string $returnDate): void
+    {
+        $this->cleanupExpiredReturnedHistory();
+
+        $this->tableGateway->insert([
+            'book_id'     => $bookId,
+            'user_id'     => $userId,
+            'borrow_date' => $borrowDate,
+            'return_date' => $returnDate,
+            'status'      => 'pending',
+            'returned_at' => null,
+        ]);
+    }
+
+    public function approve(int $id): void
+    {
+        $this->cleanupExpiredReturnedHistory();
+
+        $this->tableGateway->update([
+            'status' => 'borrowed',
+        ], [self::PK => $id]);
+    }
+
     public function returnBook(int $id): void
     {
         $this->cleanupExpiredReturnedHistory();
@@ -221,6 +244,26 @@ class BorrowTable
         $select = $sql->select()
             ->columns([
                 'c' => new Expression("SUM(CASE WHEN status = 'returned' THEN 1 ELSE 0 END)"),
+            ]);
+
+        if ($userId !== null) {
+            $select->where(['user_id' => $userId]);
+        }
+
+        $stmt   = $sql->prepareStatementForSqlObject($select);
+        $result = $stmt->execute();
+
+        return $this->extractCount($result->current());
+    }
+
+    public function countPending(?int $userId = null): int
+    {
+        $this->cleanupExpiredReturnedHistory();
+
+        $sql    = $this->tableGateway->getSql();
+        $select = $sql->select()
+            ->columns([
+                'c' => new Expression("SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END)"),
             ]);
 
         if ($userId !== null) {
@@ -365,6 +408,7 @@ class BorrowTable
             'borrowed'  => $this->countBorrowed($userId),
             'overdue'   => $this->countOverdue($userId),
             'returned'  => $this->countReturned($userId),
+            'pending'   => $this->countPending($userId),
             'due_soon'  => $userId !== null ? $this->countDueSoon($userId) : 0,
         ];
     }

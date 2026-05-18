@@ -73,6 +73,41 @@ class BookForm extends Form
         ]);
 
         $this->add([
+            'name'       => 'description',
+            'type'       => Element\Textarea::class,
+            'options'    => ['label' => 'Mô tả sách'],
+            'attributes' => ['class' => 'form-control', 'rows' => 3],
+        ]);
+
+        $this->add([
+            'name'       => 'publisher',
+            'type'       => Element\Text::class,
+            'options'    => ['label' => 'Nhà xuất bản'],
+            'attributes' => ['class' => 'form-control', 'maxlength' => 255],
+        ]);
+
+        $this->add([
+            'name'       => 'published_year',
+            'type'       => Element\Text::class,
+            'options'    => ['label' => 'Năm xuất bản'],
+            'attributes' => ['class' => 'form-control', 'maxlength' => 4],
+        ]);
+
+        $this->add([
+            'name'       => 'import_date',
+            'type'       => Element\Date::class,
+            'options'    => ['label' => 'Ngày nhập'],
+            'attributes' => ['class' => 'form-control'],
+        ]);
+
+        $this->add([
+            'name'       => 'cover_image_url',
+            'type'       => Element\Text::class,
+            'options'    => ['label' => 'Ảnh bìa (URL)'],
+            'attributes' => ['class' => 'form-control'],
+        ]);
+
+        $this->add([
             'name'       => 'status',
             'type'       => Element\Select::class,
             'options'    => [
@@ -127,6 +162,23 @@ class BookForm extends Form
                 ['name' => \Laminas\Validator\GreaterThan::class, 'options' => ['min' => 0]],
                 ['name' => \Laminas\Validator\LessThan::class, 'options' => ['max' => 1000]],
             ],
+        ]);
+
+        $filter->add(['name' => 'description', 'required' => false,
+            'filters' => [['name' => \Laminas\Filter\StringTrim::class]]
+        ]);
+        
+        $filter->add(['name' => 'publisher', 'required' => false,
+            'filters' => [['name' => \Laminas\Filter\StringTrim::class]]
+        ]);
+
+        $filter->add(['name' => 'published_year', 'required' => false,
+            'filters' => [['name' => \Laminas\Filter\StringTrim::class]]
+        ]);
+
+        $filter->add(['name' => 'import_date', 'required' => false]);
+        $filter->add(['name' => 'cover_image_url', 'required' => false,
+            'filters' => [['name' => \Laminas\Filter\StringTrim::class]]
         ]);
         $filter->add(['name' => 'status', 'required' => true]);
         $filter->add(['name' => 'csrf', 'required' => true]);

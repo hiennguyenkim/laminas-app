@@ -48,6 +48,18 @@ class DashboardController extends BaseController
         $bookSummary = $this->bookTable->getSummary();
         $loanSummary = $this->borrowTable->getSummary($isAdmin ? null : $userId);
 
+        $isLocked = false;
+        $lockReason = '';
+        $lockedAt = '';
+        if (! $isAdmin && $userId > 0) {
+            try {
+                $userObj = $this->userTable->getUser($userId);
+                $isLocked = $userObj->isLocked();
+                $lockReason = $userObj->lockReason;
+                $lockedAt = $userObj->lockedAt;
+            } catch (\Throwable $e) {}
+        }
+
         return new ViewModel([
             'isAdmin'        => $isAdmin,
             'currentUser'    => $currentUser,
@@ -61,7 +73,10 @@ class DashboardController extends BaseController
             'totalMembers'   => $isAdmin ? $this->userTable->countByRole('student') : 0,
             'recentBorrows'  => $this->borrowTable->fetchAllWithDetails([], $isAdmin ? null : $userId, 10),
             'monthlyStats'   => $this->borrowTable->getMonthlyStats((int) date('Y')),
-            'categoryStats'  => $isAdmin ? $this->bookTable->getCategoryStats() : [],
+            'categoryStats'  => $this->bookTable->getCategoryStats(),
+            'isLocked'       => $isLocked,
+            'lockReason'     => $lockReason,
+            'lockedAt'       => $lockedAt,
         ]);
     }
 }

@@ -100,7 +100,11 @@ class TransactionController extends BaseController
                     continue;
                 }
 
-                $userOptions[$user->id] = $user->fullName . ' (@' . $user->username . ')';
+                $label = $user->fullName . ' (@' . $user->username . ')';
+                if ($user->isLocked()) {
+                    $label .= ' [ĐÃ KHÓA THẺ]';
+                }
+                $userOptions[$user->id] = $label;
             }
         } elseif ($currentUserId > 0) {
             $currentFullName = $currentUser['full_name'] ?? 'Sinh viên';
@@ -148,9 +152,14 @@ class TransactionController extends BaseController
                         $bookId,
                         $userId,
                         $data['borrow_date'],
-                        $data['return_date']
+                        $data['return_date'],
+                        $isAdmin
                     );
-                    $this->flash()->addSuccessMessage('Lập phiếu mượn thành công.');
+                    if ($isAdmin) {
+                        $this->flash()->addSuccessMessage('Lập phiếu mượn thành công.');
+                    } else {
+                        $this->flash()->addSuccessMessage('Gửi yêu cầu mượn sách thành công! Vui lòng chờ thủ thư phê duyệt.');
+                    }
                     return $this->redirect()->toRoute('library/transaction');
                 } catch (\Throwable $e) {
                     $this->flash()->addErrorMessage($e->getMessage());
@@ -187,6 +196,26 @@ class TransactionController extends BaseController
         try {
             $this->circulationService->returnBook($this->routeInt('id'));
             $this->flash()->addSuccessMessage('Đã ghi nhận trả sách thành công.');
+        } catch (\Throwable $e) {
+            $this->flash()->addErrorMessage($e->getMessage());
+        }
+
+        return $this->redirect()->toRoute('library/transaction');
+    }
+
+    public function approveAction(): Response
+    {
+        if ($response = $this->requireAdmin()) {
+            return $response;
+        }
+
+        if (! $this->httpRequest()->isPost()) {
+            return $this->redirect()->toRoute('library/transaction');
+        }
+
+        try {
+            $this->circulationService->approveBorrow($this->routeInt('id'));
+            $this->flash()->addSuccessMessage('Phê duyệt phiếu mượn thành công.');
         } catch (\Throwable $e) {
             $this->flash()->addErrorMessage($e->getMessage());
         }

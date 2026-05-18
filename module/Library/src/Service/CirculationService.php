@@ -24,7 +24,7 @@ class CirculationService
     ) {
     }
 
-    public function borrowBook(int $bookId, int $userId, string $borrowDate, string $returnDate): void
+    public function borrowBook(int $bookId, int $userId, string $borrowDate, string $returnDate, bool $isApproved = true): void
     {
         $borrowAt = $this->parseDate($borrowDate, 'Ngày mượn không hợp lệ.');
         $returnAt = $this->parseDate($returnDate, 'Hạn trả không hợp lệ.');
@@ -70,8 +70,39 @@ class CirculationService
                 throw new DomainException('Sinh viên này đang mượn cuốn sách đã chọn.');
             }
 
-            $this->bookTable->decrementAvailability($bookId);
-            $this->borrowTable->borrow($bookId, $userId, $borrowDate, $returnDate);
+            if ($isApproved) {
+                $this->bookTable->decrementAvailability($bookId);
+                $this->borrowTable->borrow($bookId, $userId, $borrowDate, $returnDate);
+            } else {
+                $this->borrowTable->requestBorrow($bookId, $userId, $borrowDate, $returnDate);
+            }
+            $connection->commit();
+        } catch (\Throwable $throwable) {
+            try {
+                $connection->rollback();
+            } catch (\Throwable) {
+            }
+
+            throw $throwable;
+        }
+    }
+
+    public function approveBorrow(int $recordId): void
+    {
+        $connection = $this->adapter->getDriver()->getConnection();
+        $connection->beginTransaction();
+
+        try {
+            $record = $this->borrowTable->getRecord($recordId);
+
+            if ($record->status !== 'pending') {
+                throw new DomainException('Phiếu mượn này đã được duyệt hoặc xử lý trước đó.');
+            }
+
+            // Decrement book availability and change status to borrowed
+            $this->bookTable->decrementAvailability($record->bookId);
+            $this->borrowTable->approve($recordId);
+
             $connection->commit();
         } catch (\Throwable $throwable) {
             try {

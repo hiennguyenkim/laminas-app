@@ -51,6 +51,18 @@ $statusMap = [
 
 <div class="card" style="margin-bottom:24px">
     <div class="card-body">
+        <?php if ($user->isLocked()): ?>
+        <div style="background:rgba(239,68,68,0.08);border:1px dashed rgba(239,68,68,0.3);color:#ef4444;padding:12px 16px;border-radius:8px;font-size:13px;margin-bottom:20px;display:flex;align-items:flex-start;gap:10px">
+            <i class="bi bi-shield-slash" style="font-size:20px;line-height:1"></i>
+            <div>
+                <strong style="font-size:14px">Tài khoản sinh viên đã bị khóa mượn sách</strong>
+                <div style="margin-top:4px"><strong>Lý do:</strong> <?= htmlspecialchars($user->lockReason !== '' ? $user->lockReason : 'Vi phạm nội quy thư viện') ?></div>
+                <?php if ($user->lockedAt !== ''): ?>
+                    <div style="margin-top:2px;font-size:11px;opacity:0.85"><strong>Thời điểm khóa:</strong> <?= htmlspecialchars(date('d/m/Y H:i:s', strtotime($user->lockedAt))) ?></div>
+                <?php endif; ?>
+            </div>
+        </div>
+        <?php endif; ?>
         <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:20px">
             <div>
                 <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Mã tài khoản</div>
@@ -112,7 +124,7 @@ $statusMap = [
                 <?php else: ?>
                 <form method="POST" action="<?= $this->url('library/user', ['action' => 'lock', 'id' => $user->id]) ?>" style="margin:0">
                     <input type="hidden" name="reason" value="Khóa từ trang chi tiết">
-                    <button type="submit" class="btn btn-sm btn-outline" style="color:#ef4444;border-color:#ef4444" onclick="return confirm('Bạn có chắc muốn khóa người dùng này?');">
+                    <button type="submit" class="btn btn-sm btn-outline" style="color:#ef4444;border-color:#ef4444" onclick="const reason = prompt('Nhập lý do khóa thẻ:', 'Khóa từ trang chi tiết'); if (reason === null) return false; this.form.reason.value = reason; return true;">
                         <i class="bi bi-lock"></i>Khóa tài khoản
                     </button>
                 </form>

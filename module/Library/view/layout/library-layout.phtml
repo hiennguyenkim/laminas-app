@@ -23,15 +23,17 @@ if ($authUser) {
         $navItems[] = ['url' => $this->url('library/user'), 'icon' => 'bi-people', 'label' => 'Thành viên', 'key' => 'user', 'color' => '#22c55e'];
     }
     $navItems[] = ['url' => $this->url('library/transaction'), 'icon' => 'bi-arrow-left-right', 'label' => 'Mượn / Trả', 'key' => 'transaction', 'color' => '#ec4899'];
+    $navItems[] = ['url' => $this->url('library/ticket'), 'icon' => 'bi-chat-left-text', 'label' => 'Hỏi đáp & Hỗ trợ', 'key' => 'ticket', 'color' => '#14b8a6'];
     $navItems[] = ['url' => $this->url('library/profile'), 'icon' => 'bi-person-circle', 'label' => 'Hồ sơ', 'key' => 'profile', 'color' => '#3b82f6'];
 }
 
-$pageColors = ['dashboard' => '#7c6aff', 'book' => '#f97316', 'user' => '#22c55e', 'transaction' => '#ec4899', 'profile' => '#3b82f6'];
+$pageColors = ['dashboard' => '#7c6aff', 'book' => '#f97316', 'user' => '#22c55e', 'transaction' => '#ec4899', 'ticket' => '#14b8a6', 'profile' => '#3b82f6'];
 $activeKey  = 'dashboard';
-// Match actual route segments: /admin/books, /admin/users, /admin/borrow
-if      (strpos($currentUri, '/books')  !== false) $activeKey = 'book';
-elseif  (strpos($currentUri, '/users')  !== false) $activeKey = 'user';
+// Match actual route segments: /admin/book, /admin/user, /admin/borrow, /admin/ticket or /library/ticket
+if      (strpos($currentUri, '/book')   !== false) $activeKey = 'book';
+elseif  (strpos($currentUri, '/user')   !== false) $activeKey = 'user';
 elseif  (strpos($currentUri, '/borrow') !== false) $activeKey = 'transaction';
+elseif  (strpos($currentUri, '/ticket') !== false) $activeKey = 'ticket';
 elseif  (strpos($currentUri, '/profile')!== false) $activeKey = 'profile';
 if (strpos($currentUri, '/auth') !== false) $activeKey = '';
 $activeColor = $pageColors[$activeKey] ?? '#7c6aff';
@@ -41,6 +43,7 @@ $pageLabels = [
     'book'        => ($isAdmin ? 'Sách' : 'Danh mục sách'),
     'user'        => 'Thành viên',
     'transaction' => 'Mượn / Trả',
+    'ticket'      => 'Hỏi đáp & Hỗ trợ',
     'profile'     => 'Hồ sơ cá nhân',
 ];
 $pageLabel = $authUser ? ($pageLabels[$activeKey] ?? '') : 'Đăng nhập';
@@ -55,6 +58,7 @@ $pageLabel = $authUser ? ($pageLabels[$activeKey] ?? '') : 'Đăng nhập';
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
     <link href="<?= $this->basePath('css/app.css') ?>" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
 
@@ -122,7 +126,7 @@ $pageLabel = $authUser ? ($pageLabels[$activeKey] ?? '') : 'Đăng nhập';
     <?php endif; ?>
 
     <!-- MAIN CONTENT -->
-    <div class="main-content">
+    <div class="main-content" <?= !$authUser ? 'style="margin-left:0"' : '' ?>>
 
         <?php if ($authUser): ?>
         <!-- TOPBAR -->
@@ -130,7 +134,29 @@ $pageLabel = $authUser ? ($pageLabels[$activeKey] ?? '') : 'Đăng nhập';
             <div class="topbar-left">
                 <div class="page-breadcrumb"><?= $pageLabel ?></div>
             </div>
-            <div class="topbar-right">
+            <div class="topbar-right" style="display:flex;align-items:center;gap:20px">
+                <!-- NOTIFICATION BELL -->
+                <div class="notification-bell-container" style="position:relative">
+                    <button class="notification-bell-btn" onclick="toggleNotificationsDropdown()" style="background:none;border:none;cursor:pointer;position:relative;padding:6px;color:var(--text-secondary);display:flex;align-items:center;justify-content:center;transition:color 0.2s;outline:none">
+                        <i class="bi bi-bell-fill" style="font-size:20px"></i>
+                        <span class="notification-badge" id="notification-badge" style="display:none;position:absolute;top:2px;right:2px;background:#ef4444;color:white;font-size:9px;font-weight:bold;border-radius:50%;width:16px;height:16px;align-items:center;justify-content:center;border:2px solid var(--bg-card)">0</span>
+                    </button>
+                    <!-- DROPDOWN PANEL -->
+                    <div class="notification-dropdown" id="notification-dropdown" style="display:none;position:absolute;top:100%;right:0;margin-top:10px;width:320px;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,0.15);z-index:1000;overflow:hidden">
+                        <div class="notification-header" style="padding:14px 18px;border-bottom:1px solid var(--border);font-weight:600;font-size:14px;color:var(--text-primary);display:flex;justify-content:space-between;align-items:center">
+                            <span>Thông báo</span>
+                            <span class="badge badge-purple" id="notification-count-badge" style="font-size:10px">0 mới</span>
+                        </div>
+                        <div class="notification-list" id="notification-list" style="max-height:300px;overflow-y:auto;display:flex;flex-direction:column">
+                            <!-- Items inserted dynamically -->
+                            <div class="notification-empty" style="padding:30px;text-align:center;color:var(--text-muted);font-size:12px">
+                                <i class="bi bi-bell-slash" style="font-size:24px;display:block;margin-bottom:6px"></i>
+                                Không có thông báo nào mới.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="topbar-page-label">
                     <div class="topbar-dot" style="background:<?= $activeColor ?>"></div>
                     <?= $pageLabel ?>
@@ -197,7 +223,7 @@ $pageLabel = $authUser ? ($pageLabels[$activeKey] ?? '') : 'Đăng nhập';
 </div><!-- /.app-shell -->
 <?php endif; ?>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
 <script>
 // Confirm dialogs
 document.querySelectorAll('[data-confirm]').forEach(el => {
@@ -243,6 +269,26 @@ setTimeout(() => {
     </button>
 
     <style>
+    /* NOTIFICATION ITEMS STYLE */
+    .notification-item {
+        padding: 12px 18px; border-bottom: 1px solid var(--border); display: flex; gap: 12px;
+        text-decoration: none; color: inherit; transition: background 0.2s; cursor: pointer;
+        text-align: left;
+    }
+    .notification-item:hover { background: var(--bg-body); }
+    .notification-item:last-child { border-bottom: none; }
+    .notification-item .noti-icon {
+        width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+        background: rgba(124, 106, 255, 0.1); color: var(--accent-purple); font-size: 14px; flex-shrink: 0;
+    }
+    .notification-item.ticket .noti-icon { background: rgba(20, 184, 166, 0.1); color: #14b8a6; }
+    .notification-item.borrow_approved .noti-icon { background: rgba(34, 197, 94, 0.1); color: #22c55e; }
+    .notification-item.ticket_answered .noti-icon { background: rgba(20, 184, 166, 0.1); color: #14b8a6; }
+    .notification-item .noti-content { flex: 1; min-width: 0; }
+    .notification-item .noti-title { font-weight: 600; font-size: 13px; color: var(--text-primary); margin-bottom: 2px; }
+    .notification-item .noti-desc { font-size: 12px; color: var(--text-secondary); line-height: 1.4; }
+    .notification-item .noti-time { font-size: 10px; color: var(--text-muted); margin-top: 4px; }
+
     .chatbox-container {
         position: fixed; bottom: 20px; right: 20px; width: 340px; background: var(--bg-card);
         border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); border: 1px solid var(--border);
@@ -314,7 +360,7 @@ setTimeout(() => {
 
         try {
             const userId = <?= $authUser ? $authUser['id'] : 'null' ?>;
-            const res = await fetch('<?= $this->url('api/books/search') ?>'.replace('/search', '/chat'), {
+            const res = await fetch('<?= $this->url('api/books-chat') ?>', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ message: msg, user_id: userId })
@@ -345,6 +391,84 @@ setTimeout(() => {
 
     function escapeHtml(unsafe) {
         return (unsafe||'').replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    }
+
+    // Notifications Toggle & Fetching
+    function toggleNotificationsDropdown() {
+        const dropdown = document.getElementById('notification-dropdown');
+        const isShowing = dropdown.style.display === 'block';
+        dropdown.style.display = isShowing ? 'none' : 'block';
+        if (!isShowing) {
+            loadNotifications();
+        }
+    }
+
+    // Close notifications dropdown when clicking outside
+    document.addEventListener('click', function(event) {
+        const bellBtn = document.querySelector('.notification-bell-btn');
+        const dropdown = document.getElementById('notification-dropdown');
+        if (bellBtn && dropdown && !bellBtn.contains(event.target) && !dropdown.contains(event.target)) {
+            dropdown.style.display = 'none';
+        }
+    });
+
+    async function loadNotifications() {
+        try {
+            const response = await fetch('<?= $this->url('api/notifications') ?>');
+            if (!response.ok) return;
+            const data = await response.json();
+            
+            const badge = document.getElementById('notification-badge');
+            const countBadge = document.getElementById('notification-count-badge');
+            const list = document.getElementById('notification-list');
+            
+            const count = data.length;
+            if (count > 0) {
+                badge.textContent = count;
+                badge.style.display = 'flex';
+                countBadge.textContent = count + ' mới';
+                
+                let html = '';
+                data.forEach(item => {
+                    let iconClass = 'bi-bell';
+                    if (item.type === 'borrow') iconClass = 'bi-book';
+                    else if (item.type === 'ticket') iconClass = 'bi-chat-left-text';
+                    else if (item.type === 'borrow_approved') iconClass = 'bi-patch-check-fill';
+                    else if (item.type === 'ticket_answered') iconClass = 'bi-chat-left-text-fill';
+                    
+                    html += `
+                        <a href="${item.url}" class="notification-item ${item.type}">
+                            <div class="noti-icon">
+                                <i class="bi ${iconClass}"></i>
+                            </div>
+                            <div class="noti-content">
+                                <div class="noti-title">${item.title}</div>
+                                <div class="noti-desc">${item.description}</div>
+                                <div class="noti-time">${item.time}</div>
+                            </div>
+                        </a>
+                    `;
+                });
+                list.innerHTML = html;
+            } else {
+                badge.style.display = 'none';
+                countBadge.textContent = '0 mới';
+                list.innerHTML = `
+                    <div class="notification-empty" style="padding:30px;text-align:center;color:var(--text-muted);font-size:12px">
+                        <i class="bi bi-bell-slash" style="font-size:24px;display:block;margin-bottom:6px"></i>
+                        Không có thông báo nào mới.
+                    </div>
+                `;
+            }
+        } catch (e) {
+            console.error('Failed to load notifications:', e);
+        }
+    }
+
+    // Initial load and poll every 30 seconds
+    if (document.getElementById('notification-badge')) {
+        loadNotifications();
+        setInterval(loadNotifications, 30000);
     }
     </script>
 </body>
