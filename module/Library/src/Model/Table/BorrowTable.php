@@ -176,6 +176,12 @@ class BorrowTable
         ], [self::PK => $id]);
     }
 
+    public function reject(int $id): void
+    {
+        $this->cleanupExpiredReturnedHistory();
+        $this->tableGateway->delete([self::PK => $id]);
+    }
+
     public function returnBook(int $id): void
     {
         $this->cleanupExpiredReturnedHistory();
@@ -234,6 +240,84 @@ class BorrowTable
         $stmt   = $sql->prepareStatementForSqlObject($select);
         $result = $stmt->execute();
         return $this->extractCount($result->current());
+    }
+
+    public function countOverdueOccurrencesForUser(int $userId): int
+    {
+        $this->cleanupExpiredReturnedHistory();
+
+        $sql    = $this->tableGateway->getSql();
+        $select = $sql->select()->columns([
+            'c' => new Expression(
+                "SUM(CASE
+                    WHEN status = 'overdue'
+                      OR (status = 'borrowed' AND return_date < CURDATE())
+                      OR (status = 'returned' AND returned_at IS NOT NULL AND DATE(returned_at) > return_date)
+                        THEN 1
+                    ELSE 0
+                 END)"
+            ),
+        ])->where(['user_id' => $userId]);
+
+        $stmt   = $sql->prepareStatementForSqlObject($select);
+        $result = $stmt->execute();
+        return $this->extractCount($result->current());
+    }
+
+    public function countReturnedLateForUser(int $userId): int
+    {
+        $this->cleanupExpiredReturnedHistory();
+
+        $sql    = $this->tableGateway->getSql();
+        $select = $sql->select()->columns([
+            'c' => new Expression(
+                "SUM(CASE WHEN status = 'returned' AND returned_at IS NOT NULL AND DATE(returned_at) > return_date THEN 1 ELSE 0 END)"
+            ),
+        ])->where(['user_id' => $userId]);
+
+        $stmt   = $sql->prepareStatementForSqlObject($select);
+        $result = $stmt->execute();
+        return $this->extractCount($result->current());
+    }
+
+    public function getOnTimeRateForUser(int $userId): int
+    {
+        $this->cleanupExpiredReturnedHistory();
+
+        $sql    = $this->tableGateway->getSql();
+        $select = $sql->select()->columns([
+            'evaluated' => new Expression(
+                "SUM(CASE 
+                    WHEN status = 'returned' 
+                      OR status = 'overdue' 
+                      OR (status = 'borrowed' AND return_date < CURDATE()) 
+                        THEN 1 
+                    ELSE 0 
+                 END)"
+            ),
+            'late' => new Expression(
+                "SUM(CASE 
+                    WHEN status = 'overdue' 
+                      OR (status = 'borrowed' AND return_date < CURDATE()) 
+                      OR (status = 'returned' AND returned_at IS NOT NULL AND DATE(returned_at) > return_date) 
+                        THEN 1 
+                    ELSE 0 
+                 END)"
+            ),
+        ])->where(['user_id' => $userId]);
+
+        $stmt   = $sql->prepareStatementForSqlObject($select);
+        $result = $stmt->execute();
+        $row    = $result->current();
+        if (!$row) {
+            return 100;
+        }
+        $evaluated = (int) $row['evaluated'];
+        $late      = (int) $row['late'];
+        if ($evaluated === 0) {
+            return 100;
+        }
+        return (int) ((($evaluated - $late) / $evaluated) * 100);
     }
 
     public function countReturned(?int $userId = null): int
@@ -394,6 +478,20 @@ class BorrowTable
         $rowset = $this->tableGateway->select(function (Select $select) use ($userId) {
             $select->columns([self::PK]);
             $select->where(['user_id' => $userId]);
+            $select->limit(1);
+        });
+
+        return $rowset->count() > 0;
+    }
+
+    public function hasActiveTransactionsForUser(int $userId): bool
+    {
+        $this->cleanupExpiredReturnedHistory();
+
+        $rowset = $this->tableGateway->select(function (Select $select) use ($userId) {
+            $select->columns([self::PK]);
+            $select->where(['user_id' => $userId]);
+            $select->where->in('status', ['pending', 'borrowed', 'overdue']);
             $select->limit(1);
         });
 

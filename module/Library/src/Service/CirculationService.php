@@ -114,6 +114,32 @@ class CirculationService
         }
     }
 
+    public function rejectBorrow(int $recordId): void
+    {
+        $connection = $this->adapter->getDriver()->getConnection();
+        $connection->beginTransaction();
+
+        try {
+            $record = $this->borrowTable->getRecord($recordId);
+
+            if ($record->status !== 'pending') {
+                throw new DomainException('Phiếu mượn này đã được duyệt hoặc xử lý trước đó.');
+            }
+
+            // Delete the pending borrow request
+            $this->borrowTable->reject($recordId);
+
+            $connection->commit();
+        } catch (\Throwable $throwable) {
+            try {
+                $connection->rollback();
+            } catch (\Throwable) {
+            }
+
+            throw $throwable;
+        }
+    }
+
     public function returnBook(int $recordId): void
     {
         $connection = $this->adapter->getDriver()->getConnection();

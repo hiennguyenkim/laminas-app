@@ -91,10 +91,10 @@ class NotificationApiController extends AbstractActionController
                 ];
             }
 
-            // 2. Answered Support Tickets (status = answered)
+            // 2. Answered Support Tickets (status = in_progress)
             $sqlTicket = "SELECT t.* 
                           FROM support_tickets t 
-                          WHERE t.user_id = ? AND t.status = 'answered' 
+                          WHERE t.user_id = ? AND t.status = 'in_progress' 
                           ORDER BY t.updated_at DESC 
                           LIMIT 5";
             $statement = $this->dbAdapter->query($sqlTicket);

@@ -74,11 +74,14 @@ class UserTable
                 'borrowCount' => new Expression(
                     '(SELECT COUNT(*) FROM borrow_records br '
                     . 'WHERE br.user_id = users.user_id '
-                    . 'AND br.status = \'borrowed\')'
+                    . 'AND br.status IN (\'borrowed\', \'overdue\'))'
                 ),
-                'totalBorrows' => new Expression(
+                'overdueCount' => new Expression(
                     '(SELECT COUNT(*) FROM borrow_records br '
-                    . 'WHERE br.user_id = users.user_id)'
+                    . 'WHERE br.user_id = users.user_id '
+                    . 'AND (br.status = \'overdue\' '
+                    . 'OR (br.status = \'borrowed\' AND br.return_date < CURDATE()) '
+                    . 'OR (br.status = \'returned\' AND br.returned_at IS NOT NULL AND DATE(br.returned_at) > br.return_date)))'
                 ),
             ]);
 

@@ -192,12 +192,20 @@ $filterStatus = (string)($filters['status']??'');
                     <td><span class="badge <?= $statusClass ?>"><?= $statusLabel ?></span></td>
                     <td>
                         <?php if ($isAdmin && $record->status === 'pending'): ?>
-                        <form method="POST" action="<?= $this->url('library/transaction', ['action' => 'approve', 'id' => $record->id]) ?>"
-                              data-confirm="Xác nhận duyệt cho '<?= htmlspecialchars($record->userFullName ?? '') ?>' mượn sách '<?= htmlspecialchars($record->bookTitle) ?>'?">
-                            <button type="submit" class="btn btn-primary btn-sm">
-                                <i class="bi bi-patch-check"></i>Duyệt mượn
-                            </button>
-                        </form>
+                        <div style="display:flex;gap:6px">
+                            <form method="POST" action="<?= $this->url('library/transaction', ['action' => 'approve', 'id' => $record->id]) ?>"
+                                  data-confirm="Xác nhận duyệt cho '<?= htmlspecialchars($record->userFullName ?? '') ?>' mượn sách '<?= htmlspecialchars($record->bookTitle) ?>'?" style="margin:0">
+                                <button type="submit" class="btn btn-primary btn-sm" style="padding:4px 8px;font-size:11px">
+                                    <i class="bi bi-patch-check"></i>Duyệt
+                                </button>
+                            </form>
+                            <form method="POST" action="<?= $this->url('library/transaction', ['action' => 'reject', 'id' => $record->id]) ?>"
+                                  data-confirm="Từ chối duyệt yêu cầu mượn sách '<?= htmlspecialchars($record->bookTitle) ?>' của '<?= htmlspecialchars($record->userFullName ?? '') ?>'?" style="margin:0">
+                                <button type="submit" class="btn btn-sm btn-outline" style="color:#ef4444;border-color:#ef4444;padding:4px 8px;font-size:11px">
+                                    <i class="bi bi-x-circle"></i>Từ chối
+                                </button>
+                            </form>
+                        </div>
                         <?php elseif ($isAdmin && in_array($record->status, ['borrowed','overdue'], true)): ?>
                         <form method="POST" action="<?= $this->url('library/transaction', ['action' => 'return', 'id' => $record->id]) ?>"
                               data-confirm="Xác nhận '<?= htmlspecialchars($record->userFullName ?? '') ?>' đã trả sách '<?= htmlspecialchars($record->bookTitle) ?>'?">

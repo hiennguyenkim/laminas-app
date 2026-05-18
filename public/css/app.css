@@ -246,6 +246,8 @@ body {
 .stat-card.green::after  { background: var(--accent-green); }
 .stat-card.orange::after { background: var(--accent-orange); }
 .stat-card.pink::after   { background: var(--accent-pink); }
+.stat-card.blue::after   { background: var(--accent-blue); }
+.stat-card.teal::after   { background: var(--accent-teal); }
 
 .stat-icon {
   width: 44px; height: 44px; border-radius: 12px;
@@ -256,6 +258,8 @@ body {
 .stat-icon.green  { background: rgba(34,197,94,.15);  color: var(--accent-green); }
 .stat-icon.orange { background: rgba(249,115,22,.15); color: var(--accent-orange); }
 .stat-icon.pink   { background: rgba(236,72,153,.15); color: var(--accent-pink); }
+.stat-icon.blue   { background: rgba(59,130,246,.15);  color: var(--accent-blue); }
+.stat-icon.teal   { background: rgba(20,184,166,.15);  color: var(--accent-teal); }
 
 .stat-badge {
   position: absolute; top: 16px; right: 16px;

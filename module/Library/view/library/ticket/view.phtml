@@ -3,12 +3,12 @@ $this->headTitle('Chi tiết Ticket #' . $ticket['id']);
 $this->layout('layout/library-layout');
 
 $statusMap = [
-    'open' => ['Đang chờ', 'badge-orange'],
-    'answered' => ['Đã trả lời', 'badge-green'],
-    'closed' => ['Đã đóng', 'badge-gray']
+    'open' => ['Chưa phản hồi', 'badge-orange'],
+    'in_progress' => ['Đã phản hồi', 'badge-green'],
+    'closed' => ['Đã phản hồi', 'badge-green']
 ];
 [$statusLabel, $statusClass] = $statusMap[$ticket['status']] ?? ['Không rõ', 'badge-gray'];
-$isClosed = $ticket['status'] === 'closed';
+$isClosed = false; // Always allow reply since ticket closing is removed
 ?>
 
 <div class="page-header">
@@ -19,14 +19,6 @@ $isClosed = $ticket['status'] === 'closed';
             <div class="page-subtitle">Bởi: <?= htmlspecialchars($ticket['author_name']) ?> | Trạng thái: <span class="badge <?= $statusClass ?>" style="font-size:11px;margin-left:4px"><?= $statusLabel ?></span></div>
         </div>
     </div>
-    <?php if ($isAdmin && !$isClosed): ?>
-    <form method="POST" style="margin:0">
-        <input type="hidden" name="action" value="close">
-        <button type="submit" class="btn btn-sm btn-outline" style="color:#ef4444;border-color:#ef4444" onclick="return confirm('Đóng yêu cầu hỗ trợ này?')">
-            <i class="bi bi-x-circle"></i> Đóng Ticket
-        </button>
-    </form>
-    <?php endif; ?>
 </div>
 
 <div class="card" style="max-width:900px;margin-bottom:24px;">

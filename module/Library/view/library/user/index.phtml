@@ -59,7 +59,7 @@ $initials = function(string $name): string {
         $statusBadge = '<span class="badge badge-green"><span style="width:6px;height:6px;background:#22c55e;border-radius:50%;display:inline-block"></span>Hoạt động</span>';
     }
     $borrowCount = (int)($user->borrowCount ?? 0);
-    $totalBorrow = (int)($user->totalBorrows ?? 0);
+    $overdueCount = (int)($user->overdueCount ?? 0);
     $idx++;
     ?>
     <div class="member-card <?= $user->isLocked() ? 'locked' : '' ?>">
@@ -81,18 +81,14 @@ $initials = function(string $name): string {
                 <div class="member-stat-value"><?= $borrowCount ?></div>
                 <div class="member-stat-label">Đang mượn</div>
             </div>
-            <div class="member-stat-box">
-                <div class="member-stat-value"><?= $totalBorrow ?></div>
-                <div class="member-stat-label">Tổng mượn</div>
+            <div class="member-stat-box" style="<?= $overdueCount > 0 ? 'background:rgba(239,68,68,0.06);border-color:rgba(239,68,68,0.15)' : '' ?>">
+                <div class="member-stat-value" style="<?= $overdueCount > 0 ? 'color:#ef4444' : '' ?>"><?= $overdueCount ?></div>
+                <div class="member-stat-label">Số lần trễ</div>
             </div>
         </div>
         <div class="member-join">
             <i class="bi bi-calendar3"></i>
             Tham gia <?= htmlspecialchars($user->createdAt ?? date('d/m/Y')) ?>
-        </div>
-        <div style="font-size:11px;color:var(--text-muted);margin-top:6px">Mức độ hoạt động</div>
-        <div class="member-activity">
-            <div style="height:100%;border-radius:2px;background:<?= $color ?>;width:<?= min(100, $totalBorrow * 2) ?>%;transition:width .6s"></div>
         </div>
         <?php if ($user->isLocked()): ?>
         <div class="lock-reason-banner" style="background:rgba(239,68,68,0.08);border:1px dashed rgba(239,68,68,0.25);color:#ef4444;padding:8px 12px;border-radius:6px;font-size:11px;margin-top:10px;display:flex;align-items:flex-start;gap:6px">

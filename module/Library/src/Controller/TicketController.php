@@ -114,7 +114,7 @@ class TicketController extends BaseController
                 $senderRole = $isAdmin ? 'admin' : 'user';
                 $this->dbAdapter->query("INSERT INTO ticket_messages (ticket_id, sender_id, sender_role, message, sent_at) VALUES (?, ?, ?, ?, NOW())", [$id, $currentUser['id'], $senderRole, $message]);
                 
-                $status = $isAdmin ? 'answered' : 'open';
+                $status = $isAdmin ? 'in_progress' : 'open';
                 $this->dbAdapter->query("UPDATE support_tickets SET status = ?, updated_at = NOW() WHERE id = ?", [$status, $id]);
                 
                 $this->flash()->addSuccessMessage('Đã gửi phản hồi.');

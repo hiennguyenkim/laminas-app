@@ -222,4 +222,24 @@ class TransactionController extends BaseController
 
         return $this->redirect()->toRoute('library/transaction');
     }
+
+    public function rejectAction(): Response
+    {
+        if ($response = $this->requireAdmin()) {
+            return $response;
+        }
+
+        if (! $this->httpRequest()->isPost()) {
+            return $this->redirect()->toRoute('library/transaction');
+        }
+
+        try {
+            $this->circulationService->rejectBorrow($this->routeInt('id'));
+            $this->flash()->addSuccessMessage('Từ chối duyệt phiếu mượn thành công.');
+        } catch (\Throwable $e) {
+            $this->flash()->addErrorMessage($e->getMessage());
+        }
+
+        return $this->redirect()->toRoute('library/transaction');
+    }
 }

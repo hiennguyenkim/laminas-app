@@ -84,10 +84,11 @@ class UserController extends BaseController
         }
 
         $currentId = $this->currentUser()['id'] ?? 0;
+        $hasActiveTransactions = $this->borrowTable->hasActiveTransactionsForUser($id);
         $hasBorrowHistory = $this->borrowTable->hasBorrowHistoryForUser($id);
         $canDelete = $user->role === 'student'
             && $id !== $currentId
-            && ! $hasBorrowHistory;
+            && ! $hasActiveTransactions;
 
         $deleteBlockedReason = null;
         if (! $canDelete) {
@@ -95,19 +96,27 @@ class UserController extends BaseController
                 $deleteBlockedReason = 'Chỉ có thể xóa tài khoản sinh viên.';
             } elseif ($id === $currentId) {
                 $deleteBlockedReason = 'Không thể xóa tài khoản đang đăng nhập.';
-            } elseif ($hasBorrowHistory) {
-                $deleteBlockedReason = 'Không thể xóa sinh viên đã có lịch sử mượn/trả.';
+            } elseif ($hasActiveTransactions) {
+                $deleteBlockedReason = 'Không thể xóa sinh viên đang mượn sách hoặc có yêu cầu chờ duyệt.';
             }
         }
 
+        $activeLoans = $this->borrowTable->countActiveLoansForUser($id);
+        $remainingLimit = max(0, 5 - $activeLoans);
+        $onTimeRate = $this->borrowTable->getOnTimeRateForUser($id);
+        $overdueCount = $this->borrowTable->countOverdueOccurrencesForUser($id);
+
         return new ViewModel([
-            'user'               => $user,
-            'currentId'          => $currentId,
-            'activeLoans'        => $this->borrowTable->countActiveLoansForUser($id),
-            'hasOverdueLoans'    => $this->borrowTable->hasOverdueLoans($id),
-            'hasBorrowHistory'   => $hasBorrowHistory,
-            'borrowRecords'      => $this->borrowTable->fetchAllWithDetails([], $id),
-            'canDelete'          => $canDelete,
+            'user'                => $user,
+            'currentId'           => $currentId,
+            'activeLoans'         => $activeLoans,
+            'remainingLimit'      => $remainingLimit,
+            'hasOverdueLoans'     => $this->borrowTable->hasOverdueLoans($id),
+            'overdueCount'        => $overdueCount,
+            'onTimeRate'          => $onTimeRate,
+            'hasBorrowHistory'    => $hasBorrowHistory,
+            'borrowRecords'       => $this->borrowTable->fetchAllWithDetails([], $id),
+            'canDelete'           => $canDelete,
             'deleteBlockedReason' => $deleteBlockedReason,
         ]);
     }
@@ -279,8 +288,8 @@ class UserController extends BaseController
             return $this->redirect()->toRoute('library/user');
         }
 
-        if ($this->borrowTable->hasBorrowHistoryForUser($id)) {
-            $this->flash()->addErrorMessage('Không thể xóa sinh viên đã có lịch sử mượn/trả.');
+        if ($this->borrowTable->hasActiveTransactionsForUser($id)) {
+            $this->flash()->addErrorMessage('Không thể xóa sinh viên đang mượn sách hoặc có yêu cầu chờ duyệt.');
 
             return $this->redirect()->toRoute('library/user');
         }

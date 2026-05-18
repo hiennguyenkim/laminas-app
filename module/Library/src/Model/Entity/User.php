@@ -29,7 +29,7 @@ class User
     public string $phone          = '';
 
     public int    $borrowCount    = 0;
-    public int    $totalBorrows   = 0;
+    public int    $overdueCount   = 0;
 
     public function exchangeArray(array $data): void
     {
@@ -52,7 +52,7 @@ class User
         $this->phone         = (string) ($data['phone'] ?? '');
 
         $this->borrowCount   = (int)    ($data['borrowCount'] ?? $data['borrow_count'] ?? 0);
-        $this->totalBorrows  = (int)    ($data['totalBorrows'] ?? $data['total_borrows'] ?? 0);
+        $this->overdueCount  = (int)    ($data['overdueCount'] ?? $data['overdue_count'] ?? 0);
     }
 
     public function isAdmin(): bool

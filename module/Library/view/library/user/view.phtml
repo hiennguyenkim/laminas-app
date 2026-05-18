@@ -30,21 +30,46 @@ $statusMap = [
     </div>
 <?php endif; ?>
 
-<div class="stat-cards" style="grid-template-columns:repeat(3,1fr)">
-    <div class="stat-card purple">
-        <div class="stat-label">Lượt mượn đang hoạt động</div>
-        <div class="stat-value" style="margin-top:8px;font-size:26px"><?= (int) $activeLoans ?></div>
+<div class="stat-cards" style="grid-template-columns:repeat(4,1fr);gap:12px">
+    <!-- Card 1: Active Loans -->
+    <div class="stat-card purple" style="padding:16px">
+        <div class="stat-label" style="font-size:11px">Đang hoạt động</div>
+        <div class="stat-value" style="margin-top:8px;font-size:20px;font-weight:700"><?= (int) $activeLoans ?> <span style="font-size:12px;font-weight:400;opacity:0.8">cuốn</span></div>
     </div>
-    <div class="stat-card <?= $hasOverdueLoans ? 'pink' : 'green' ?>">
-        <div class="stat-label">Tình trạng quá hạn</div>
-        <div class="stat-value" style="margin-top:8px;font-size:20px;color:<?= $hasOverdueLoans ? '#ef4444' : 'var(--accent-green)' ?>">
-            <?= $hasOverdueLoans ? 'Có quá hạn' : 'Không có quá hạn' ?>
+
+    <!-- Card 2: Remaining Limit -->
+    <div class="stat-card blue" style="padding:16px">
+        <div class="stat-label" style="font-size:11px">Hạn mức còn lại</div>
+        <div class="stat-value" style="margin-top:8px;font-size:20px;font-weight:700;color:<?= $remainingLimit === 0 ? '#ef4444' : 'var(--accent-blue)' ?>">
+            <?= $remainingLimit ?> <span style="font-size:12px;font-weight:400;opacity:0.8">/ 5 cuốn</span>
         </div>
     </div>
-    <div class="stat-card orange">
-        <div class="stat-label">Lịch sử mượn/trả</div>
-        <div class="stat-value" style="margin-top:8px;font-size:20px;color:<?= $hasBorrowHistory ? 'var(--accent-orange)' : 'var(--accent-green)' ?>">
-            <?= $hasBorrowHistory ? 'Đã phát sinh' : 'Chưa phát sinh' ?>
+
+    <!-- Card 3: Overdue Status (Counting overdue times) -->
+    <div class="stat-card <?= $overdueCount > 0 ? 'pink' : 'green' ?>" style="padding:16px">
+        <div class="stat-label" style="font-size:11px">Tình trạng quá hạn</div>
+        <div class="stat-value" style="margin-top:8px;font-size:20px;font-weight:700;color:<?= $overdueCount > 0 ? '#ef4444' : 'var(--accent-green)' ?>">
+            <?= $overdueCount > 0 ? 'Trễ ' . $overdueCount . ' lần' : '0 lần trễ' ?>
+        </div>
+    </div>
+
+    <!-- Card 4: On-time rate -->
+    <?php
+    $rateColor = 'var(--accent-green)';
+    $rateClass = 'green';
+    if ($onTimeRate < 80) {
+        $rateColor = '#f97316'; // orange
+        $rateClass = 'orange';
+    }
+    if ($onTimeRate < 60) {
+        $rateColor = '#ef4444'; // red
+        $rateClass = 'pink';
+    }
+    ?>
+    <div class="stat-card <?= $rateClass ?>" style="padding:16px">
+        <div class="stat-label" style="font-size:11px">Tỷ lệ trả đúng hạn</div>
+        <div class="stat-value" style="margin-top:8px;font-size:20px;font-weight:700;color:<?= $rateColor ?>">
+            <?= $onTimeRate ?>%
         </div>
     </div>
 </div>
