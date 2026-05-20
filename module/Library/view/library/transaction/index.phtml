@@ -193,12 +193,16 @@ $filterStatus = (string)($filters['status']??'');
                     <td>
                         <?php if ($isAdmin && $record->status === 'pending'): ?>
                         <div style="display:flex;gap:6px">
-                            <form method="POST" action="<?= $this->url('library/transaction', ['action' => 'approve', 'id' => $record->id]) ?>"
-                                  data-confirm="Xác nhận duyệt cho '<?= htmlspecialchars($record->userFullName ?? '') ?>' mượn sách '<?= htmlspecialchars($record->bookTitle) ?>'?" style="margin:0">
-                                <button type="submit" class="btn btn-primary btn-sm" style="padding:4px 8px;font-size:11px">
-                                    <i class="bi bi-patch-check"></i>Duyệt
-                                </button>
-                            </form>
+                            <button type="button" class="btn btn-primary btn-sm" style="padding:4px 8px;font-size:11px"
+                                    onclick="openApproveModal(
+                                        '<?= $this->url('library/transaction', ['action' => 'approve', 'id' => $record->id]) ?>',
+                                        '<?= addslashes(htmlspecialchars($record->userFullName ?? '')) ?>',
+                                        '<?= addslashes(htmlspecialchars($record->bookTitle)) ?>',
+                                        '<?= htmlspecialchars($record->borrowDate) ?>',
+                                        '<?= htmlspecialchars($record->returnDate) ?>'
+                                    )">
+                                <i class="bi bi-patch-check"></i>Duyệt
+                            </button>
                             <form method="POST" action="<?= $this->url('library/transaction', ['action' => 'reject', 'id' => $record->id]) ?>"
                                   data-confirm="Từ chối duyệt yêu cầu mượn sách '<?= htmlspecialchars($record->bookTitle) ?>' của '<?= htmlspecialchars($record->userFullName ?? '') ?>'?" style="margin:0">
                                 <button type="submit" class="btn btn-sm btn-outline" style="color:#ef4444;border-color:#ef4444;padding:4px 8px;font-size:11px">
@@ -234,3 +238,148 @@ $filterStatus = (string)($filters['status']??'');
         </table>
     </div>
 </div>
+
+<?php if ($isAdmin): ?>
+<!-- HTML Custom Modal for Approving Loan with Dates -->
+<div id="approveModal" class="custom-modal" style="display:none">
+    <div class="custom-modal-overlay" onclick="closeApproveModal()"></div>
+    <div class="custom-modal-content">
+        <div class="custom-modal-header">
+            <div class="custom-modal-title"><i class="bi bi-calendar-check" style="color:var(--accent-purple)"></i> Phê duyệt phiếu mượn</div>
+            <button type="button" class="custom-modal-close-btn" onclick="closeApproveModal()">&times;</button>
+        </div>
+        <form id="approveForm" method="POST" action="">
+            <div class="custom-modal-body">
+                <p style="margin-bottom:20px; color:var(--text-secondary); font-size:13.5px; line-height:1.5;">
+                    Bạn đang phê duyệt yêu cầu mượn sách của <strong id="modalUser" style="color:var(--text-primary)"></strong>.<br>
+                    Cuốn sách: <strong id="modalBook" style="color:var(--text-primary)"></strong>.
+                </p>
+                <div class="form-group">
+                    <label class="form-label">Ngày mượn thực tế</label>
+                    <input type="date" name="borrow_date" id="modalBorrowDate" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Hạn trả (Ngày phải trả)</label>
+                    <input type="date" name="return_date" id="modalReturnDate" class="form-control" required>
+                </div>
+            </div>
+            <div class="custom-modal-footer">
+                <button type="button" class="btn btn-outline btn-sm" onclick="closeApproveModal()">Hủy bỏ</button>
+                <button type="submit" class="btn btn-primary btn-sm">Xác nhận & Duyệt</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+.custom-modal {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+}
+.custom-modal-overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(15, 17, 23, 0.75);
+    backdrop-filter: blur(5px);
+    transition: opacity 0.22s ease;
+}
+.custom-modal-content {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    width: 100%;
+    max-width: 460px;
+    position: relative;
+    z-index: 2;
+    box-shadow: var(--shadow);
+    transform: scale(0.92);
+    opacity: 0;
+    transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.custom-modal.show .custom-modal-content {
+    transform: scale(1);
+    opacity: 1;
+}
+.custom-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 22px;
+    border-bottom: 1px solid var(--border-color);
+}
+.custom-modal-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.custom-modal-close-btn {
+    background: none;
+    border: none;
+    font-size: 26px;
+    color: var(--text-muted);
+    cursor: pointer;
+    line-height: 1;
+}
+.custom-modal-close-btn:hover {
+    color: var(--text-primary);
+}
+.custom-modal-body {
+    padding: 22px;
+}
+.custom-modal-footer {
+    padding: 14px 22px;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    background: rgba(0, 0, 0, 0.15);
+}
+</style>
+
+<script>
+function openApproveModal(actionUrl, userName, bookTitle, borrowDate, returnDate) {
+    const modal = document.getElementById('approveModal');
+    const form = document.getElementById('approveForm');
+    const modalUser = document.getElementById('modalUser');
+    const modalBook = document.getElementById('modalBook');
+    const modalBorrowInput = document.getElementById('modalBorrowDate');
+    const modalReturnInput = document.getElementById('modalReturnDate');
+
+    form.action = actionUrl;
+    modalUser.textContent = userName;
+    modalBook.textContent = bookTitle;
+
+    const today = new Date().toISOString().split('T')[0];
+    modalBorrowInput.value = borrowDate && borrowDate !== '0000-00-00' ? borrowDate : today;
+    
+    if (returnDate && returnDate !== '0000-00-00') {
+        modalReturnInput.value = returnDate;
+    } else {
+        const borrowVal = new Date(modalBorrowInput.value);
+        borrowVal.setDate(borrowVal.getDate() + 14); // Default to 14 days
+        modalReturnInput.value = borrowVal.toISOString().split('T')[0];
+    }
+
+    modal.style.display = 'flex';
+    setTimeout(() => {
+        modal.classList.add('show');
+    }, 15);
+}
+
+function closeApproveModal() {
+    const modal = document.getElementById('approveModal');
+    modal.classList.remove('show');
+    setTimeout(() => {
+        modal.style.display = 'none';
+    }, 220);
+}
+</script>
+<?php endif; ?>

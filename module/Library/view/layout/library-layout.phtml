@@ -21,16 +21,18 @@ if ($authUser) {
     $navItems[] = ['url' => $this->url($bookRouteName), 'icon' => 'bi-book', 'label' => $isAdmin ? 'Sách' : 'Danh mục sách', 'key' => 'book', 'color' => '#f97316'];
     if ($isAdmin) {
         $navItems[] = ['url' => $this->url('library/user'), 'icon' => 'bi-people', 'label' => 'Thành viên', 'key' => 'user', 'color' => '#22c55e'];
+        $navItems[] = ['url' => $this->url('library/books-import'), 'icon' => 'bi-box-seam', 'label' => 'Nhập sách', 'key' => 'books-import', 'color' => '#f59e0b'];
     }
     $navItems[] = ['url' => $this->url('library/transaction'), 'icon' => 'bi-arrow-left-right', 'label' => 'Mượn / Trả', 'key' => 'transaction', 'color' => '#ec4899'];
     $navItems[] = ['url' => $this->url('library/ticket'), 'icon' => 'bi-chat-left-text', 'label' => 'Hỏi đáp & Hỗ trợ', 'key' => 'ticket', 'color' => '#14b8a6'];
     $navItems[] = ['url' => $this->url('library/profile'), 'icon' => 'bi-person-circle', 'label' => 'Hồ sơ', 'key' => 'profile', 'color' => '#3b82f6'];
 }
 
-$pageColors = ['dashboard' => '#7c6aff', 'book' => '#f97316', 'user' => '#22c55e', 'transaction' => '#ec4899', 'ticket' => '#14b8a6', 'profile' => '#3b82f6'];
+$pageColors = ['dashboard' => '#7c6aff', 'book' => '#f97316', 'user' => '#22c55e', 'books-import' => '#f59e0b', 'transaction' => '#ec4899', 'ticket' => '#14b8a6', 'profile' => '#3b82f6'];
 $activeKey  = 'dashboard';
 // Match actual route segments: /admin/book, /admin/user, /admin/borrow, /admin/ticket or /library/ticket
-if      (strpos($currentUri, '/book')   !== false) $activeKey = 'book';
+if      (strpos($currentUri, '/books/import') !== false) $activeKey = 'books-import';
+elseif  (strpos($currentUri, '/book')   !== false) $activeKey = 'book';
 elseif  (strpos($currentUri, '/user')   !== false) $activeKey = 'user';
 elseif  (strpos($currentUri, '/borrow') !== false) $activeKey = 'transaction';
 elseif  (strpos($currentUri, '/ticket') !== false) $activeKey = 'ticket';
@@ -39,12 +41,13 @@ if (strpos($currentUri, '/auth') !== false) $activeKey = '';
 $activeColor = $pageColors[$activeKey] ?? '#7c6aff';
 
 $pageLabels = [
-    'dashboard'   => 'Tổng quan',
-    'book'        => ($isAdmin ? 'Sách' : 'Danh mục sách'),
-    'user'        => 'Thành viên',
-    'transaction' => 'Mượn / Trả',
-    'ticket'      => 'Hỏi đáp & Hỗ trợ',
-    'profile'     => 'Hồ sơ cá nhân',
+    'dashboard'    => 'Tổng quan',
+    'book'         => ($isAdmin ? 'Sách' : 'Danh mục sách'),
+    'user'         => 'Thành viên',
+    'books-import' => 'Nhập sách Online',
+    'transaction'  => 'Mượn / Trả',
+    'ticket'       => 'Hỏi đáp & Hỗ trợ',
+    'profile'      => 'Hồ sơ cá nhân',
 ];
 $pageLabel = $authUser ? ($pageLabels[$activeKey] ?? '') : 'Đăng nhập';
 ?>
@@ -143,9 +146,12 @@ $pageLabel = $authUser ? ($pageLabels[$activeKey] ?? '') : 'Đăng nhập';
                     </button>
                     <!-- DROPDOWN PANEL -->
                     <div class="notification-dropdown" id="notification-dropdown" style="display:none;position:absolute;top:100%;right:0;margin-top:10px;width:320px;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,0.15);z-index:1000;overflow:hidden">
-                        <div class="notification-header" style="padding:14px 18px;border-bottom:1px solid var(--border);font-weight:600;font-size:14px;color:var(--text-primary);display:flex;justify-content:space-between;align-items:center">
+                        <div class="notification-header" style="padding:14px 18px;border-bottom:1px solid var(--border-color);font-weight:600;font-size:14px;color:var(--text-primary);display:flex;justify-content:space-between;align-items:center">
                             <span>Thông báo</span>
-                            <span class="badge badge-purple" id="notification-count-badge" style="font-size:10px">0 mới</span>
+                            <div style="display:flex;gap:8px;align-items:center">
+                                <span class="badge badge-purple" id="notification-count-badge" style="font-size:10px">0 mới</span>
+                                <a href="#" onclick="markAllNotificationsRead(event)" style="font-size:11px;color:var(--accent-purple);text-decoration:none"><i class="bi bi-check2-all"></i> Đọc hết</a>
+                            </div>
                         </div>
                         <div class="notification-list" id="notification-list" style="max-height:300px;overflow-y:auto;display:flex;flex-direction:column">
                             <!-- Items inserted dynamically -->
@@ -462,6 +468,20 @@ setTimeout(() => {
             }
         } catch (e) {
             console.error('Failed to load notifications:', e);
+        }
+    }
+
+    async function markAllNotificationsRead(event) {
+        if (event) event.preventDefault();
+        try {
+            const response = await fetch('<?= $this->url('api/notifications') ?>', {
+                method: 'POST'
+            });
+            if (response.ok) {
+                loadNotifications();
+            }
+        } catch (e) {
+            console.error('Failed to mark notifications read:', e);
         }
     }
 

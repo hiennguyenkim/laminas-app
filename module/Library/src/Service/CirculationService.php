@@ -75,6 +75,19 @@ class CirculationService
                 $this->borrowTable->borrow($bookId, $userId, $borrowDate, $returnDate);
             } else {
                 $this->borrowTable->requestBorrow($bookId, $userId, $borrowDate, $returnDate);
+                $recordId = (int)$this->adapter->getDriver()->getLastGeneratedValue();
+                try {
+                    $book = $this->bookTable->getBook($bookId);
+                    $stmt = $this->adapter->createStatement(
+                        "INSERT INTO notifications (user_id, sender_id, title, message, type, related_id) 
+                         VALUES (NULL, ?, 'Yêu cầu mượn sách mới', ?, 'borrow', ?)"
+                    );
+                    $stmt->execute([
+                        $userId,
+                        "Độc giả '" . ($borrower->fullName ?? 'Sinh viên') . "' vừa đăng ký mượn cuốn '" . $book->title . "'.",
+                        $recordId
+                    ]);
+                } catch (\Throwable $e) {}
             }
             $connection->commit();
         } catch (\Throwable $throwable) {
@@ -87,7 +100,7 @@ class CirculationService
         }
     }
 
-    public function approveBorrow(int $recordId): void
+    public function approveBorrow(int $recordId, ?string $borrowDate = null, ?string $returnDate = null): void
     {
         $connection = $this->adapter->getDriver()->getConnection();
         $connection->beginTransaction();
@@ -99,9 +112,41 @@ class CirculationService
                 throw new DomainException('Phiếu mượn này đã được duyệt hoặc xử lý trước đó.');
             }
 
+            if ($borrowDate !== null && $returnDate !== null) {
+                $borrowAt = $this->parseDate($borrowDate, 'Ngày mượn không hợp lệ.');
+                $returnAt = $this->parseDate($returnDate, 'Hạn trả không hợp lệ.');
+
+                if ($returnAt < $borrowAt) {
+                    throw new DomainException('Hạn trả phải sau hoặc bằng ngày mượn.');
+                }
+
+                $loanDays = (int) $borrowAt->diff($returnAt)->format('%a');
+                if ($loanDays > self::MAX_LOAN_DAYS) {
+                    throw new DomainException(sprintf(
+                        'Thời hạn mượn tối đa là %d ngày.',
+                        self::MAX_LOAN_DAYS
+                    ));
+                }
+            }
+
             // Decrement book availability and change status to borrowed
             $this->bookTable->decrementAvailability($record->bookId);
-            $this->borrowTable->approve($recordId);
+            $this->borrowTable->approve($recordId, $borrowDate, $returnDate);
+
+            // Tự động gửi thông báo cho sinh viên
+            try {
+                $db = $this->adapter;
+                $stmt = $db->createStatement(
+                    "INSERT INTO notifications (user_id, sender_id, title, message, type, related_id) 
+                     VALUES (?, NULL, ?, ?, 'borrow_alert', ?)"
+                );
+                $stmt->execute([
+                    $record->userId,
+                    'Đăng ký mượn sách được phê duyệt',
+                    "Yêu cầu mượn cuốn sách '" . $record->bookTitle . "' của bạn đã được phê duyệt. Hạn trả: " . ($returnDate ?? $record->returnDate),
+                    $recordId
+                ]);
+            } catch (\Throwable $e) {}
 
             $connection->commit();
         } catch (\Throwable $throwable) {

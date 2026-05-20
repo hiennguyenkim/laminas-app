@@ -11,6 +11,8 @@ use Library\Controller\DashboardController;
 use Library\Controller\ProfileController;
 use Library\Controller\TransactionController;
 use Library\Controller\UserController;
+use Library\Controller\BookImportController;
+use Library\Factory\Controller\BookImportControllerFactory;
 use Library\Factory\Controller\AuthControllerFactory;
 use Library\Factory\Controller\BookControllerFactory;
 use Library\Factory\Controller\DashboardControllerFactory;
@@ -76,9 +78,12 @@ return [
                 'may_terminate' => true,
                 'child_routes'  => [
                     'dashboard' => [
-                        'type'    => Literal::class,
+                        'type'    => Segment::class,
                         'options' => [
-                            'route'    => '/dashboard',
+                            'route'    => '/dashboard[/:action]',
+                            'constraints' => [
+                                'action' => '[a-zA-Z][a-zA-Z0-9_-]*',
+                            ],
                             'defaults' => ['controller' => DashboardController::class, 'action' => 'index'],
                         ],
                     ],
@@ -91,12 +96,16 @@ return [
                         ],
                     ],
                     'books-import' => [
-                        'type'    => Literal::class,
+                        'type'    => Segment::class,
                         'options' => [
-                            'route'    => '/books/import',
+                            'route'    => '/books/import[/:action[/:id]]',
+                            'constraints' => [
+                                'action' => '[a-zA-Z][a-zA-Z0-9_-]*',
+                                'id'     => '[0-9]+',
+                            ],
                             'defaults' => [
-                                'controller' => Controller\BookController::class,
-                                'action'     => 'import',
+                                'controller' => BookImportController::class,
+                                'action'     => 'index',
                             ],
                         ],
                     ],
@@ -245,6 +254,7 @@ return [
     // ── Controllers (all via explicit Factories) ───────────────────────
     'controllers' => [
         'factories' => [
+            BookImportController::class  => BookImportControllerFactory::class,
             HomeController::class        => HomeControllerFactory::class,
             AuthController::class        => AuthControllerFactory::class,
             Controller\BookController::class        => Factory\Controller\BookControllerFactory::class,

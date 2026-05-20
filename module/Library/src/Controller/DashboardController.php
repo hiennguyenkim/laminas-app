@@ -20,17 +20,20 @@ class DashboardController extends BaseController
     private BookTable $bookTable;
     private BorrowTable $borrowTable;
     private UserTable $userTable;
+    private \Laminas\Db\Adapter\AdapterInterface $dbAdapter;
 
     public function __construct(
         AuthSessionContainer $authSessionContainer,
         BookTable $bookTable,
         BorrowTable $borrowTable,
-        UserTable $userTable
+        UserTable $userTable,
+        \Laminas\Db\Adapter\AdapterInterface $dbAdapter
     ) {
         parent::__construct($authSessionContainer);
         $this->bookTable   = $bookTable;
         $this->borrowTable = $borrowTable;
         $this->userTable   = $userTable;
+        $this->dbAdapter   = $dbAdapter;
     }
 
     /**
@@ -78,5 +81,64 @@ class DashboardController extends BaseController
             'lockReason'     => $lockReason,
             'lockedAt'       => $lockedAt,
         ]);
+    }
+
+    public function chatAction(): Response
+    {
+        $currentUser = $this->currentUser();
+        if (!$currentUser) {
+            return $this->jsonResponse(['error' => 'Unauthorized'], 401);
+        }
+
+        if ($this->getRequest()->isPost()) {
+            $data = $this->postData();
+            $message = trim((string)($data['message'] ?? ''));
+            if ($message === '') {
+                return $this->jsonResponse(['error' => 'Message cannot be empty'], 400);
+            }
+            if (mb_strlen($message) > 255) {
+                return $this->jsonResponse(['error' => 'Message is too long'], 400);
+            }
+
+            $userId = (int)$currentUser['id'];
+            $sql = "INSERT INTO public_chats (user_id, message, created_at) VALUES (?, ?, NOW())";
+            $this->dbAdapter->query($sql, [$userId, $message]);
+
+            return $this->jsonResponse(['success' => true]);
+        }
+
+        // Fetch last 50 messages joining with users to get nickname/fullname/username
+        $sql = "SELECT c.*, COALESCE(NULLIF(u.nickname, ''), NULLIF(u.full_name, ''), u.username) AS nickname, u.role 
+                FROM public_chats c 
+                JOIN users u ON c.user_id = u.user_id 
+                ORDER BY c.created_at ASC 
+                LIMIT 50";
+        $results = iterator_to_array($this->dbAdapter->query($sql)->execute());
+
+        // Format timestamps for display
+        $formattedResults = array_map(function($row) {
+            return [
+                'id'         => $row['id'],
+                'nickname'   => $row['nickname'] ?? 'Độc giả',
+                'message'    => $row['message'],
+                'role'       => $row['role'] ?? 'student',
+                'created_at' => date('H:i', strtotime($row['created_at']))
+            ];
+        }, $results);
+
+        return $this->jsonResponse($formattedResults);
+    }
+
+    private function jsonResponse(array $data, int $statusCode = 200): Response
+    {
+        $response = $this->getResponse();
+        if (! $response instanceof Response) {
+            throw new \RuntimeException('Unexpected response instance.');
+        }
+
+        $response->setStatusCode($statusCode);
+        $response->setContent((string) json_encode($data, JSON_UNESCAPED_UNICODE));
+        $response->getHeaders()->addHeaderLine('Content-Type', 'application/json');
+        return $response;
     }
 }

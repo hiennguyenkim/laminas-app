@@ -75,21 +75,23 @@ $activeCat = (string) ($filters['category'] ?? '');
         </a>
         <?php endforeach; ?>
     </div>
-    <?php if ($canManage): ?>
     <form method="GET" style="display:flex;gap:8px">
         <div class="topbar-search" style="max-width:260px;flex:1">
             <i class="bi bi-search"></i>
             <input type="text" name="search" value="<?= htmlspecialchars($filters['search'] ?? '') ?>" placeholder="Tìm sách, tác giả...">
         </div>
+        <?php if ($canManage): ?>
         <select name="status" class="form-select" style="width:auto">
             <option value="">Tất cả trạng thái</option>
             <option value="available" <?= ($filters['status']??'')==='available'?'selected':'' ?>>Sẵn sàng</option>
             <option value="borrowed"  <?= ($filters['status']??'')==='borrowed'?'selected':'' ?>>Đang mượn hết</option>
             <option value="unavailable" <?= ($filters['status']??'')==='unavailable'?'selected':'' ?>>Tạm khóa</option>
         </select>
-        <button type="submit" class="btn btn-primary"><i class="bi bi-funnel"></i><?= number_format($totalItems) ?> kết quả</button>
+        <?php else: ?>
+        <input type="hidden" name="status" value="<?= htmlspecialchars($filters['status'] ?? '') ?>">
+        <?php endif; ?>
+        <button type="submit" class="btn btn-primary"><i class="bi bi-search"></i>Tìm kiếm</button>
     </form>
-    <?php endif; ?>
 </div>
 
 <!-- BOOK GRID -->

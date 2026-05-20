@@ -67,6 +67,17 @@ class TicketController extends BaseController
                 $msgSql = "INSERT INTO ticket_messages (ticket_id, sender_id, sender_role, message, sent_at) VALUES (?, ?, ?, ?, NOW())";
                 $this->dbAdapter->query($msgSql, [$ticketId, $currentUser['id'], $senderRole, $content]);
 
+                // Gửi thông báo cho Admin
+                try {
+                    $notiSql = "INSERT INTO notifications (user_id, sender_id, title, message, type, related_id) 
+                                VALUES (NULL, ?, 'Yêu cầu hỗ trợ mới', ?, 'ticket', ?)";
+                    $this->dbAdapter->query($notiSql, [
+                        $currentUser['id'],
+                        "Độc giả <strong>" . htmlspecialchars($currentUser['fullName'] ?? $currentUser['username']) . "</strong> gửi ticket mới: <em>" . htmlspecialchars($title) . "</em>.",
+                        $ticketId
+                    ]);
+                } catch (\Throwable $e) {}
+
                 $this->flash()->addSuccessMessage('Đã gửi yêu cầu hỗ trợ thành công.');
                 return $this->redirect()->toRoute('library/ticket');
             }
@@ -117,6 +128,28 @@ class TicketController extends BaseController
                 $status = $isAdmin ? 'in_progress' : 'open';
                 $this->dbAdapter->query("UPDATE support_tickets SET status = ?, updated_at = NOW() WHERE id = ?", [$status, $id]);
                 
+                // Gửi thông báo
+                try {
+                    if ($isAdmin) {
+                        $notiSql = "INSERT INTO notifications (user_id, sender_id, title, message, type, related_id) 
+                                    VALUES (?, ?, 'Có phản hồi hỗ trợ', ?, 'ticket_answered', ?)";
+                        $this->dbAdapter->query($notiSql, [
+                            $ticket['user_id'],
+                            $currentUser['id'],
+                            "Thủ thư đã trả lời yêu cầu hỗ trợ của bạn: <em>" . htmlspecialchars($ticket['title']) . "</em>.",
+                            $id
+                        ]);
+                    } else {
+                        $notiSql = "INSERT INTO notifications (user_id, sender_id, title, message, type, related_id) 
+                                    VALUES (NULL, ?, 'Phản hồi hỗ trợ mới', ?, 'ticket', ?)";
+                        $this->dbAdapter->query($notiSql, [
+                            $currentUser['id'],
+                            "Độc giả <strong>" . htmlspecialchars($currentUser['fullName'] ?? $currentUser['username']) . "</strong> đã phản hồi ticket: <em>" . htmlspecialchars($ticket['title']) . "</em>.",
+                            $id
+                        ]);
+                    }
+                } catch (\Throwable $e) {}
+
                 $this->flash()->addSuccessMessage('Đã gửi phản hồi.');
             }
             return $this->redirect()->toRoute('library/ticket', ['action' => 'view', 'id' => $id]);

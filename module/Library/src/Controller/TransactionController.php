@@ -213,8 +213,20 @@ class TransactionController extends BaseController
             return $this->redirect()->toRoute('library/transaction');
         }
 
+        $id = $this->routeInt('id');
+        $post = $this->postData();
+        $borrowDate = isset($post['borrow_date']) ? trim((string)$post['borrow_date']) : null;
+        $returnDate = isset($post['return_date']) ? trim((string)$post['return_date']) : null;
+
+        if ($borrowDate === '') {
+            $borrowDate = null;
+        }
+        if ($returnDate === '') {
+            $returnDate = null;
+        }
+
         try {
-            $this->circulationService->approveBorrow($this->routeInt('id'));
+            $this->circulationService->approveBorrow($id, $borrowDate, $returnDate);
             $this->flash()->addSuccessMessage('Phê duyệt phiếu mượn thành công.');
         } catch (\Throwable $e) {
             $this->flash()->addErrorMessage($e->getMessage());

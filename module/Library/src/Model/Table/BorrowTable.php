@@ -167,13 +167,21 @@ class BorrowTable
         ]);
     }
 
-    public function approve(int $id): void
+    public function approve(int $id, ?string $borrowDate = null, ?string $returnDate = null): void
     {
         $this->cleanupExpiredReturnedHistory();
 
-        $this->tableGateway->update([
+        $updateData = [
             'status' => 'borrowed',
-        ], [self::PK => $id]);
+        ];
+        if ($borrowDate !== null) {
+            $updateData['borrow_date'] = $borrowDate;
+        }
+        if ($returnDate !== null) {
+            $updateData['return_date'] = $returnDate;
+        }
+
+        $this->tableGateway->update($updateData, [self::PK => $id]);
     }
 
     public function reject(int $id): void
@@ -511,6 +519,26 @@ class BorrowTable
         ];
     }
 
+    public function countTotalBorrowedHistory(?int $userId = null): int
+    {
+        $this->cleanupExpiredReturnedHistory();
+
+        $sql    = $this->tableGateway->getSql();
+        $select = $sql->select()
+            ->columns([
+                'c' => new Expression("SUM(CASE WHEN status IN ('borrowed', 'returned', 'overdue') THEN 1 ELSE 0 END)"),
+            ]);
+
+        if ($userId !== null) {
+            $select->where(['user_id' => $userId]);
+        }
+
+        $stmt   = $sql->prepareStatementForSqlObject($select);
+        $result = $stmt->execute();
+
+        return $this->extractCount($result->current());
+    }
+
     /**
      * Get monthly borrow/return counts for the current year (12 months).
      * Returns ['borrow' => [0..11], 'return' => [0..11]]
@@ -522,13 +550,16 @@ class BorrowTable
 
         $sql = $this->tableGateway->getSql();
 
-        // Borrow counts per month
+        // Borrow counts per month (excluding pending ones)
         $borrowSelect = $sql->select()
             ->columns([
                 'month' => new Expression('MONTH(borrow_date)'),
                 'cnt'   => new Expression('COUNT(*)'),
             ])
             ->where(new Expression("YEAR(borrow_date) = $year"))
+            ->where(function (\Laminas\Db\Sql\Where $where) {
+                $where->in('status', ['borrowed', 'returned', 'overdue']);
+            })
             ->group(new Expression('MONTH(borrow_date)'));
         $borrowResult = $sql->prepareStatementForSqlObject($borrowSelect)->execute();
         foreach ($borrowResult as $row) {

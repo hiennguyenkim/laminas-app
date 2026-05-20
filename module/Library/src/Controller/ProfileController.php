@@ -30,7 +30,7 @@ class ProfileController extends BaseController
         $user = $this->userTable->getUser($userId);
 
         $stats = [
-            'total_borrowed' => $this->borrowTable->countBorrowed($userId) + $this->borrowTable->countReturned($userId),
+            'total_borrowed' => $this->borrowTable->countTotalBorrowedHistory($userId),
             'active_loans'   => $this->borrowTable->countBorrowed($userId),
             'overdue_count'  => $this->borrowTable->countOverdue($userId),
         ];

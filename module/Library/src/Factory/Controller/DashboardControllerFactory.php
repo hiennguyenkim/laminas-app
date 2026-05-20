@@ -20,6 +20,7 @@ class DashboardControllerFactory
             $container->get(BookTable::class),
             $container->get(BorrowTable::class),
             $container->get(UserTable::class),
+            $container->get(\Laminas\Db\Adapter\AdapterInterface::class)
         );
     }
 }
