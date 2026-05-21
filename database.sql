@@ -10,6 +10,7 @@ USE library_db;
 
 -- ── DỌN DẸP BẢNG CŨ (NẾU CÓ) ──────────────────────────────────────────
 SET FOREIGN_KEY_CHECKS = 0;
+DROP TABLE IF EXISTS public_chats;
 DROP TABLE IF EXISTS notifications;
 DROP TABLE IF EXISTS chat_logs;
 DROP TABLE IF EXISTS ticket_messages;
@@ -197,4 +198,16 @@ CREATE TABLE IF NOT EXISTS notifications (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_notification_user FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
+-- ───────────────────────────────────────────────
+-- 11. BẢNG public_chats (Kênh thảo luận công khai)
+-- ───────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS public_chats (
+    id         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id    INT UNSIGNED NOT NULL,
+    message    VARCHAR(1000) NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    is_pinned  TINYINT(1) NOT NULL DEFAULT 0,
+    reactions  VARCHAR(1000) DEFAULT NULL,
+    INDEX idx_created_at (created_at),
+    CONSTRAINT fk_chat_user_public FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

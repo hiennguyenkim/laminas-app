@@ -11,6 +11,7 @@ USE library_db;
 
 -- ── DỌN DẸP DỮ LIỆU CŨ ───────────────────────────────────────────────
 SET FOREIGN_KEY_CHECKS = 0;
+DELETE FROM public_chats;
 DELETE FROM notifications;
 DELETE FROM chat_logs;
 DELETE FROM ticket_messages;
@@ -22,6 +23,7 @@ DELETE FROM borrow_records;
 DELETE FROM books;
 DELETE FROM users;
 
+ALTER TABLE public_chats    AUTO_INCREMENT = 1;
 ALTER TABLE notifications   AUTO_INCREMENT = 1;
 ALTER TABLE chat_logs       AUTO_INCREMENT = 1;
 ALTER TABLE ticket_messages AUTO_INCREMENT = 1;
@@ -816,3 +818,39 @@ INSERT INTO notifications (user_id, sender_id, title, message, type, is_read, re
 (60, 1, 'Phiếu mượn đã được duyệt',   'Cuốn sách <strong>Nguyễn Văn Đông</strong> của bạn đã được thủ thư phê duyệt thành công!', 'borrow_approved', 0, NULL),
 (75, 1, 'Phiếu mượn đã được duyệt',   'Cuốn sách <strong>Sapiens</strong> của bạn đã được phê duyệt. Hạn trả: 01/06/2026.', 'borrow_approved', 0, NULL),
 (80, 1, 'Phiếu mượn đã được duyệt',   'Cuốn sách <strong>Chiến lược đại dương xanh</strong> của bạn đã được phê duyệt.', 'borrow_approved', 1, NULL);
+
+-- ═══════════════════════════════════════════════════════════════════════
+-- 11. PUBLIC_CHATS — 30 tin nhắn thảo luận công khai
+-- ═══════════════════════════════════════════════════════════════════════
+INSERT INTO public_chats (user_id, message, created_at, is_pinned, reactions) VALUES
+(1,  'Xin chào các bạn đọc! Chào mừng đến với kênh thảo luận của Thư viện HCMUE 📚', '2026-05-20 08:00:00', 1, NULL),
+(1,  'Hôm nay thư viện vừa nhập thêm 50 đầu sách mới về Công nghệ thông tin và Văn học. Mời các bạn ghé xem!', '2026-05-20 08:05:00', 0, '{"👍":[2,3,4,5]}'),
+(2,  'Dạ em chào thầy cô thủ thư ạ! Thư viện mình mới về nhiều sách hay quá 😍', '2026-05-20 08:10:00', 0, '{"❤️":[1,3]}'),
+(3,  'Cho mình hỏi sách "Clean Code" còn không ạ? Mình đang cần mượn gấp', '2026-05-20 08:15:00', 0, NULL),
+(1,  'Bạn ơi, sách Clean Code hiện còn 3 cuốn. Bạn có thể đặt mượn trực tiếp qua hệ thống nhé!', '2026-05-20 08:20:00', 0, '{"👍":[3,4]}'),
+(4,  'Mình vừa đọc xong "Nhà giả kim" hay tuyệt vời luôn! Ai chưa đọc thì nên đọc ngay 🌟', '2026-05-20 09:00:00', 0, '{"❤️":[2,5,6],"👍":[7]}'),
+(5,  'Bạn ơi mình cũng thích cuốn đó lắm! Paulo Coelho viết rất có chiều sâu', '2026-05-20 09:10:00', 0, '{"❤️":[4]}'),
+(6,  'Hỏi thăm thư viện mình có sách "Python Crash Course" không ạ?', '2026-05-20 09:30:00', 0, NULL),
+(1,  'Có bạn ơi! Mã sách là #70. Hiện tại có 4 cuốn, 2 đang được mượn, còn 2 trên kệ 😊', '2026-05-20 09:35:00', 0, '{"👍":[6,7,8]}'),
+(7,  'Cảm ơn thủ thư! Thư viện tư vấn nhiệt tình quá 🙏', '2026-05-20 09:40:00', 0, '{"❤️":[1]}'),
+(8,  'Chào mọi người! Mình mới là thành viên mới của thư viện 😊', '2026-05-21 07:30:00', 0, '{"👋":[1,2,3,4,5]}'),
+(2,  'Chào mừng bạn! Đây là kênh thảo luận của thư viện, cứ tự nhiên hỏi nhé', '2026-05-21 07:35:00', 0, NULL),
+(9,  'Các bạn có thể recommend sách kỹ năng sống hay không? Mình đang tìm đọc', '2026-05-21 07:50:00', 0, NULL),
+(4,  '"Atomic Habits" của James Clear rất hay! Mình đọc xong thay đổi được nhiều thói quen tốt', '2026-05-21 07:55:00', 0, '{"👍":[9,10,11]}'),
+(3,  '"Đắc nhân tâm" của Dale Carnegie cũng là một lựa chọn không thể bỏ qua bạn ơi', '2026-05-21 08:00:00', 0, '{"❤️":[9],"👍":[12]}'),
+(10, 'Cảm ơn các bạn! Mình sẽ thử đọc Atomic Habits trước nhé 📖', '2026-05-21 08:05:00', 0, NULL),
+(1,  '📢 Nhắc nhở: Hạn trả sách tháng 5 là ngày 31/05/2026. Các bạn nhớ trả đúng hạn tránh bị phạt nhé!', '2026-05-21 08:30:00', 0, '{"👍":[2,3,4,5,6,7,8,9,10]}'),
+(11, 'Ủa mình mượn sách từ 15/5 thì hạn trả là khi nào ạ?', '2026-05-21 08:35:00', 0, NULL),
+(1,  'Bạn mượn ngày 15/5 thì theo quy định 30 ngày, hạn trả là 14/6/2026 bạn nhé. Bạn cũng có thể xem lịch sử mượn trong trang cá nhân 😊', '2026-05-21 08:40:00', 0, '{"👍":[11]}'),
+(12, 'Thư viện mình có giáo trình Cơ sở dữ liệu không ạ? Học kỳ này mình cần', '2026-05-21 09:00:00', 0, NULL),
+(1,  'Có bạn ơi! "Giáo trình Cơ sở dữ liệu" của tác giả Hồ Thuần, mã sách #81. Còn 4 cuốn trên kệ', '2026-05-21 09:05:00', 0, '{"👍":[12,13]}'),
+(13, 'Mình đang đọc "Sapiens: Lược sử loài người" - cuốn sách này thay đổi hoàn toàn cách mình nhìn về lịch sử 🤯', '2026-05-21 09:30:00', 0, '{"😮":[2,3,4],"❤️":[5]}'),
+(5,  'Đồng ý! Yuval Noah Harari viết rất cuốn hút. Bạn có thể đọc tiếp "Homo Deus" sau nha', '2026-05-21 09:35:00', 0, '{"👍":[13]}'),
+(14, 'Thư viện cho mình hỏi thủ tục gia hạn sách như thế nào ạ?', '2026-05-21 10:00:00', 0, NULL),
+(1,  'Bạn vào trang "Lịch sử mượn" chọn phiếu cần gia hạn rồi nhấn "Gia hạn". Hệ thống sẽ tự cộng thêm 14 ngày. Mỗi cuốn chỉ được gia hạn 1 lần nhé!', '2026-05-21 10:05:00', 0, '{"👍":[14,15,16]}'),
+(15, 'Cảm ơn thủ thư! Hệ thống tiện lợi quá 😄', '2026-05-21 10:10:00', 0, NULL),
+(16, 'Ai có kinh nghiệm đọc sách tiếng Anh không? Mình muốn tập đọc sách gốc nhưng chưa biết bắt đầu từ đâu', '2026-05-21 10:30:00', 0, NULL),
+(3,  'Bạn nên bắt đầu với "The Little Prince" bản tiếng Anh, câu ngắn dễ hiểu lắm!', '2026-05-21 10:35:00', 0, '{"👍":[16,17,18]}'),
+(2,  '"To Kill a Mockingbird" cũng hay và không quá khó, thư viện mình có sách đó nha!', '2026-05-21 10:40:00', 0, '{"👍":[16],"❤️":[19]}'),
+(1,  'Chúc các bạn buổi học và đọc sách hiệu quả! Thư viện luôn sẵn sàng hỗ trợ 📚✨', '2026-05-21 11:00:00', 0, '{"❤️":[2,3,4,5,6,7,8,9,10,11,12]}');
+
