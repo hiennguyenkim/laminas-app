@@ -37,34 +37,44 @@ $statusLabels = [
 </div>
 <?php endif; ?>
 
+<?php if (!$isAdmin && isset($dueSoon) && $dueSoon > 0): ?>
+<div style="background:rgba(245,158,11,0.08);border:1px dashed rgba(245,158,11,0.3);color:#d97706;padding:16px 20px;border-radius:10px;font-size:13px;margin-bottom:24px;display:flex;align-items:flex-start;gap:12px;width:100%">
+    <i class="bi bi-exclamation-circle" style="font-size:24px;line-height:1"></i>
+    <div>
+        <strong style="font-size:15px">Cảnh báo: Bạn có <?= $dueSoon ?> cuốn sách sắp đến hạn trả!</strong>
+        <div style="margin-top:6px;font-size:13px">Vui lòng kiểm tra lại hạn trả trong phần Lịch sử mượn và hoàn trả đúng hẹn để không bị phạt quá hạn hoặc khóa tài khoản.</div>
+    </div>
+</div>
+<?php endif; ?>
+
 <!-- STAT CARDS -->
 <div class="stat-cards">
-    <!-- Total Books -->
+    <!-- Card 1: Books/History -->
     <div class="stat-card purple">
         <div class="stat-icon purple"><i class="bi bi-book-half"></i></div>
-        <div class="stat-value"><?= number_format((int)$totalBooks) ?></div>
-        <div class="stat-label">Tổng số sách</div>
-        <div class="stat-bar"><div class="stat-bar-fill" style="width:<?= min(100, (int)$totalBooks * 5) ?>%;background:#7c6aff"></div></div>
+        <div class="stat-value"><?= number_format((int)($isAdmin ? $totalBooks : ($loanSummary['total'] ?? 0))) ?></div>
+        <div class="stat-label"><?= $isAdmin ? 'Tổng số sách' : 'Lịch sử mượn' ?></div>
+        <div class="stat-bar"><div class="stat-bar-fill" style="width:<?= min(100, (int)($isAdmin ? $totalBooks : ($loanSummary['total'] ?? 0)) * 5) ?>%;background:#7c6aff"></div></div>
     </div>
-    <!-- Members -->
+    <!-- Card 2: Members/Returned -->
     <div class="stat-card green">
-        <div class="stat-icon green"><i class="bi bi-people"></i></div>
-        <div class="stat-value"><?= number_format((int)($totalMembers ?? 0)) ?></div>
-        <div class="stat-label">Thành viên</div>
-        <div class="stat-bar"><div class="stat-bar-fill" style="width:<?= min(100, (int)($totalMembers ?? 0) * 10) ?>%;background:#22c55e"></div></div>
+        <div class="stat-icon green"><i class="bi bi-bookmark-check-fill"></i></div>
+        <div class="stat-value"><?= number_format((int)($isAdmin ? ($totalMembers ?? 0) : ($loanSummary['returned'] ?? 0))) ?></div>
+        <div class="stat-label"><?= $isAdmin ? 'Thành viên' : 'Đã hoàn trả' ?></div>
+        <div class="stat-bar"><div class="stat-bar-fill" style="width:<?= min(100, (int)($isAdmin ? ($totalMembers ?? 0) : ($loanSummary['returned'] ?? 0)) * 10) ?>%;background:#22c55e"></div></div>
     </div>
-    <!-- Borrowing -->
-    <a href="<?= $this->url('library/transaction', [], ['query' => ['status' => 'borrowed']]) ?>" class="stat-card orange" style="text-decoration:none;color:inherit;display:block">
+    <!-- Card 3: Borrowing -->
+    <a href="<?= $this->url('library/transaction') ?>" class="stat-card orange" style="text-decoration:none;color:inherit;display:block">
         <div class="stat-icon orange"><i class="bi bi-bookmark-check"></i></div>
         <div class="stat-value"><?= number_format((int)$totalBorrowed) ?></div>
-        <div class="stat-label">Đang mượn</div>
+        <div class="stat-label"><?= $isAdmin ? 'Đang mượn' : 'Sách đang mượn' ?></div>
         <div class="stat-bar"><div class="stat-bar-fill" style="width:<?= min(100, (int)$totalBorrowed * 5) ?>%;background:#f97316"></div></div>
     </a>
-    <!-- Overdue -->
-    <a href="<?= $this->url('library/transaction', [], ['query' => ['status' => 'overdue']]) ?>" class="stat-card pink" style="text-decoration:none;color:inherit;display:block">
+    <!-- Card 4: Overdue -->
+    <a href="<?= $this->url('library/transaction') ?>" class="stat-card pink" style="text-decoration:none;color:inherit;display:block">
         <div class="stat-icon pink"><i class="bi bi-exclamation-triangle"></i></div>
         <div class="stat-value"><?= number_format((int)$totalOverdue) ?></div>
-        <div class="stat-label">Quá hạn</div>
+        <div class="stat-label"><?= $isAdmin ? 'Quá hạn' : 'Sách quá hạn' ?></div>
         <div class="stat-bar"><div class="stat-bar-fill" style="width:<?= min(100, (int)$totalOverdue * 10) ?>%;background:#ec4899"></div></div>
     </a>
 </div>
@@ -128,7 +138,7 @@ $statusLabels = [
 <style>
 .dashboard-grid-2 {
     display: grid;
-    grid-template-columns: 2fr 1fr;
+    grid-template-columns: 1fr;
     gap: 24px;
     align-items: start;
     margin-top: 24px;
@@ -181,22 +191,6 @@ $statusLabels = [
                 <?php endif; ?>
                 </tbody>
             </table>
-        </div>
-    </div>
-
-    <!-- COMMUNITY SHOUTBOX -->
-    <div class="card" style="margin-bottom:0;display:flex;flex-direction:column;height:100%">
-        <div class="card-header">
-            <div class="card-title"><i class="bi bi-chat-dots" style="color:var(--accent-purple);margin-right:8px"></i>Shoutbox Công cộng</div>
-        </div>
-        <div class="card-body" style="display:flex;flex-direction:column;flex:1;padding:16px">
-            <div id="shoutbox-messages" style="flex:1;height:270px;max-height:270px;overflow-y:auto;margin-bottom:14px;padding-right:4px;">
-                <div style="text-align:center;padding:40px;color:var(--text-muted);font-size:12px">Đang tải tin nhắn...</div>
-            </div>
-            <form id="shoutbox-form" style="display:flex;gap:8px">
-                <input type="text" id="shoutbox-input" class="form-control" placeholder="Nhập tin nhắn..." maxlength="255" style="font-size:13px;flex:1" required>
-                <button type="submit" class="btn btn-primary btn-sm" style="padding:0 12px"><i class="bi bi-send"></i></button>
-            </form>
         </div>
     </div>
 </div>
@@ -268,81 +262,4 @@ $catColorsUsed = json_encode(array_slice($catColors, 0, count($categoryStats)));
     });
 })();
 
-// Shoutbox community chat
-(function() {
-    const list = document.getElementById('shoutbox-messages');
-    const form = document.getElementById('shoutbox-form');
-    const input = document.getElementById('shoutbox-input');
-    if (!list || !form) return;
-
-    async function loadMessages() {
-        try {
-            const response = await fetch('<?= $this->url('library/dashboard', ['action' => 'chat']) ?>');
-            if (!response.ok) return;
-            const messages = await response.json();
-            
-            let html = '';
-            if (messages.length === 0) {
-                html = '<div style="text-align:center;padding:40px;color:var(--text-muted);font-size:12px">Chưa có tin nhắn nào. Hãy gửi lời chào đầu tiên!</div>';
-            } else {
-                messages.forEach(msg => {
-                    const isAdmin = msg.role === 'admin';
-                    const roleBadge = isAdmin ? '<span class="badge badge-purple" style="font-size:9px;padding:2px 4px;margin-left:4px;vertical-align:middle">Thủ thư</span>' : '';
-                    const nameColor = isAdmin ? 'var(--accent-purple)' : 'var(--text-primary)';
-                    
-                    html += `
-                        <div style="margin-bottom:12px;font-size:13px;line-height:1.4">
-                            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px">
-                                <span style="font-weight:600;color:${nameColor}">${escapeHtml(msg.nickname)}${roleBadge}</span>
-                                <span style="font-size:10px;color:var(--text-muted)">${msg.created_at}</span>
-                            </div>
-                            <div style="background:rgba(255,255,255,0.02);border:1px solid var(--border-color);border-radius:8px;padding:8px 12px;color:var(--text-secondary)">
-                                ${escapeHtml(msg.message)}
-                            </div>
-                        </div>
-                    `;
-                });
-            }
-            
-            const isAtBottom = list.scrollHeight - list.clientHeight <= list.scrollTop + 40;
-            list.innerHTML = html;
-            if (isAtBottom || list.scrollTop === 0) {
-                list.scrollTop = list.scrollHeight;
-            }
-        } catch (e) {
-            console.error('Failed to load chat messages:', e);
-        }
-    }
-
-    function escapeHtml(str) {
-        return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-    }
-
-    form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const val = input.value.trim();
-        if (!val) return;
-        
-        input.disabled = true;
-        try {
-            const response = await fetch('<?= $this->url('library/dashboard', ['action' => 'chat']) ?>', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: 'message=' + encodeURIComponent(val)
-            });
-            if (response.ok) {
-                input.value = '';
-                await loadMessages();
-            }
-        } catch (e) {
-            console.error(e);
-        } finally {
-            input.disabled = false;
-            input.focus();
-        }
-    });
-
-    loadMessages();
-    setInterval(loadMessages, 5000);
-})();
 </script>

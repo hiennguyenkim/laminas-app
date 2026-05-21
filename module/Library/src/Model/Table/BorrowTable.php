@@ -516,6 +516,7 @@ class BorrowTable
             'returned'  => $this->countReturned($userId),
             'pending'   => $this->countPending($userId),
             'due_soon'  => $userId !== null ? $this->countDueSoon($userId) : 0,
+            'total'     => $this->countTotalBorrowedHistory($userId),
         ];
     }
 
@@ -543,7 +544,7 @@ class BorrowTable
      * Get monthly borrow/return counts for the current year (12 months).
      * Returns ['borrow' => [0..11], 'return' => [0..11]]
      */
-    public function getMonthlyStats(int $year): array
+    public function getMonthlyStats(int $year, ?int $userId = null): array
     {
         $borrowCounts = array_fill(0, 12, 0);
         $returnCounts = array_fill(0, 12, 0);
@@ -561,6 +562,11 @@ class BorrowTable
                 $where->in('status', ['borrowed', 'returned', 'overdue']);
             })
             ->group(new Expression('MONTH(borrow_date)'));
+
+        if ($userId !== null) {
+            $borrowSelect->where(['user_id' => $userId]);
+        }
+
         $borrowResult = $sql->prepareStatementForSqlObject($borrowSelect)->execute();
         foreach ($borrowResult as $row) {
             if (is_array($row)) {
@@ -578,6 +584,11 @@ class BorrowTable
             ->where('returned_at IS NOT NULL')
             ->where(new Expression("YEAR(returned_at) = $year"))
             ->group(new Expression('MONTH(returned_at)'));
+
+        if ($userId !== null) {
+            $returnSelect->where(['user_id' => $userId]);
+        }
+
         $returnResult = $sql->prepareStatementForSqlObject($returnSelect)->execute();
         foreach ($returnResult as $row) {
             if (is_array($row)) {

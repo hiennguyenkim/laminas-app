@@ -4,11 +4,12 @@ $this->headTitle('Nhập sách Online & Thống kê chi tiêu');
 
 <div class="page-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
     <div>
-        <h1 class="page-title"><i class="bi bi-box-seam" style="color:var(--accent-purple);margin-right:12px"></i>Nhập sách Online</h1>
+        <h1 class="page-title"><i class="bi bi-box-seam" style="color:var(--accent-purple);margin-right:12px"></i>Nhập sách trực tiếp</h1>
         <p class="text-muted" style="font-size:13px;margin:4px 0 0 0">Quản lý quy trình nhập kho sách và theo dõi chi tiêu ngân sách thư viện.</p>
     </div>
-    <div>
-        <button class="btn btn-primary" onclick="toggleAddModal()"><i class="bi bi-plus-circle" style="margin-right:6px"></i>Yêu cầu nhập mới</button>
+    <div style="display:flex;gap:12px">
+        <a href="<?= $this->url('library/books-import', ['action' => 'export'], ['query' => ['year' => $selectedYear]]) ?>" class="btn btn-outline"><i class="bi bi-file-earmark-spreadsheet" style="margin-right:6px;color:#10b981"></i>Xuất báo cáo</a>
+        <button class="btn btn-primary" onclick="toggleAddModal()"><i class="bi bi-plus-circle" style="margin-right:6px"></i>Nhập kho mới</button>
     </div>
 </div>
 
@@ -26,12 +27,12 @@ $this->headTitle('Nhập sách Online & Thống kê chi tiêu');
         </form>
     </div>
     <div class="card-body" style="padding:20px">
-        <div style="display:grid;grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));gap:16px;margin-bottom:24px">
+        <div style="display:grid;grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));gap:16px;margin-bottom:12px">
             <!-- Year Summary -->
             <div style="background:rgba(255,255,255,0.02);border:1px solid var(--border-color);border-radius:12px;padding:16px;text-align:center">
                 <div style="font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px">Tổng chi tiêu năm <?= $selectedYear ?></div>
                 <div style="font-size:24px;font-weight:700;color:var(--accent-purple);margin:8px 0"><?= number_format($totalSpendYear, 0, ',', '.') ?> đ</div>
-                <div style="font-size:11px;color:var(--text-muted)"><i class="bi bi-journal-plus"></i> Đã hoàn thành nhập <?= $totalImportsYear ?> đầu sách</div>
+                <div style="font-size:11px;color:var(--text-muted)"><i class="bi bi-journal-plus"></i> Đã nhập <?= $totalImportsYear ?> đầu sách</div>
             </div>
             
             <?php 
@@ -63,19 +64,20 @@ $this->headTitle('Nhập sách Online & Thống kê chi tiêu');
 <!-- DATA LIST -->
 <div class="card">
     <div class="card-header">
-        <div class="card-title"><i class="bi bi-list-task" style="color:var(--accent-purple);margin-right:8px"></i>Danh sách yêu cầu nhập sách</div>
+        <div class="card-title"><i class="bi bi-list-task" style="color:var(--accent-purple);margin-right:8px"></i>Lịch sử phiếu nhập kho sách</div>
     </div>
     <div style="overflow-x:auto">
         <table class="data-table">
             <thead>
                 <tr>
                     <th>#ID</th>
+                    <th>Hóa đơn</th>
                     <th>Thông tin sách</th>
                     <th>Thể loại</th>
-                    <th>Chi phí (đ)</th>
+                    <th>Đơn giá (đ)</th>
                     <th>Số lượng</th>
                     <th>Tổng tiền (đ)</th>
-                    <th>Phân loại</th>
+                    <th>Hình thức</th>
                     <th>Trạng thái</th>
                     <th>Hành động</th>
                 </tr>
@@ -83,7 +85,7 @@ $this->headTitle('Nhập sách Online & Thống kê chi tiêu');
             <tbody>
                 <?php if (empty($imports)): ?>
                     <tr>
-                        <td colspan="9" style="text-align:center;padding:48px;color:var(--text-muted)">
+                        <td colspan="10" style="text-align:center;padding:48px;color:var(--text-muted)">
                             <i class="bi bi-box-seam" style="font-size:32px;display:block;margin-bottom:12px"></i>
                             Chưa có yêu cầu nhập sách nào được ghi nhận.
                         </td>
@@ -92,6 +94,7 @@ $this->headTitle('Nhập sách Online & Thống kê chi tiêu');
                     <?php foreach ($imports as $import): ?>
                         <tr>
                             <td class="text-muted">#<?= $import['import_id'] ?></td>
+                            <td><span style="font-family:monospace;font-size:12px;color:var(--text-secondary)"><?= htmlspecialchars($import['invoice_code']) ?></span></td>
                             <td>
                                 <div style="font-weight:600;color:var(--text-primary)"><?= htmlspecialchars($import['title']) ?></div>
                                 <div style="font-size:11px;color:var(--text-muted);margin-top:2px">
@@ -107,33 +110,33 @@ $this->headTitle('Nhập sách Online & Thống kê chi tiêu');
                             <td class="fw-bold" style="color:var(--text-primary)"><?= number_format((float)$import['price'] * $import['quantity'], 0, ',', '.') ?> đ</td>
                             <td>
                                 <?php if($import['import_type'] === 'purchase'): ?>
-                                    <span style="font-size:11px;color:#3b82f6"><i class="bi bi-credit-card"></i> Mua sắm</span>
+                                    <span style="font-size:11px;color:#3b82f6"><i class="bi bi-credit-card" style="margin-right:4px"></i>Mua sắm</span>
                                 <?php elseif($import['import_type'] === 'donation'): ?>
-                                    <span style="font-size:11px;color:#10b981"><i class="bi bi-gift"></i> Tặng/Biếu</span>
+                                    <span style="font-size:11px;color:#10b981"><i class="bi bi-gift" style="margin-right:4px"></i>Tặng/Biếu</span>
                                 <?php else: ?>
-                                    <span style="font-size:11px;color:var(--text-muted)"><i class="bi bi-circle"></i> Khác</span>
+                                    <span style="font-size:11px;color:var(--text-muted)"><i class="bi bi-circle" style="margin-right:4px"></i>Khác</span>
                                 <?php endif; ?>
                             </td>
                             <td>
                                 <?php if($import['status'] === 'pending'): ?>
-                                    <span class="badge badge-yellow">Chờ duyệt (Pending)</span>
-                                <?php elseif($import['status'] === 'processing'): ?>
-                                    <span class="badge badge-blue">Đang nhập (Processing)</span>
+                                    <span class="badge badge-yellow">Chờ duyệt</span>
+                                <?php elseif($import['status'] === 'approved'): ?>
+                                    <span class="badge badge-green">Đã nhập kho</span>
                                 <?php else: ?>
-                                    <span class="badge badge-green">Hoàn thành (Completed)</span>
+                                    <span class="badge badge-red">Đã từ chối</span>
                                 <?php endif; ?>
                             </td>
                             <td>
                                 <div style="display:flex;gap:6px">
                                     <?php if ($import['status'] === 'pending'): ?>
-                                        <a href="<?= $this->url('library/books-import', ['action' => 'update', 'id' => $import['import_id']], ['query' => ['status' => 'processing']]) ?>" class="btn btn-outline btn-sm" style="padding:4px 8px;font-size:11px">Duyệt xử lý</a>
-                                        <a href="<?= $this->url('library/books-import', ['action' => 'update', 'id' => $import['import_id']], ['query' => ['status' => 'completed']]) ?>" class="btn btn-success btn-sm" style="padding:4px 8px;font-size:11px"><i class="bi bi-check-lg"></i> Nhập kho</a>
-                                        <a href="<?= $this->url('library/books-import', ['action' => 'update', 'id' => $import['import_id']], ['query' => ['status' => 'delete']]) ?>" class="btn btn-danger btn-sm" style="padding:4px 8px;font-size:11px" onclick="return confirm('Bạn có chắc chắn muốn xóa yêu cầu này?')"><i class="bi bi-trash"></i></a>
-                                    <?php elseif ($import['status'] === 'processing'): ?>
-                                        <a href="<?= $this->url('library/books-import', ['action' => 'update', 'id' => $import['import_id']], ['query' => ['status' => 'completed']]) ?>" class="btn btn-success btn-sm" style="padding:4px 8px;font-size:11px"><i class="bi bi-check-lg"></i> Hoàn thành kho</a>
-                                        <a href="<?= $this->url('library/books-import', ['action' => 'update', 'id' => $import['import_id']], ['query' => ['status' => 'delete']]) ?>" class="btn btn-danger btn-sm" style="padding:4px 8px;font-size:11px" onclick="return confirm('Bạn có chắc chắn muốn xóa yêu cầu này?')"><i class="bi bi-trash"></i></a>
+                                        <a href="<?= $this->url('library/books-import', ['action' => 'update', 'id' => $import['import_id']], ['query' => ['status' => 'approved']]) ?>" class="btn btn-success btn-sm" style="padding:4px 8px;font-size:11px"><i class="bi bi-check-lg" style="margin-right:4px"></i>Nhập kho</a>
+                                        <a href="<?= $this->url('library/books-import', ['action' => 'update', 'id' => $import['import_id']], ['query' => ['status' => 'rejected']]) ?>" class="btn btn-danger btn-sm" style="padding:4px 8px;font-size:11px" onclick="return confirm('Bạn có chắc chắn muốn từ chối yêu cầu này?')"><i class="bi bi-x-circle" style="margin-right:4px"></i>Từ chối</a>
                                     <?php else: ?>
-                                        <span style="font-size:11px;color:var(--text-muted)"><i class="bi bi-check2-circle" style="color:#10b981;margin-right:4px"></i>Đã vào kho (#<?= $import['book_id'] ?>)</span>
+                                        <?php if ($import['status'] === 'approved'): ?>
+                                            <span style="font-size:11px;color:var(--text-muted)"><i class="bi bi-check2-circle" style="color:#10b981;margin-right:4px"></i>Đã vào kho (ID: <?= $import['book_id'] ?>)</span>
+                                        <?php else: ?>
+                                            <span style="font-size:11px;color:var(--text-muted)"><i class="bi bi-slash-circle" style="color:#ef4444;margin-right:4px"></i>Không xử lý</span>
+                                        <?php endif; ?>
                                     <?php endif; ?>
                                 </div>
                             </td>
@@ -149,15 +152,21 @@ $this->headTitle('Nhập sách Online & Thống kê chi tiêu');
 <div id="addImportModal" class="modal-backdrop" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:9999;backdrop-filter:blur(4px);justify-content:center;align-items:center">
     <div class="card" style="width:100%;max-width:550px;background:var(--bg-card);border:1px solid var(--border-color);border-radius:16px;box-shadow:0 20px 40px rgba(0,0,0,0.3);overflow:hidden">
         <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;padding:16px 24px">
-            <div class="card-title" style="margin:0"><i class="bi bi-plus-circle-fill" style="color:var(--accent-purple);margin-right:8px"></i>Yêu cầu nhập sách mới</div>
+            <div class="card-title" style="margin:0"><i class="bi bi-plus-circle-fill" style="color:var(--accent-purple);margin-right:8px"></i>Tạo phiếu nhập kho sách trực tiếp</div>
             <button class="btn btn-outline btn-sm" onclick="toggleAddModal()" style="border:none;padding:4px 8px;font-size:18px"><i class="bi bi-x-lg"></i></button>
         </div>
         <form method="post" action="<?= $this->url('library/books-import') ?>" style="margin:0">
             <div class="card-body" style="padding:24px;max-height:75vh;overflow-y:auto">
                 <div style="display:grid;grid-template-columns:1fr;gap:16px">
-                    <div>
-                        <label class="form-label" style="font-size:12px;font-weight:600">Tên sách *</label>
-                        <input type="text" name="title" class="form-control" placeholder="Ví dụ: Lập trình PHP Laminas" required>
+                    <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:12px">
+                        <div>
+                            <label class="form-label" style="font-size:12px;font-weight:600">Tên sách *</label>
+                            <input type="text" name="title" class="form-control" placeholder="Ví dụ: Lập trình PHP Laminas" required>
+                        </div>
+                        <div>
+                            <label class="form-label" style="font-size:12px;font-weight:600">Mã hóa đơn *</label>
+                            <input type="text" name="invoice_code" class="form-control" placeholder="Mã hóa đơn, ví dụ HD-192" required>
+                        </div>
                     </div>
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
                         <div>
@@ -215,7 +224,7 @@ $this->headTitle('Nhập sách Online & Thống kê chi tiêu');
             </div>
             <div class="card-footer" style="padding:16px 24px;display:flex;justify-content:flex-end;gap:12px;background:rgba(255,255,255,0.01);border-top:1px solid var(--border-color)">
                 <button type="button" class="btn btn-outline" onclick="toggleAddModal()">Hủy bỏ</button>
-                <button type="submit" class="btn btn-primary">Xác nhận tạo</button>
+                <button type="submit" class="btn btn-primary">Xác nhận nhập kho</button>
             </div>
         </form>
     </div>

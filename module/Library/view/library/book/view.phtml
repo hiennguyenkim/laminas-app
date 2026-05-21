@@ -100,7 +100,7 @@ $statusMap = [
                     </button>
                 </form>
             </div>
-            <?php elseif (isset($currentUser) && $currentUser['role'] === 'student' && $book->status === 'available' && $book->quantity > 0): ?>
+            <?php elseif (isset($currentUser) && $currentUser['role'] === 'student' && $book->status === 'available' && $book->quantity >= 1): ?>
             <div class="d-flex gap-2">
                 <a href="<?= $this->url('library/transaction', ['action' => 'borrow'], ['query' => ['book_id' => $book->id]]) ?>" class="btn btn-success">
                     <i class="bi bi-bookmark-plus"></i> Mượn ngay cuốn này

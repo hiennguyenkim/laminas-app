@@ -75,13 +75,13 @@ $activeCat = (string) ($filters['category'] ?? '');
         </a>
         <?php endforeach; ?>
     </div>
-    <form method="GET" style="display:flex;gap:8px">
+    <form method="GET" id="book-filter-form" style="display:flex;gap:8px">
         <div class="topbar-search" style="max-width:260px;flex:1">
             <i class="bi bi-search"></i>
-            <input type="text" name="search" value="<?= htmlspecialchars($filters['search'] ?? '') ?>" placeholder="Tìm sách, tác giả...">
+            <input type="text" id="book-search-input" name="search" value="<?= htmlspecialchars($filters['search'] ?? '') ?>" placeholder="Tìm sách, tác giả...">
         </div>
         <?php if ($canManage): ?>
-        <select name="status" class="form-select" style="width:auto">
+        <select id="book-status-select" name="status" class="form-select" style="width:auto">
             <option value="">Tất cả trạng thái</option>
             <option value="available" <?= ($filters['status']??'')==='available'?'selected':'' ?>>Sẵn sàng</option>
             <option value="borrowed"  <?= ($filters['status']??'')==='borrowed'?'selected':'' ?>>Đang mượn hết</option>
@@ -94,83 +94,116 @@ $activeCat = (string) ($filters['category'] ?? '');
     </form>
 </div>
 
-<!-- BOOK GRID -->
-<div class="book-grid">
-<?php if (!count($books)): ?>
-    <div style="grid-column:1/-1;text-align:center;padding:60px;color:var(--text-muted)">
-        <i class="bi bi-inbox" style="font-size:40px;display:block;margin-bottom:12px"></i>
-        Không tìm thấy đầu sách phù hợp.
-    </div>
-<?php else: ?>
-    <?php $idx = 0; foreach ($books as $book): ?>
-    <?php
-    $grad     = $gradVals[$idx % count($gradVals)];
-    $leftQty  = (int) $book->quantity;
-    // FIX: Dùng >= 1 thay vì > 0 — sách khả dụng khi có ít nhất 1 cuốn và status = 'available'
-    $available = $book->status === 'available' && $leftQty >= 1;
-    [$statusLabel, $statusClass] = $statusMap[$book->status] ?? [$book->status, 'badge-gray'];
-    $catClass = $catBadgeColors[$book->category] ?? 'badge-gray';
-    $idx++;
-    ?>
-    <div class="book-card">
-        <div class="book-cover" style="background:<?= $grad ?>">
-            <i class="bi bi-book-open"></i>
-            <?php if ($leftQty > 0): ?>
-            <span class="book-cover-badge available">Còn <?= $leftQty ?></span>
-            <?php else: ?>
-            <span class="book-cover-badge none">Hết</span>
-            <?php endif; ?>
+<div class="catalog-layout">
+    <div class="catalog-main">
+        <div id="book-list-container" style="transition: opacity 0.2s ease;">
+    <!-- BOOK GRID -->
+    <div class="book-grid">
+    <?php if (!count($books)): ?>
+        <div style="grid-column:1/-1;text-align:center;padding:60px;color:var(--text-muted)">
+            <i class="bi bi-inbox" style="font-size:40px;display:block;margin-bottom:12px"></i>
+            Không tìm thấy đầu sách phù hợp.
         </div>
-        <div class="book-info">
-            <div class="book-title"><?= htmlspecialchars($book->title) ?></div>
-            <div class="book-author"><?= htmlspecialchars($book->author) ?></div>
-            <div class="book-meta">
-                <span class="badge <?= $catClass ?>" style="font-size:10px"><?= htmlspecialchars($book->category) ?></span>
-                <div class="book-rating"><i class="bi bi-star-fill"></i><?= number_format(4.5 + ($idx%5)*.1, 1) ?></div>
+    <?php else: ?>
+        <?php $idx = 0; foreach ($books as $book): ?>
+        <?php
+        $grad     = $gradVals[$idx % count($gradVals)];
+        $leftQty  = (int) $book->quantity;
+        // availability check quantity >= 1
+        $available = $book->status === 'available' && $leftQty >= 1;
+        [$statusLabel, $statusClass] = $statusMap[$book->status] ?? [$book->status, 'badge-gray'];
+        $catClass = $catBadgeColors[$book->category] ?? 'badge-gray';
+        $idx++;
+        ?>
+        <div class="book-card">
+            <div class="book-cover" style="background:<?= $grad ?>">
+                <i class="bi bi-book-open"></i>
+                <?php if ($leftQty > 0): ?>
+                <span class="book-cover-badge available">Còn <?= $leftQty ?></span>
+                <?php else: ?>
+                <span class="book-cover-badge none">Hết</span>
+                <?php endif; ?>
             </div>
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;font-size:11px;color:var(--text-muted)">
-                <span><i class="bi bi-arrow-left-right" style="margin-right:3px"></i><?= rand(20,60) ?> lượt</span>
-                <span><?= htmlspecialchars($book->publishYear ?? date('Y')) ?></span>
+            <div class="book-info">
+                <div class="book-title"><?= htmlspecialchars($book->title) ?></div>
+                <div class="book-author"><?= htmlspecialchars($book->author) ?></div>
+                <div class="book-meta">
+                    <span class="badge <?= $catClass ?>" style="font-size:10px"><?= htmlspecialchars($book->category) ?></span>
+                    <div class="book-rating"><i class="bi bi-star-fill"></i><?= number_format(4.5 + ($idx%5)*.1, 1) ?></div>
+                </div>
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;font-size:11px;color:var(--text-muted)">
+                    <span><i class="bi bi-arrow-left-right" style="margin-right:3px"></i><?= rand(20,60) ?> lượt</span>
+                    <span><?= htmlspecialchars($book->publishYear ?? date('Y')) ?></span>
+                </div>
+                <div class="book-progress" style="margin-top:8px">
+                    <div class="book-progress-bar" style="width:<?= min(100, $leftQty * 20) ?>%;background:<?= $available ? '#22c55e' : '#f97316' ?>"></div>
+                </div>
+                <?php if ($canManage): ?>
+                <div style="display:flex;gap:6px;margin-top:12px">
+                    <a href="<?= $this->url('library/book', ['action' => 'view', 'id' => $book->id]) ?>" class="btn btn-outline btn-sm btn-icon" title="Xem"><i class="bi bi-eye"></i></a>
+                    <a href="<?= $this->url('library/book', ['action' => 'edit', 'id' => $book->id]) ?>" class="btn btn-outline btn-sm btn-icon" title="Sửa"><i class="bi bi-pencil"></i></a>
+                    <form method="POST" action="<?= $this->url('library/book', ['action' => 'delete', 'id' => $book->id]) ?>"
+                          data-confirm="Xóa sách '<?= htmlspecialchars($book->title) ?>'?" style="display:inline">
+                        <button type="submit" class="btn btn-sm btn-icon" style="background:rgba(239,68,68,.12);color:#ef4444;border:1px solid rgba(239,68,68,.2)" title="Xóa"><i class="bi bi-trash"></i></button>
+                    </form>
+                </div>
+                <?php elseif ($canBorrow && $available): ?>
+                <a href="<?= $this->url('library/transaction', ['action' => 'borrow'], ['query' => ['book_id' => (int)$book->id]]) ?>"
+                   class="btn btn-success w-100 btn-sm" style="margin-top:12px;justify-content:center">
+                    <i class="bi bi-bookmark-plus"></i>Mượn sách
+                </a>
+                <?php endif; ?>
             </div>
-            <div class="book-progress" style="margin-top:8px">
-                <div class="book-progress-bar" style="width:<?= min(100, $leftQty * 20) ?>%;background:<?= $available ? '#22c55e' : '#f97316' ?>"></div>
-            </div>
-            <?php if ($canManage): ?>
-            <div style="display:flex;gap:6px;margin-top:12px">
-                <a href="<?= $this->url('library/book', ['action' => 'view', 'id' => $book->id]) ?>" class="btn btn-outline btn-sm btn-icon" title="Xem"><i class="bi bi-eye"></i></a>
-                <a href="<?= $this->url('library/book', ['action' => 'edit', 'id' => $book->id]) ?>" class="btn btn-outline btn-sm btn-icon" title="Sửa"><i class="bi bi-pencil"></i></a>
-                <form method="POST" action="<?= $this->url('library/book', ['action' => 'delete', 'id' => $book->id]) ?>"
-                      data-confirm="Xóa sách '<?= htmlspecialchars($book->title) ?>'?" style="display:inline">
-                    <button type="submit" class="btn btn-sm btn-icon" style="background:rgba(239,68,68,.12);color:#ef4444;border:1px solid rgba(239,68,68,.2)" title="Xóa"><i class="bi bi-trash"></i></button>
-                </form>
-            </div>
-            <?php elseif ($canBorrow && $available): ?>
-            <a href="<?= $this->url('library/transaction', ['action' => 'borrow'], ['query' => ['book_id' => (int)$book->id]]) ?>"
-               class="btn btn-success w-100 btn-sm" style="margin-top:12px;justify-content:center">
-                <i class="bi bi-bookmark-plus"></i>Mượn sách
-            </a>
-            <?php endif; ?>
         </div>
+        <?php endforeach; ?>
+    <?php endif; ?>
     </div>
-    <?php endforeach; ?>
-<?php endif; ?>
-</div>
 
-<!-- PAGINATION -->
-<?php if ($totalPages > 1): ?>
-<div style="display:flex;align-items:center;justify-content:space-between;margin-top:24px">
-    <div style="font-size:12px;color:var(--text-muted)">
-        Hiển thị <?= min(($page-1)*$perPage+1,$totalItems) ?> – <?= min($page*$perPage,$totalItems) ?> / <?= $totalItems ?> sách
+    <!-- PAGINATION -->
+    <?php if ($totalPages > 1): ?>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:24px">
+        <div style="font-size:12px;color:var(--text-muted)">
+            Hiển thị <?= min(($page-1)*$perPage+1,$totalItems) ?> – <?= min($page*$perPage,$totalItems) ?> / <?= $totalItems ?> sách
+        </div>
+        <div class="pagination">
+            <a class="page-btn <?= $page<=1?'disabled':'' ?>" href="<?= $page>1?$buildPageUrl($page-1):'#' ?>"><i class="bi bi-chevron-left"></i></a>
+            <?php for ($p=max(1,$page-2); $p<=min($totalPages,$page+2); $p++): ?>
+            <a class="page-btn <?= $p===$page?'active':'' ?>" href="<?= $buildPageUrl($p) ?>"><?= $p ?></a>
+            <?php endfor; ?>
+            <a class="page-btn <?= $page>=$totalPages?'disabled':'' ?>" href="<?= $page<$totalPages?$buildPageUrl($page+1):'#' ?>"><i class="bi bi-chevron-right"></i></a>
+        </div>
     </div>
-    <div class="pagination">
-        <a class="page-btn <?= $page<=1?'disabled':'' ?>" href="<?= $page>1?$buildPageUrl($page-1):'#' ?>"><i class="bi bi-chevron-left"></i></a>
-        <?php for ($p=max(1,$page-2); $p<=min($totalPages,$page+2); $p++): ?>
-        <a class="page-btn <?= $p===$page?'active':'' ?>" href="<?= $buildPageUrl($p) ?>"><?= $p ?></a>
-        <?php endfor; ?>
-        <a class="page-btn <?= $page>=$totalPages?'disabled':'' ?>" href="<?= $page<$totalPages?$buildPageUrl($page+1):'#' ?>"><i class="bi bi-chevron-right"></i></a>
+    <?php endif; ?>
+        </div>
+    </div>
+    
+    <div class="catalog-sidebar">
+        <div class="catalog-chat-container">
+            <div class="catalog-chat-header">
+                <i class="bi bi-chat-quote-fill" style="color:var(--accent-purple);font-size:18px"></i>
+                <div>
+                    <div style="font-size:14px;font-weight:600">Kênh Thảo Luận</div>
+                    <div style="font-size:10px;color:var(--text-muted);font-weight:normal">Giao lưu bạn đọc</div>
+                </div>
+            </div>
+            <div class="catalog-chat-messages" id="catalog-chat-body">
+                <div style="text-align:center;padding:40px;color:var(--text-muted);font-size:12px">Đang tải thảo luận...</div>
+            </div>
+            <div class="catalog-chat-footer">
+                <?php if ($isGuest): ?>
+                    <div class="catalog-chat-guest">
+                        Vui lòng <a href="<?= $this->url('library/auth', ['action' => 'login']) ?>" style="color:var(--accent-purple);font-weight:600">Đăng nhập</a> để chat.
+                    </div>
+                <?php else: ?>
+                    <div class="catalog-chat-input-wrapper">
+                        <input type="text" id="catalog-chat-input" placeholder="Viết thảo luận..." onkeypress="if(event.key === 'Enter') sendCatalogMessage()">
+                        <button onclick="sendCatalogMessage()" class="btn btn-primary" style="padding:6px 12px;background:var(--accent-purple);border-color:var(--accent-purple)"><i class="bi bi-send"></i></button>
+                    </div>
+                <?php endif; ?>
+            </div>
+        </div>
     </div>
 </div>
-<?php endif; ?>
 
 <!-- DASHBOARD / NEWS BOARD (Bảng tin) -->
 <?php if (!empty($announcements)): ?>
@@ -210,3 +243,224 @@ $activeCat = (string) ($filters['category'] ?? '');
     </div>
 </div>
 <?php endif; ?>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const container = document.getElementById('book-list-container');
+    if (!container) return;
+
+    const filterForm = document.getElementById('book-filter-form');
+    const searchInput = document.getElementById('book-search-input');
+    const statusSelect = document.getElementById('book-status-select');
+
+    let debounceTimer;
+    function debounce(func, delay) {
+        return function(...args) {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => func.apply(this, args), delay);
+        };
+    }
+
+    async function loadBooks(url, updateHistory = true) {
+        try {
+            container.style.opacity = '0.5';
+            
+            const response = await fetch(url, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            if (!response.ok) throw new Error('Network error');
+            const text = await response.text();
+            
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(text, 'text/html');
+            const newContent = doc.getElementById('book-list-container');
+            if (newContent) {
+                container.innerHTML = newContent.innerHTML;
+            }
+            container.style.opacity = '1';
+
+            if (updateHistory) {
+                history.pushState({ url }, '', url);
+            }
+
+            bindEvents();
+        } catch (e) {
+            console.error('AJAX book load failed:', e);
+            container.style.opacity = '1';
+        }
+    }
+
+    function bindEvents() {
+        const pageBtns = container.querySelectorAll('.page-btn');
+        pageBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const href = btn.getAttribute('href');
+                if (href && href !== '#' && !btn.classList.contains('disabled')) {
+                    e.preventDefault();
+                    loadBooks(href);
+                }
+            });
+        });
+    }
+
+    function reloadFromForm() {
+        const params = new URLSearchParams();
+        
+        const activeTab = document.querySelector('.filter-tab.active');
+        if (activeTab) {
+            const catUrl = new URL(activeTab.href);
+            const cat = catUrl.searchParams.get('category');
+            if (cat) params.set('category', cat);
+        }
+
+        if (searchInput && searchInput.value.trim() !== '') {
+            params.set('search', searchInput.value.trim());
+        }
+        if (statusSelect && statusSelect.value !== '') {
+            params.set('status', statusSelect.value);
+        }
+        
+        const newUrl = window.location.pathname + '?' + params.toString();
+        loadBooks(newUrl);
+    }
+
+    if (searchInput) {
+        searchInput.addEventListener('input', debounce(() => {
+            reloadFromForm();
+        }, 300));
+    }
+
+    if (statusSelect) {
+        statusSelect.addEventListener('change', () => {
+            reloadFromForm();
+        });
+    }
+
+    if (filterForm) {
+        filterForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            reloadFromForm();
+        });
+    }
+
+    const filterTabs = document.querySelectorAll('.filter-tab');
+    filterTabs.forEach(tab => {
+        tab.addEventListener('click', (e) => {
+            e.preventDefault();
+            filterTabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            
+            const targetUrl = new URL(tab.href);
+            if (searchInput && searchInput.value.trim() !== '') {
+                targetUrl.searchParams.set('search', searchInput.value.trim());
+            }
+            if (statusSelect && statusSelect.value !== '') {
+                targetUrl.searchParams.set('status', statusSelect.value);
+            }
+            
+            loadBooks(targetUrl.toString());
+        });
+    });
+
+    window.addEventListener('popstate', (e) => {
+        if (e.state && e.state.url) {
+            loadBooks(e.state.url, false);
+            const urlObj = new URL(e.state.url);
+            if (searchInput) searchInput.value = urlObj.searchParams.get('search') || '';
+            if (statusSelect) statusSelect.value = urlObj.searchParams.get('status') || '';
+            
+            const cat = urlObj.searchParams.get('category') || '';
+            filterTabs.forEach(t => {
+                const tabUrl = new URL(t.href);
+                const tabCat = tabUrl.searchParams.get('category') || '';
+                if (tabCat === cat) {
+                    t.classList.add('active');
+                } else {
+                    t.classList.remove('active');
+                }
+            });
+        }
+    });
+
+    bindEvents();
+
+    // Catalog Chat Room Functionality
+    let catalogChatInterval = null;
+    const currentUserId = <?= json_encode($currentUser['id'] ?? 0) ?>;
+
+    function escapeHtml(unsafe) {
+        return (unsafe || '').replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    }
+
+    async function loadCatalogMessages() {
+        try {
+            const response = await fetch('<?= $this->url("library/dashboard", ["action" => "chat"]) ?>');
+            if (!response.ok) return;
+            const messages = await response.json();
+            const container = document.getElementById('catalog-chat-body');
+            if (!container) return;
+            
+            let html = '';
+            messages.forEach(msg => {
+                const isMe = parseInt(msg.user_id) === currentUserId;
+                const alignment = isMe ? 'self' : 'other';
+                const roleBadge = msg.role === 'admin' ? '<span class="badge badge-purple" style="font-size:9px;padding:2px 4px;margin-left:4px;vertical-align:middle">Thủ thư</span>' : '';
+                
+                html += `
+                    <div class="catalog-chat-msg ${alignment}">
+                        <div class="catalog-chat-meta">
+                            <span style="font-weight:700; color: ${msg.role === 'admin' ? 'var(--accent-purple)' : 'var(--text-primary)'};">${escapeHtml(msg.nickname)}</span>${roleBadge}
+                            <span>${msg.created_at}</span>
+                        </div>
+                        <div class="catalog-chat-bubble">
+                            ${escapeHtml(msg.message)}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            if (html === '') {
+                html = '<div style="text-align:center;padding:40px;color:var(--text-muted);font-size:12px">Không có tin nhắn nào. Hãy gửi tin nhắn đầu tiên!</div>';
+            }
+            
+            const isAtBottom = container.scrollHeight - container.clientHeight <= container.scrollTop + 60;
+            container.innerHTML = html;
+            if (isAtBottom || container.scrollTop === 0) {
+                container.scrollTop = container.scrollHeight;
+            }
+        } catch (e) {
+            console.error('Failed to load catalog chat messages:', e);
+        }
+    }
+
+    window.sendCatalogMessage = async function() {
+        const input = document.getElementById('catalog-chat-input');
+        if (!input) return;
+        const msg = input.value.trim();
+        if (msg === '') return;
+        input.value = '';
+        
+        try {
+            const response = await fetch('<?= $this->url("library/dashboard", ["action" => "chat"]) ?>', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: 'message=' + encodeURIComponent(msg)
+            });
+            if (response.ok) {
+                loadCatalogMessages();
+            } else {
+                console.error('Failed to send catalog chat message.');
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
+    loadCatalogMessages();
+    catalogChatInterval = setInterval(loadCatalogMessages, 5000);
+});
+</script>

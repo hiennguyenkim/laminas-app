@@ -12,7 +12,7 @@ $this->layout('layout/library-layout');
     </div>
 </div>
 
-<?php if ($user->isLocked()): ?>
+<?php if (!$isAdmin && $user->isLocked()): ?>
 <div style="background:rgba(239,68,68,0.08);border:1px dashed rgba(239,68,68,0.3);color:#ef4444;padding:16px 20px;border-radius:10px;font-size:13px;margin-bottom:24px;display:flex;align-items:flex-start;gap:12px;width:100%">
     <i class="bi bi-shield-slash" style="font-size:24px;line-height:1"></i>
     <div>
@@ -84,64 +84,101 @@ $this->layout('layout/library-layout');
 
     <!-- Right Column: Stats & History -->
     <div style="flex: 1.5; min-width: 400px;">
-        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px;">
-            <div class="card" style="padding: 16px; text-align: center;">
-                <div style="font-size: 24px; font-weight: bold; color: var(--accent-purple);"><?= $stats['total_borrowed'] ?></div>
-                <div style="font-size: 13px; color: var(--text-muted);">Đã mượn</div>
+        <?php if ($isAdmin): ?>
+            <!-- Admin Stats -->
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px;">
+                <div class="card" style="padding: 16px; text-align: center;">
+                    <div style="font-size: 24px; font-weight: bold; color: var(--accent-purple);"><?= number_format($adminStats['total_books']) ?></div>
+                    <div style="font-size: 13px; color: var(--text-muted);">Tổng số bản sách</div>
+                </div>
+                <div class="card" style="padding: 16px; text-align: center;">
+                    <div style="font-size: 24px; font-weight: bold; color: var(--accent-blue);"><?= number_format($adminStats['total_members']) ?></div>
+                    <div style="font-size: 13px; color: var(--text-muted);">Số thành viên</div>
+                </div>
+                <div class="card" style="padding: 16px; text-align: center;">
+                    <div style="font-size: 24px; font-weight: bold; color: #f59e0b;"><?= number_format($adminStats['active_loans']) ?></div>
+                    <div style="font-size: 13px; color: var(--text-muted);">Sách đang mượn</div>
+                </div>
             </div>
-            <div class="card" style="padding: 16px; text-align: center;">
-                <div style="font-size: 24px; font-weight: bold; color: var(--accent-blue);"><?= $stats['active_loans'] ?></div>
-                <div style="font-size: 13px; color: var(--text-muted);">Đang mượn</div>
-            </div>
-            <div class="card" style="padding: 16px; text-align: center;">
-                <div style="font-size: 24px; font-weight: bold; color: #ef4444;"><?= $stats['overdue_count'] ?></div>
-                <div style="font-size: 13px; color: var(--text-muted);">Trễ hạn</div>
-            </div>
-        </div>
 
-        <div class="card">
-            <div class="card-header" style="padding: 16px; border-bottom: 1px solid var(--border); font-weight: 600;">
-                <i class="bi bi-clock-history"></i> Lịch sử mượn trả
-            </div>
-            <div class="card-body" style="padding: 0;">
-                <?php if (empty($history)): ?>
-                    <div style="padding: 30px; text-align: center; color: var(--text-muted);">
-                        <i class="bi bi-inbox" style="font-size: 32px; opacity: 0.5;"></i>
-                        <p style="margin-top: 10px;">Bạn chưa mượn cuốn sách nào.</p>
+            <div class="card">
+                <div class="card-header" style="padding: 16px; border-bottom: 1px solid var(--border); font-weight: 600;">
+                    <i class="bi bi-shield-lock-fill"></i> Quyền hạn Quản trị viên
+                </div>
+                <div class="card-body" style="padding: 20px; font-size: 13px; line-height: 1.6; color: var(--text-secondary);">
+                    <p style="margin-bottom: 12px;">Bạn đang đăng nhập bằng tài khoản <strong>Quản trị viên (Admin) / Thủ kho</strong>. Các chức năng chính bạn có thể thực hiện bao gồm:</p>
+                    <ul style="padding-left: 20px; margin-bottom: 16px; display: flex; flex-direction: column; gap: 8px;">
+                        <li><i class="bi bi-check-circle" style="color:var(--accent-purple);margin-right:8px"></i> Nhập kho và cập nhật số lượng sách mới về.</li>
+                        <li><i class="bi bi-check-circle" style="color:var(--accent-purple);margin-right:8px"></i> Quản lý danh mục sách và phê duyệt đăng ký mượn của độc giả.</li>
+                        <li><i class="bi bi-check-circle" style="color:var(--accent-purple);margin-right:8px"></i> Xem báo cáo doanh thu, thống kê chi phí chi tiết theo thời gian.</li>
+                    </ul>
+                    <div style="background: rgba(255,255,255,0.02); padding: 12px; border-radius: 8px; border: 1px solid var(--border);">
+                        <i class="bi bi-info-circle-fill" style="color:var(--accent-blue);margin-right:6px"></i>
+                        Thông tin của bạn được hiển thị bằng nickname trên các phòng chat công khai để tăng tính riêng tư.
                     </div>
-                <?php else: ?>
-                    <table class="table" style="margin: 0;">
-                        <thead>
-                            <tr>
-                                <th>Sách</th>
-                                <th>Ngày mượn</th>
-                                <th>Trạng thái</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach ($history as $record): ?>
-                            <tr>
-                                <td>
-                                    <div style="font-weight: 600; color: var(--text-primary); font-size: 13px;">
-                                        <?= htmlspecialchars($record->bookTitle) ?>
-                                    </div>
-                                </td>
-                                <td><?= htmlspecialchars($record->borrowDate) ?></td>
-                                <td>
-                                    <?php if ($record->status === 'returned'): ?>
-                                        <span class="badge badge-green">Đã trả</span>
-                                    <?php elseif ($record->status === 'overdue'): ?>
-                                        <span class="badge badge-red">Quá hạn</span>
-                                    <?php else: ?>
-                                        <span class="badge badge-blue">Đang mượn</span>
-                                    <?php endif; ?>
-                                </td>
-                            </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                <?php endif; ?>
+                </div>
             </div>
-        </div>
+        <?php else: ?>
+            <!-- Student Stats -->
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px;">
+                <div class="card" style="padding: 16px; text-align: center;">
+                    <div style="font-size: 24px; font-weight: bold; color: var(--accent-purple);"><?= $stats['total_borrowed'] ?></div>
+                    <div style="font-size: 13px; color: var(--text-muted);">Đã mượn</div>
+                </div>
+                <div class="card" style="padding: 16px; text-align: center;">
+                    <div style="font-size: 24px; font-weight: bold; color: var(--accent-blue);"><?= $stats['active_loans'] ?></div>
+                    <div style="font-size: 13px; color: var(--text-muted);">Đang mượn</div>
+                </div>
+                <div class="card" style="padding: 16px; text-align: center;">
+                    <div style="font-size: 24px; font-weight: bold; color: #ef4444;"><?= $stats['overdue_count'] ?></div>
+                    <div style="font-size: 13px; color: var(--text-muted);">Trễ hạn</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header" style="padding: 16px; border-bottom: 1px solid var(--border); font-weight: 600;">
+                    <i class="bi bi-clock-history"></i> Lịch sử mượn trả
+                </div>
+                <div class="card-body" style="padding: 0;">
+                    <?php if (empty($history)): ?>
+                        <div style="padding: 30px; text-align: center; color: var(--text-muted);">
+                            <i class="bi bi-inbox" style="font-size: 32px; opacity: 0.5;"></i>
+                            <p style="margin-top: 10px;">Bạn chưa mượn cuốn sách nào.</p>
+                        </div>
+                    <?php else: ?>
+                        <table class="table" style="margin: 0;">
+                            <thead>
+                                <tr>
+                                    <th>Sách</th>
+                                    <th>Ngày mượn</th>
+                                    <th>Trạng thái</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($history as $record): ?>
+                                <tr>
+                                    <td>
+                                        <div style="font-weight: 600; color: var(--text-primary); font-size: 13px;">
+                                            <?= htmlspecialchars($record->bookTitle) ?>
+                                        </div>
+                                    </td>
+                                    <td><?= htmlspecialchars($record->borrowDate) ?></td>
+                                    <td>
+                                        <?php if ($record->status === 'returned'): ?>
+                                            <span class="badge badge-green">Đã trả</span>
+                                        <?php elseif ($record->status === 'overdue'): ?>
+                                            <span class="badge badge-red">Quá hạn</span>
+                                        <?php else: ?>
+                                            <span class="badge badge-blue">Đang mượn</span>
+                                        <?php endif; ?>
+                                    </td>
+                                </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    <?php endif; ?>
+                </div>
+            </div>
+        <?php endif; ?>
     </div>
 </div>

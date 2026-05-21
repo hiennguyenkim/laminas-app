@@ -10,6 +10,7 @@ USE library_db;
 
 -- ── DỌN DẸP BẢNG CŨ (NẾU CÓ) ──────────────────────────────────────────
 SET FOREIGN_KEY_CHECKS = 0;
+DROP TABLE IF EXISTS notifications;
 DROP TABLE IF EXISTS chat_logs;
 DROP TABLE IF EXISTS ticket_messages;
 DROP TABLE IF EXISTS support_tickets;
@@ -167,3 +168,20 @@ CREATE TABLE IF NOT EXISTS chat_logs (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_chat_user FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ───────────────────────────────────────────────
+-- 10. BẢNG notifications (Thông báo hệ thống)
+-- ───────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS notifications (
+    id         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id    INT UNSIGNED DEFAULT NULL,
+    sender_id  INT UNSIGNED DEFAULT NULL,
+    title      VARCHAR(255) NOT NULL,
+    message    TEXT NOT NULL,
+    type       ENUM('system','ticket','borrow_alert','general') NOT NULL DEFAULT 'system',
+    is_read    TINYINT(1) NOT NULL DEFAULT 0,
+    related_id INT UNSIGNED DEFAULT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_notification_user FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+

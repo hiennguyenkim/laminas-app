@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Library\Controller;
 
+use Library\Model\Table\BookTable;
 use Library\Model\Table\BorrowTable;
 use Library\Model\Table\UserTable;
 use Library\Session\AuthSessionContainer;
@@ -15,7 +16,8 @@ class ProfileController extends BaseController
     public function __construct(
         AuthSessionContainer $authSessionContainer,
         private UserTable $userTable,
-        private BorrowTable $borrowTable
+        private BorrowTable $borrowTable,
+        private BookTable $bookTable
     ) {
         parent::__construct($authSessionContainer);
     }
@@ -28,6 +30,7 @@ class ProfileController extends BaseController
 
         $userId = $this->currentUser()['id'] ?? 0;
         $user = $this->userTable->getUser($userId);
+        $isAdmin = $this->isAdmin();
 
         $stats = [
             'total_borrowed' => $this->borrowTable->countTotalBorrowedHistory($userId),
@@ -35,10 +38,22 @@ class ProfileController extends BaseController
             'overdue_count'  => $this->borrowTable->countOverdue($userId),
         ];
 
+        $adminStats = [];
+        if ($isAdmin) {
+            $bookSummary = $this->bookTable->getSummary();
+            $adminStats = [
+                'total_books'   => $bookSummary['total_copies'],
+                'total_members' => $this->userTable->countByRole('student'),
+                'active_loans'  => $this->borrowTable->countBorrowed(null),
+            ];
+        }
+
         return new ViewModel([
-            'user'    => $user,
-            'stats'   => $stats,
-            'history' => $this->borrowTable->fetchAllWithDetails([], $userId, 50),
+            'user'       => $user,
+            'stats'      => $stats,
+            'isAdmin'    => $isAdmin,
+            'adminStats' => $adminStats,
+            'history'    => $isAdmin ? [] : $this->borrowTable->fetchAllWithDetails([], $userId, 50),
         ]);
     }
 

@@ -17,7 +17,8 @@ class ProfileControllerFactory
         return new ProfileController(
             $container->get(AuthSessionContainer::class),
             $container->get(UserTable::class),
-            $container->get(BorrowTable::class)
+            $container->get(BorrowTable::class),
+            $container->get(\Library\Model\Table\BookTable::class)
         );
     }
 }

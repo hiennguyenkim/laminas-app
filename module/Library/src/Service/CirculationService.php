@@ -112,21 +112,26 @@ class CirculationService
                 throw new DomainException('Phiếu mượn này đã được duyệt hoặc xử lý trước đó.');
             }
 
-            if ($borrowDate !== null && $returnDate !== null) {
-                $borrowAt = $this->parseDate($borrowDate, 'Ngày mượn không hợp lệ.');
-                $returnAt = $this->parseDate($returnDate, 'Hạn trả không hợp lệ.');
+            if ($borrowDate === null || trim($borrowDate) === '') {
+                $borrowDate = date('Y-m-d');
+            }
+            if ($returnDate === null || trim($returnDate) === '') {
+                $returnDate = date('Y-m-d', strtotime('+14 days'));
+            }
 
-                if ($returnAt < $borrowAt) {
-                    throw new DomainException('Hạn trả phải sau hoặc bằng ngày mượn.');
-                }
+            $borrowAt = $this->parseDate($borrowDate, 'Ngày mượn không hợp lệ.');
+            $returnAt = $this->parseDate($returnDate, 'Hạn trả không hợp lệ.');
 
-                $loanDays = (int) $borrowAt->diff($returnAt)->format('%a');
-                if ($loanDays > self::MAX_LOAN_DAYS) {
-                    throw new DomainException(sprintf(
-                        'Thời hạn mượn tối đa là %d ngày.',
-                        self::MAX_LOAN_DAYS
-                    ));
-                }
+            if ($returnAt < $borrowAt) {
+                throw new DomainException('Hạn trả phải sau hoặc bằng ngày mượn.');
+            }
+
+            $loanDays = (int) $borrowAt->diff($returnAt)->format('%a');
+            if ($loanDays > self::MAX_LOAN_DAYS) {
+                throw new DomainException(sprintf(
+                    'Thời hạn mượn tối đa là %d ngày.',
+                    self::MAX_LOAN_DAYS
+                ));
             }
 
             // Decrement book availability and change status to borrowed

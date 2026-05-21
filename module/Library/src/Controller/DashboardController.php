@@ -75,7 +75,7 @@ class DashboardController extends BaseController
             'dueSoon'        => $loanSummary['due_soon'],
             'totalMembers'   => $isAdmin ? $this->userTable->countByRole('student') : 0,
             'recentBorrows'  => $this->borrowTable->fetchAllWithDetails([], $isAdmin ? null : $userId, 10),
-            'monthlyStats'   => $this->borrowTable->getMonthlyStats((int) date('Y')),
+            'monthlyStats'   => $this->borrowTable->getMonthlyStats((int) date('Y'), $isAdmin ? null : $userId),
             'categoryStats'  => $this->bookTable->getCategoryStats(),
             'isLocked'       => $isLocked,
             'lockReason'     => $lockReason,
@@ -107,8 +107,8 @@ class DashboardController extends BaseController
             return $this->jsonResponse(['success' => true]);
         }
 
-        // Fetch last 50 messages joining with users to get nickname/fullname/username
-        $sql = "SELECT c.*, COALESCE(NULLIF(u.nickname, ''), NULLIF(u.full_name, ''), u.username) AS nickname, u.role 
+        // Fetch last 50 messages joining with users to get nickname securely
+        $sql = "SELECT c.*, COALESCE(NULLIF(u.nickname, ''), u.full_name, CONCAT('Độc giả #', u.user_id)) AS nickname, u.role 
                 FROM public_chats c 
                 JOIN users u ON c.user_id = u.user_id 
                 ORDER BY c.created_at ASC 
@@ -119,7 +119,8 @@ class DashboardController extends BaseController
         $formattedResults = array_map(function($row) {
             return [
                 'id'         => $row['id'],
-                'nickname'   => $row['nickname'] ?? 'Độc giả',
+                'user_id'    => $row['user_id'],
+                'nickname'   => $row['nickname'],
                 'message'    => $row['message'],
                 'role'       => $row['role'] ?? 'student',
                 'created_at' => date('H:i', strtotime($row['created_at']))
@@ -127,6 +128,16 @@ class DashboardController extends BaseController
         }, $results);
 
         return $this->jsonResponse($formattedResults);
+    }
+
+    public function borrowedAction(): Response
+    {
+        return $this->redirect()->toRoute('library/transaction', [], ['query' => ['status' => 'borrowed']]);
+    }
+
+    public function overdueAction(): Response
+    {
+        return $this->redirect()->toRoute('library/transaction', [], ['query' => ['status' => 'overdue']]);
     }
 
     private function jsonResponse(array $data, int $statusCode = 200): Response
