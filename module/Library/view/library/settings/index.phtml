@@ -8,6 +8,18 @@ $typeMeta = [
     'contest' => ['🏆', 'Cuộc thi','linear-gradient(135deg,#f59e0b,#f97316)', '#f59e0b'],
     'holiday' => ['🌴', 'Nghỉ lễ', 'linear-gradient(135deg,#10b981,#06b6d4)', '#10b981'],
 ];
+
+$queryBase = [
+    'search' => (string) ($filters['search'] ?? ''),
+    'type'   => (string) ($filters['type'] ?? ''),
+];
+
+$buildPageUrl = function(int $p) use ($queryBase): string {
+    $q = $queryBase;
+    $q['page'] = $p;
+    $q = array_filter($q, fn($v, $k) => $k === 'page' || $v !== '', ARRAY_FILTER_USE_BOTH);
+    return $this->url('library/settings', [], ['query' => $q]);
+};
 ?>
 
 <div class="page-header align-items-center">
@@ -16,16 +28,12 @@ $typeMeta = [
         <p class="text-muted settings-header-desc">Quản lý logo thư viện và bảng tin thông báo tới sinh viên.</p>
     </div>
     <div class="settings-header-badges">
-        <?php
-        $active = count(array_filter($announcements, fn($a) => $a['is_active']));
-        $hidden = count($announcements) - $active;
-        ?>
         <span class="settings-badge-active">
-            <i class="bi bi-eye"></i> <?= $active ?> đang hiện
+            <i class="bi bi-eye"></i> <?= $activeCount ?> đang hiện
         </span>
-        <?php if ($hidden > 0): ?>
+        <?php if ($hiddenCount > 0): ?>
         <span class="settings-badge-hidden">
-            <i class="bi bi-eye-slash"></i> <?= $hidden ?> đã ẩn
+            <i class="bi bi-eye-slash"></i> <?= $hiddenCount ?> đã ẩn
         </span>
         <?php endif; ?>
     </div>
@@ -158,15 +166,51 @@ $typeMeta = [
                 <i class="bi bi-newspaper settings-list-title-icon"></i>Quản lý bản tin
             </div>
             <span class="settings-list-count">
-                <?= count($announcements) ?> bản tin
+                <?= $totalCount ?> bản tin
             </span>
+        </div>
+
+        <!-- FILTER TABS & SEARCH -->
+        <div class="user-filters-bar" style="margin-bottom: 16px;">
+            <div class="filter-tabs user-filter-tabs">
+                <a href="<?= $this->url('library/settings', [], ['query' => array_filter(['search' => $filters['search'] ?? ''])]) ?>" class="filter-tab <?= !($filters['type'] ?? '') ? 'active' : '' ?>">
+                    Tất cả <span class="count"><?= $totalFilteredCount ?></span>
+                </a>
+                <a href="<?= $this->url('library/settings', [], ['query' => array_filter(['type' => 'general', 'search' => $filters['search'] ?? ''])]) ?>" class="filter-tab <?= ($filters['type'] ?? '') === 'general' ? 'active' : '' ?>">
+                    📢 Chung <span class="count"><?= $typeCounts['general'] ?></span>
+                </a>
+                <a href="<?= $this->url('library/settings', [], ['query' => array_filter(['type' => 'event', 'search' => $filters['search'] ?? ''])]) ?>" class="filter-tab <?= ($filters['type'] ?? '') === 'event' ? 'active' : '' ?>">
+                    🎉 Sự kiện <span class="count"><?= $typeCounts['event'] ?></span>
+                </a>
+                <a href="<?= $this->url('library/settings', [], ['query' => array_filter(['type' => 'contest', 'search' => $filters['search'] ?? ''])]) ?>" class="filter-tab <?= ($filters['type'] ?? '') === 'contest' ? 'active' : '' ?>">
+                    🏆 Cuộc thi <span class="count"><?= $typeCounts['contest'] ?></span>
+                </a>
+                <a href="<?= $this->url('library/settings', [], ['query' => array_filter(['type' => 'holiday', 'search' => $filters['search'] ?? ''])]) ?>" class="filter-tab <?= ($filters['type'] ?? '') === 'holiday' ? 'active' : '' ?>">
+                    🌴 Nghỉ lễ <span class="count"><?= $typeCounts['holiday'] ?></span>
+                </a>
+            </div>
+            <form method="GET" class="user-search-form">
+                <?php if (!empty($filters['type'])): ?>
+                    <input type="hidden" name="type" value="<?= htmlspecialchars($filters['type']) ?>">
+                <?php endif; ?>
+                <div class="topbar-search user-search-wrap">
+                    <i class="bi bi-search"></i>
+                    <input type="text" name="search" value="<?= htmlspecialchars($filters['search'] ?? '') ?>" placeholder="Tìm theo tiêu đề, nội dung...">
+                </div>
+                <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-search"></i>Tìm</button>
+            </form>
         </div>
 
         <?php if (empty($announcements)): ?>
             <div class="card settings-empty-card">
                 <i class="bi bi-inbox settings-empty-icon"></i>
-                <div class="settings-empty-title">Chưa có bản tin nào</div>
-                <div class="settings-empty-desc">Hãy tạo bản tin đầu tiên ở cột bên trái.</div>
+                <?php if ($filters['search'] !== '' || $filters['type'] !== ''): ?>
+                    <div class="settings-empty-title">Không tìm thấy bản tin phù hợp</div>
+                    <div class="settings-empty-desc">Thử thay đổi từ khóa tìm kiếm hoặc bộ lọc loại bản tin.</div>
+                <?php else: ?>
+                    <div class="settings-empty-title">Chưa có bản tin nào</div>
+                    <div class="settings-empty-desc">Hãy tạo bản tin đầu tiên ở cột bên trái.</div>
+                <?php endif; ?>
             </div>
         <?php else: ?>
         <div class="settings-ann-list">
@@ -248,6 +292,22 @@ $typeMeta = [
             </div>
             <?php endforeach; ?>
         </div>
+
+        <!-- PAGINATION -->
+        <?php if ($totalPages > 1): ?>
+        <div class="catalog-pagination-bar" style="margin-top:20px; width: 100%;">
+            <div class="catalog-pagination-info">
+                Hiển thị <?= min(($page-1)*$perPage+1,$totalCount) ?> – <?= min($page*$perPage,$totalCount) ?> / <?= $totalCount ?> bản tin
+            </div>
+            <div class="pagination">
+                <a class="page-btn <?= $page<=1?'disabled':'' ?>" href="<?= $page>1?$buildPageUrl($page-1):'#' ?>"><i class="bi bi-chevron-left"></i></a>
+                <?php for ($p=max(1,$page-2); $p<=min($totalPages,$page+2); $p++): ?>
+                <a class="page-btn <?= $p===$page?'active':'' ?>" href="<?= $buildPageUrl($p) ?>"><?= $p ?></a>
+                <?php endfor; ?>
+                <a class="page-btn <?= $page>=$totalPages?'disabled':'' ?>" href="<?= $page<$totalPages?$buildPageUrl($page+1):'#' ?>"><i class="bi bi-chevron-right"></i></a>
+            </div>
+        </div>
+        <?php endif; ?>
         <?php endif; ?>
     </div>
 </div>

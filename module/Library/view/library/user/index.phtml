@@ -1,6 +1,24 @@
 <?php
 $this->headTitle($isAdmin ? 'Quản lý thành viên' : 'Thành viên');
 $this->layout('layout/library-layout');
+
+$pagination = $pagination ?? [];
+$page       = (int) ($pagination['page'] ?? 1);
+$perPage    = (int) ($pagination['perPage'] ?? 8);
+$totalItems = (int) ($pagination['totalItems'] ?? 0);
+$totalPages = (int) ($pagination['totalPages'] ?? 1);
+
+$queryBase = [
+    'search' => (string) ($filters['search'] ?? ''),
+    'role'   => (string) ($filters['role'] ?? ''),
+];
+
+$buildPageUrl = function(int $p) use ($queryBase): string {
+    $q = $queryBase; $q['page'] = $p;
+    $q = array_filter($q, fn($v, $k) => $k === 'page' || $v !== '', ARRAY_FILTER_USE_BOTH);
+    return $this->url('library/user', [], ['query' => $q]);
+};
+
 $avatarColors = ['#7c6aff','#22c55e','#f97316','#ec4899','#3b82f6','#14b8a6','#ef4444','#fbbf24'];
 $initials = function(string $name): string {
     $words = explode(' ', trim($name));
@@ -131,3 +149,19 @@ $initials = function(string $name): string {
     <?php endforeach; ?>
 <?php endif; ?>
 </div>
+
+<!-- PAGINATION -->
+<?php if ($totalPages > 1): ?>
+<div class="catalog-pagination-bar" style="margin-top:20px; width: 100%;">
+    <div class="catalog-pagination-info">
+        Hiển thị <?= min(($page-1)*$perPage+1,$totalItems) ?> – <?= min($page*$perPage,$totalItems) ?> / <?= $totalItems ?> thành viên
+    </div>
+    <div class="pagination">
+        <a class="page-btn <?= $page<=1?'disabled':'' ?>" href="<?= $page>1?$buildPageUrl($page-1):'#' ?>"><i class="bi bi-chevron-left"></i></a>
+        <?php for ($p=max(1,$page-2); $p<=min($totalPages,$page+2); $p++): ?>
+        <a class="page-btn <?= $p===$page?'active':'' ?>" href="<?= $buildPageUrl($p) ?>"><?= $p ?></a>
+        <?php endfor; ?>
+        <a class="page-btn <?= $page>=$totalPages?'disabled':'' ?>" href="<?= $page<$totalPages?$buildPageUrl($page+1):'#' ?>"><i class="bi bi-chevron-right"></i></a>
+    </div>
+</div>
+<?php endif; ?>

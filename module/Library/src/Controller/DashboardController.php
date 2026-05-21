@@ -74,7 +74,7 @@ class DashboardController extends BaseController
             'totalReturned'  => $loanSummary['returned'],
             'dueSoon'        => $loanSummary['due_soon'],
             'totalMembers'   => $isAdmin ? $this->userTable->countByRole('student') : 0,
-            'recentBorrows'  => $this->borrowTable->fetchAllWithDetails([], $isAdmin ? null : $userId, 10),
+            'recentBorrows'  => $this->borrowTable->fetchAllWithDetails([], $isAdmin ? null : $userId, 6),
             'monthlyStats'   => $this->borrowTable->getMonthlyStats((int) date('Y'), $isAdmin ? null : $userId),
             'categoryStats'  => $this->bookTable->getCategoryStats($isAdmin ? null : $userId),
             'isLocked'       => $isLocked,

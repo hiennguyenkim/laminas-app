@@ -25,14 +25,94 @@ class SettingsController extends BaseController
             return $response;
         }
 
+        $page    = max(1, (int)($this->params()->fromQuery('page', 1)));
+        $perPage = 5;
+
+        $search = trim($this->queryString('search'));
+        $type   = trim($this->queryString('type'));
+
+        $filters = [
+            'search' => $search,
+            'type'   => $type,
+        ];
+
+        // Global stats (all announcements in DB)
+        $globalCounts = $this->dbAdapter->query(
+            "SELECT 
+                COUNT(*) AS total_count,
+                SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) AS active_count
+             FROM announcements"
+        )->execute()->current();
+        
+        $globalTotal = (int)($globalCounts['total_count'] ?? 0);
+        $activeCount = (int)($globalCounts['active_count'] ?? 0);
+        $hiddenCount = $globalTotal - $activeCount;
+
+        // Build filtering query
+        $where = [];
+        $params = [];
+
+        // Type filter
+        $allowedTypes = ['event', 'contest', 'holiday', 'general'];
+        if ($type !== '' && in_array($type, $allowedTypes, true)) {
+            $where[] = "a.type = ?";
+            $params[] = $type;
+        }
+
+        // Search filter
+        if ($search !== '') {
+            $where[] = "(a.title LIKE ? OR a.content LIKE ?)";
+            $searchTerm = '%' . $search . '%';
+            $params[] = $searchTerm;
+            $params[] = $searchTerm;
+        }
+
+        $whereClause = !empty($where) ? "WHERE " . implode(" AND ", $where) : "";
+
+        // Filtered counts
+        $countSql = "SELECT COUNT(*) as cnt FROM announcements a $whereClause";
+        $totalCount = (int)(($this->dbAdapter->query($countSql)->execute($params)->current()['cnt']) ?? 0);
+
+        $totalPages  = max(1, (int)ceil($totalCount / $perPage));
+        $page        = min($page, $totalPages);
+        $offset      = ($page - 1) * $perPage;
+
         $announcements = iterator_to_array(
             $this->dbAdapter->query(
                 "SELECT a.*, u.full_name AS creator_name
                  FROM announcements a
                  LEFT JOIN users u ON a.created_by = u.user_id
-                 ORDER BY a.created_at DESC"
-            )->execute()
+                 $whereClause
+                 ORDER BY a.created_at DESC
+                 LIMIT ? OFFSET ?"
+            )->execute(array_merge($params, [$perPage, $offset]))
         );
+
+        // Get counts for each type matching the current search keyword
+        $allCountWhere = [];
+        $allCountParams = [];
+        if ($search !== '') {
+            $allCountWhere[] = "(title LIKE ? OR content LIKE ?)";
+            $searchTerm = '%' . $search . '%';
+            $allCountParams[] = $searchTerm;
+            $allCountParams[] = $searchTerm;
+        }
+        $allCountWhereClause = !empty($allCountWhere) ? "WHERE " . implode(" AND ", $allCountWhere) : "";
+
+        $totalFilteredCount = (int)(($this->dbAdapter->query("SELECT COUNT(*) as cnt FROM announcements $allCountWhereClause")->execute($allCountParams)->current()['cnt']) ?? 0);
+
+        $typeCountsRaw = iterator_to_array($this->dbAdapter->query("SELECT type, COUNT(*) as cnt FROM announcements $allCountWhereClause GROUP BY type")->execute($allCountParams));
+        $typeCounts = [
+            'general' => 0,
+            'event'   => 0,
+            'contest' => 0,
+            'holiday' => 0,
+        ];
+        foreach ($typeCountsRaw as $row) {
+            if (isset($typeCounts[$row['type']])) {
+                $typeCounts[$row['type']] = (int)$row['cnt'];
+            }
+        }
 
         // Detect current logo (uploaded file takes priority)
         $logoFile = null;
@@ -45,8 +125,17 @@ class SettingsController extends BaseController
         }
 
         return new ViewModel([
-            'announcements' => $announcements,
-            'logoFile'      => $logoFile,
+            'announcements'      => $announcements,
+            'logoFile'           => $logoFile,
+            'activeCount'        => $activeCount,
+            'hiddenCount'        => $hiddenCount,
+            'page'               => $page,
+            'totalPages'         => $totalPages,
+            'totalCount'         => $totalCount,
+            'perPage'            => $perPage,
+            'filters'            => $filters,
+            'typeCounts'         => $typeCounts,
+            'totalFilteredCount' => $totalFilteredCount,
         ]);
     }
 

@@ -55,14 +55,123 @@ class TransactionController extends BaseController
             $filters['user_id'] = $this->queryString('user_id');
         }
 
+        $page        = max(1, (int)($this->params()->fromQuery('page', 1)));
+        $perPage     = 10;
+        $totalItems  = $this->borrowTable->countFiltered($filters, $isAdmin ? null : $userId);
+        $totalPages  = max(1, (int)ceil($totalItems / $perPage));
+        $page        = min($page, $totalPages);
+        $offset      = ($page - 1) * $perPage;
+
+        $records = $this->borrowTable->fetchAllWithDetails($filters, $isAdmin ? null : $userId, $perPage, $offset);
+
         return new ViewModel([
-            'records'     => $this->borrowTable->fetchAllWithDetails($filters, $isAdmin ? null : $userId),
+            'records'     => $records,
             'summary'     => $this->borrowTable->getSummary($isAdmin ? null : $userId),
             'filters'     => $filters,
             'isAdmin'     => $isAdmin,
             'currentUser' => $currentUser,
             'users'       => $isAdmin ? $this->userTable->fetchStudentOptions() : [],
+            'pagination'  => [
+                'page'       => $page,
+                'perPage'    => $perPage,
+                'totalItems' => $totalItems,
+                'totalPages' => $totalPages,
+            ]
         ]);
+    }
+
+    public function exportAction(): Response
+    {
+        if ($response = $this->requireLogin()) {
+            return $response;
+        }
+
+        $isAdmin     = $this->isAdmin();
+        $currentUser = $this->currentUser() ?? [];
+        $userId      = $currentUser['id'] ?? 0;
+        $filters     = [
+            'search' => trim($this->queryString('search')),
+            'status' => $this->queryString('status'),
+        ];
+
+        if ($isAdmin) {
+            $filters['user_id'] = $this->queryString('user_id');
+        }
+
+        // Fetch all matching records without pagination limits (limit=0, offset=0)
+        $records = $this->borrowTable->fetchAllWithDetails($filters, $isAdmin ? null : $userId, 0, 0);
+
+        // Generate CSV output in memory
+        $output = fopen('php://temp', 'r+');
+        if ($output === false) {
+            throw new RuntimeException('Không thể tạo file tạm để xuất dữ liệu.');
+        }
+
+        // Add UTF-8 BOM for Microsoft Excel compatibility
+        fwrite($output, "\xEF\xBB\xBF");
+
+        // Set up headers
+        fputcsv($output, [
+            'Mã giao dịch',
+            'Thành viên',
+            'Tài khoản',
+            'Tên sách',
+            'ISBN',
+            'Ngày mượn',
+            'Hạn trả',
+            'Ngày trả thực tế',
+            'Trạng thái'
+        ]);
+
+        $statusMap = [
+            'pending'  => 'Chờ duyệt',
+            'borrowed' => 'Đang mượn',
+            'returned' => 'Đã trả',
+            'overdue'  => 'Quá hạn',
+        ];
+
+        $formatDate = function(?string $dateStr) {
+            if (!$dateStr || $dateStr === '0000-00-00' || $dateStr === '0000-00-00 00:00:00') {
+                return '—';
+            }
+            $time = strtotime($dateStr);
+            if ($time === false) {
+                return $dateStr;
+            }
+            if (strpos($dateStr, ' ') !== false) {
+                return date('d/m/Y H:i:s', $time);
+            }
+            return date('d/m/Y', $time);
+        };
+
+        foreach ($records as $record) {
+            fputcsv($output, [
+                $record->id,
+                $record->userFullName,
+                $record->username,
+                $record->bookTitle,
+                $record->bookIsbn !== '' ? $record->bookIsbn : '—',
+                $formatDate($record->borrowDate),
+                $formatDate($record->returnDate),
+                $formatDate($record->returnedAt),
+                $statusMap[$record->status] ?? $record->status
+            ]);
+        }
+
+        rewind($output);
+        $csvData = stream_get_contents($output);
+        fclose($output);
+
+        $response = $this->getResponse();
+        $response->getHeaders()->addHeaders([
+            'Content-Type' => 'text/csv; charset=utf-8',
+            'Content-Disposition' => 'attachment; filename="danh-sach-muon-tra.csv"',
+            'Pragma' => 'no-cache',
+            'Expires' => '0'
+        ]);
+        $response->setContent($csvData !== false ? $csvData : '');
+
+        return $response;
     }
 
     public function borrowAction(): Response|ViewModel

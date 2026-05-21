@@ -17,6 +17,26 @@ $initials = function(string $name): string {
     return strtoupper(substr($name,0,2));
 };
 $filterStatus = (string)($filters['status']??'');
+
+$pagination = $pagination ?? [];
+$page       = (int) ($pagination['page'] ?? 1);
+$perPage    = (int) ($pagination['perPage'] ?? 10);
+$totalItems = (int) ($pagination['totalItems'] ?? 0);
+$totalPages = (int) ($pagination['totalPages'] ?? 1);
+
+$queryBase = [
+    'search' => (string) ($filters['search'] ?? ''),
+    'status' => (string) ($filters['status'] ?? ''),
+];
+if ($isAdmin) {
+    $queryBase['user_id'] = (string) ($filters['user_id'] ?? '');
+}
+
+$buildPageUrl = function(int $p) use ($queryBase, $routePrefix): string {
+    $q = $queryBase; $q['page'] = $p;
+    $q = array_filter($q, fn($v, $k) => $k === 'page' || $v !== '', ARRAY_FILTER_USE_BOTH);
+    return $this->url($routePrefix . '/transaction', [], ['query' => $q]);
+};
 ?>
 
 <!-- PAGE HEADER -->
@@ -26,7 +46,9 @@ $filterStatus = (string)($filters['status']??'');
         <div class="page-subtitle"><?= number_format((int)($summary['total'] ?? count((array)($records ?? [])))) ?> giao dịch gần đây</div>
     </div>
     <div class="d-flex gap-2">
-        <span class="btn btn-outline tx-btn-disabled" title="Chức năng này đang được phát triển"><i class="bi bi-file-earmark-excel"></i>Xuất Excel</span>
+        <a href="<?= $this->url($routePrefix . '/transaction', ['action' => 'export'], ['query' => $queryBase]) ?>" class="btn btn-outline">
+            <i class="bi bi-file-earmark-excel"></i>Xuất Excel
+        </a>
         <?php if ($isAdmin): ?>
         <a href="<?= $this->url($routePrefix . '/transaction', ['action' => 'borrow']) ?>" class="btn btn-primary">
             <i class="bi bi-plus-lg"></i>Tạo phiếu mượn
@@ -240,6 +262,22 @@ $filterStatus = (string)($filters['status']??'');
         </table>
     </div>
 </div>
+
+<!-- PAGINATION -->
+<?php if ($totalPages > 1): ?>
+<div class="catalog-pagination-bar" style="margin-top:20px; width: 100%;">
+    <div class="catalog-pagination-info">
+        Hiển thị <?= min(($page-1)*$perPage+1,$totalItems) ?> – <?= min($page*$perPage,$totalItems) ?> / <?= $totalItems ?> giao dịch
+    </div>
+    <div class="pagination">
+        <a class="page-btn <?= $page<=1?'disabled':'' ?>" href="<?= $page>1?$buildPageUrl($page-1):'#' ?>"><i class="bi bi-chevron-left"></i></a>
+        <?php for ($p=max(1,$page-2); $p<=min($totalPages,$page+2); $p++): ?>
+        <a class="page-btn <?= $p===$page?'active':'' ?>" href="<?= $buildPageUrl($p) ?>"><?= $p ?></a>
+        <?php endfor; ?>
+        <a class="page-btn <?= $page>=$totalPages?'disabled':'' ?>" href="<?= $page<$totalPages?$buildPageUrl($page+1):'#' ?>"><i class="bi bi-chevron-right"></i></a>
+    </div>
+</div>
+<?php endif; ?>
 
 <?php if ($isAdmin): ?>
 <!-- HTML Custom Modal for Approving Loan with Dates -->

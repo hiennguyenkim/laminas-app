@@ -28,7 +28,7 @@ class BorrowTable
      *
      * @return array<int, BorrowRecord>
      */
-    public function fetchAllWithDetails(array $filters = [], ?int $userId = null, int $limit = 0): array
+    public function fetchAllWithDetails(array $filters = [], ?int $userId = null, int $limit = 0, int $offset = 0): array
     {
         $this->cleanupExpiredReturnedHistory();
 
@@ -109,6 +109,9 @@ class BorrowTable
         if ($limit > 0) {
             $select->limit($limit);
         }
+        if ($offset > 0) {
+            $select->offset($offset);
+        }
 
         $stmt   = $sql->prepareStatementForSqlObject($select);
         $result = $stmt->execute();
@@ -124,6 +127,72 @@ class BorrowTable
             $records[] = $record;
         }
         return $records;
+    }
+
+    public function countFiltered(array $filters = [], ?int $userId = null): int
+    {
+        $sql      = $this->tableGateway->getSql();
+        $select   = $sql->select()
+            ->columns(['c' => new Expression('COUNT(*)')])
+            ->join(
+                'books',
+                'borrow_records.book_id = books.book_id',
+                []
+            )
+            ->join(
+                'users',
+                'borrow_records.user_id = users.user_id',
+                []
+            );
+
+        if ($userId !== null) {
+            $select->where(['borrow_records.user_id' => $userId]);
+        }
+
+        $searchValue = trim((string) ($filters['search'] ?? ''));
+        if ($searchValue !== '') {
+            $search = '%' . $searchValue . '%';
+            $select->where(function (Where $where) use ($search): void {
+                $where->nest()
+                    ->like('books.title', $search)
+                    ->or
+                    ->like('books.author', $search)
+                    ->or
+                    ->like('books.isbn', $search)
+                    ->or
+                    ->like('users.full_name', $search)
+                    ->or
+                    ->like('users.username', $search)
+                    ->unnest();
+            });
+        }
+
+        $status = trim((string) ($filters['status'] ?? ''));
+        if ($status !== '') {
+            if ($status === 'overdue') {
+                $select->where(
+                    "(borrow_records.status = 'overdue' "
+                    . "OR (borrow_records.status = 'borrowed' "
+                    . "AND borrow_records.return_date < CURDATE()))"
+                );
+            } elseif ($status === 'borrowed') {
+                $select->where(
+                    "(borrow_records.status = 'borrowed' AND borrow_records.return_date >= CURDATE())"
+                );
+            } else {
+                $select->where(['borrow_records.status' => $status]);
+            }
+        }
+
+        $filterUserId = trim((string) ($filters['user_id'] ?? ''));
+        if ($userId === null && $filterUserId !== '') {
+            $select->where(['borrow_records.user_id' => (int) $filterUserId]);
+        }
+
+        $stmt   = $sql->prepareStatementForSqlObject($select);
+        $result = $stmt->execute();
+
+        return (int) ($result->current()['c'] ?? 0);
     }
 
     public function getRecord(int $id): BorrowRecord

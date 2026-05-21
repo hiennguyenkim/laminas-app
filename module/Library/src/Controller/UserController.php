@@ -54,8 +54,15 @@ class UserController extends BaseController
             'role' => '',
         ];
 
+        $page = (int) $this->queryString('page', '1');
+        $page = max(1, $page);
+        $perPage = 8;
+        $totalItems = $this->userTable->countFiltered($filters);
+        $totalPages = max(1, (int) ceil($totalItems / $perPage));
+        $page = min($page, $totalPages);
+
         return new ViewModel([
-            'users'     => $this->userTable->fetchAll($filters),
+            'users'     => $this->userTable->fetchPage($filters, $page, $perPage),
             'filters'   => $filters,
             'isAdmin'   => true,
             'summary'   => [
@@ -64,6 +71,12 @@ class UserController extends BaseController
                 'students' => $this->userTable->countByRole('student'),
             ],
             'currentId' => $currentUser['id'],
+            'pagination' => [
+                'page'       => $page,
+                'perPage'    => $perPage,
+                'totalItems' => $totalItems,
+                'totalPages' => $totalPages,
+            ],
         ]);
     }
 

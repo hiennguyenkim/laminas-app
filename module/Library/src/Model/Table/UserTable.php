@@ -112,6 +112,107 @@ class UserTable
         });
     }
 
+    public function fetchPage(array $filters, int $page, int $perPage): \Laminas\Db\ResultSet\ResultSetInterface
+    {
+        $safePage = max(1, $page);
+        $safePerPage = max(1, $perPage);
+        $offset = ($safePage - 1) * $safePerPage;
+
+        return $this->tableGateway->select(function (Select $select) use ($filters, $safePerPage, $offset): void {
+            $select->columns([
+                'user_id',
+                'username',
+                'email',
+                'password',
+                'full_name',
+                'role',
+                'created_at',
+                'nickname',
+                'date_of_birth',
+                'avatar_url',
+                'account_status',
+                'lock_reason',
+                'locked_at',
+                'phone',
+                'last_returned_at' => new Expression(
+                    '(SELECT MAX(br.returned_at) FROM borrow_records br '
+                    . 'WHERE br.user_id = users.user_id '
+                    . 'AND br.returned_at IS NOT NULL)'
+                ),
+                'borrowCount' => new Expression(
+                    '(SELECT COUNT(*) FROM borrow_records br '
+                    . 'WHERE br.user_id = users.user_id '
+                    . 'AND br.status IN (\'borrowed\', \'overdue\'))'
+                ),
+                'overdueCount' => new Expression(
+                    '(SELECT COUNT(*) FROM borrow_records br '
+                    . 'WHERE br.user_id = users.user_id '
+                    . 'AND (br.status = \'overdue\' '
+                    . 'OR (br.status = \'borrowed\' AND br.return_date < CURDATE()) '
+                    . 'OR (br.status = \'returned\' AND br.returned_at IS NOT NULL AND DATE(br.returned_at) > br.return_date)))'
+                ),
+            ]);
+
+            $searchValue = trim((string) ($filters['search'] ?? ''));
+            if ($searchValue !== '') {
+                $search = '%' . $searchValue . '%';
+                $select->where(function (Where $where) use ($search): void {
+                    $where->nest()
+                        ->like('full_name', $search)
+                        ->or
+                        ->like('username', $search)
+                        ->or
+                        ->like('email', $search)
+                        ->unnest();
+                });
+            }
+
+            $role = trim((string) ($filters['role'] ?? ''));
+            if ($role !== '') {
+                $select->where(['role' => $role]);
+            }
+
+            $select->order([
+                new Expression("CASE WHEN role = 'admin' THEN 0 ELSE 1 END"),
+                'full_name ASC',
+                self::PK . ' DESC',
+            ]);
+            $select->limit($safePerPage);
+            $select->offset($offset);
+        });
+    }
+
+    public function countFiltered(array $filters = []): int
+    {
+        $sql    = $this->tableGateway->getSql();
+        $select = $sql->select();
+        $select->columns(['c' => new Expression('COUNT(*)')]);
+
+        $searchValue = trim((string) ($filters['search'] ?? ''));
+        if ($searchValue !== '') {
+            $search = '%' . $searchValue . '%';
+            $select->where(function (Where $where) use ($search): void {
+                $where->nest()
+                    ->like('full_name', $search)
+                    ->or
+                    ->like('username', $search)
+                    ->or
+                    ->like('email', $search)
+                    ->unnest();
+            });
+        }
+
+        $role = trim((string) ($filters['role'] ?? ''));
+        if ($role !== '') {
+            $select->where(['role' => $role]);
+        }
+
+        $stmt   = $sql->prepareStatementForSqlObject($select);
+        $result = $stmt->execute();
+
+        return $this->extractCount($result->current());
+    }
+
     public function fetchStudentOptions(): array
     {
         return iterator_to_array($this->fetchAll(['role' => 'student']));

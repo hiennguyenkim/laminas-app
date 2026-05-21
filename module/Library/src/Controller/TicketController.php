@@ -27,20 +27,151 @@ class TicketController extends BaseController
         $currentUser = $this->currentUser();
         $isAdmin = $currentUser['role'] === 'admin';
         
-        $tickets = [];
-        if ($isAdmin) {
-            $sql = "SELECT t.*, u.full_name as author_name FROM support_tickets t JOIN users u ON t.user_id = u.user_id ORDER BY t.status DESC, t.updated_at DESC";
-            $statement = $this->dbAdapter->query($sql);
-            $tickets = iterator_to_array($statement->execute());
-        } else {
-            $sql = "SELECT t.*, u.full_name as author_name FROM support_tickets t JOIN users u ON t.user_id = u.user_id WHERE t.user_id = ? ORDER BY t.status DESC, t.updated_at DESC";
-            $statement = $this->dbAdapter->query($sql);
-            $tickets = iterator_to_array($statement->execute([$currentUser['id']]));
+        $page    = max(1, (int)($this->params()->fromQuery('page', 1)));
+        $perPage = 10;
+
+        $search = trim($this->queryString('search'));
+        $status = trim($this->queryString('status'));
+
+        $filters = [
+            'search' => $search,
+            'status' => $status,
+        ];
+
+        $where = [];
+        $params = [];
+
+        // Role filtering
+        if (!$isAdmin) {
+            $where[] = "t.user_id = ?";
+            $params[] = $currentUser['id'];
         }
 
+        // Status filtering (2 states: unanswered vs answered)
+        if ($status === 'unanswered') {
+            $where[] = "t.status = 'open'";
+        } elseif ($status === 'answered') {
+            $where[] = "t.status IN ('in_progress', 'closed')";
+        }
+
+        // Search filtering
+        if ($search !== '') {
+            $searchTerm = '%' . $search . '%';
+            if ($isAdmin) {
+                $where[] = "(t.title LIKE ? OR t.description LIKE ? OR u.full_name LIKE ?)";
+                $params[] = $searchTerm;
+                $params[] = $searchTerm;
+                $params[] = $searchTerm;
+            } else {
+                $where[] = "(t.title LIKE ? OR t.description LIKE ?)";
+                $params[] = $searchTerm;
+                $params[] = $searchTerm;
+            }
+        }
+
+        $whereClause = !empty($where) ? "WHERE " . implode(" AND ", $where) : "";
+
+        $countSql = "SELECT COUNT(*) as cnt FROM support_tickets t JOIN users u ON t.user_id = u.user_id $whereClause";
+        $totalCount = (int)(($this->dbAdapter->query($countSql)->execute($params)->current()['cnt']) ?? 0);
+
+        $totalPages = max(1, (int)ceil($totalCount / $perPage));
+        $page       = min($page, $totalPages);
+        $offset     = ($page - 1) * $perPage;
+
+        $sql = "SELECT t.*, u.full_name as author_name FROM support_tickets t JOIN users u ON t.user_id = u.user_id $whereClause ORDER BY t.status DESC, t.updated_at DESC LIMIT ? OFFSET ?";
+        
+        $fetchParams = $params;
+        $fetchParams[] = $perPage;
+        $fetchParams[] = $offset;
+
+        $tickets = iterator_to_array($this->dbAdapter->query($sql)->execute($fetchParams));
+
+        // Get count for the tabs
+        // 1. Unanswered count
+        $unansweredWhere = [];
+        $unansweredParams = [];
+        if (!$isAdmin) {
+            $unansweredWhere[] = "t.user_id = ?";
+            $unansweredParams[] = $currentUser['id'];
+        }
+        $unansweredWhere[] = "t.status = 'open'";
+        if ($search !== '') {
+            $searchTerm = '%' . $search . '%';
+            if ($isAdmin) {
+                $unansweredWhere[] = "(t.title LIKE ? OR t.description LIKE ? OR u.full_name LIKE ?)";
+                $unansweredParams[] = $searchTerm;
+                $unansweredParams[] = $searchTerm;
+                $unansweredParams[] = $searchTerm;
+            } else {
+                $unansweredWhere[] = "(t.title LIKE ? OR t.description LIKE ?)";
+                $unansweredParams[] = $searchTerm;
+                $unansweredParams[] = $searchTerm;
+            }
+        }
+        $unansweredWhereClause = "WHERE " . implode(" AND ", $unansweredWhere);
+        $unansweredCountSql = "SELECT COUNT(*) as cnt FROM support_tickets t JOIN users u ON t.user_id = u.user_id $unansweredWhereClause";
+        $unansweredCount = (int)(($this->dbAdapter->query($unansweredCountSql)->execute($unansweredParams)->current()['cnt']) ?? 0);
+
+        // 2. Answered count
+        $answeredWhere = [];
+        $answeredParams = [];
+        if (!$isAdmin) {
+            $answeredWhere[] = "t.user_id = ?";
+            $answeredParams[] = $currentUser['id'];
+        }
+        $answeredWhere[] = "t.status IN ('in_progress', 'closed')";
+        if ($search !== '') {
+            $searchTerm = '%' . $search . '%';
+            if ($isAdmin) {
+                $answeredWhere[] = "(t.title LIKE ? OR t.description LIKE ? OR u.full_name LIKE ?)";
+                $answeredParams[] = $searchTerm;
+                $answeredParams[] = $searchTerm;
+                $answeredParams[] = $searchTerm;
+            } else {
+                $answeredWhere[] = "(t.title LIKE ? OR t.description LIKE ?)";
+                $answeredParams[] = $searchTerm;
+                $answeredParams[] = $searchTerm;
+            }
+        }
+        $answeredWhereClause = "WHERE " . implode(" AND ", $answeredWhere);
+        $answeredCountSql = "SELECT COUNT(*) as cnt FROM support_tickets t JOIN users u ON t.user_id = u.user_id $answeredWhereClause";
+        $answeredCount = (int)(($this->dbAdapter->query($answeredCountSql)->execute($answeredParams)->current()['cnt']) ?? 0);
+
+        // 3. Total with current search filter
+        $allWhere = [];
+        $allParams = [];
+        if (!$isAdmin) {
+            $allWhere[] = "t.user_id = ?";
+            $allParams[] = $currentUser['id'];
+        }
+        if ($search !== '') {
+            $searchTerm = '%' . $search . '%';
+            if ($isAdmin) {
+                $allWhere[] = "(t.title LIKE ? OR t.description LIKE ? OR u.full_name LIKE ?)";
+                $allParams[] = $searchTerm;
+                $allParams[] = $searchTerm;
+                $allParams[] = $searchTerm;
+            } else {
+                $allWhere[] = "(t.title LIKE ? OR t.description LIKE ?)";
+                $allParams[] = $searchTerm;
+                $allParams[] = $searchTerm;
+            }
+        }
+        $allWhereClause = !empty($allWhere) ? "WHERE " . implode(" AND ", $allWhere) : "";
+        $allCountSql = "SELECT COUNT(*) as cnt FROM support_tickets t JOIN users u ON t.user_id = u.user_id $allWhereClause";
+        $allCount = (int)(($this->dbAdapter->query($allCountSql)->execute($allParams)->current()['cnt']) ?? 0);
+
         return new ViewModel([
-            'tickets' => $tickets,
-            'isAdmin' => $isAdmin
+            'tickets'         => $tickets,
+            'isAdmin'         => $isAdmin,
+            'page'            => $page,
+            'totalPages'      => $totalPages,
+            'totalCount'      => $totalCount,
+            'perPage'         => $perPage,
+            'filters'         => $filters,
+            'unansweredCount' => $unansweredCount,
+            'answeredCount'   => $answeredCount,
+            'allCount'        => $allCount,
         ]);
     }
 

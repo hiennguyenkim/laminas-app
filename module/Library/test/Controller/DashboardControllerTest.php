@@ -88,7 +88,7 @@ class DashboardControllerTest extends AbstractHttpControllerTestCase
             'returned' => 0,
             'due_soon' => 0,
         ]);
-        $borrowTableMock->method('fetchAllWithDetails')->with([], 2, 10)->willReturn([]);
+        $borrowTableMock->method('fetchAllWithDetails')->with([], 2, 6)->willReturn([]);
         $borrowTableMock->method('getMonthlyStats')->with((int) date('Y'), 2)->willReturn([
             'borrow' => array_fill(0, 12, 0),
             'return' => array_fill(0, 12, 0),

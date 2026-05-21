@@ -92,9 +92,9 @@ class BookImportController extends BaseController
             }
         }
 
-        // Bug 5 fix: paginate the imports list (20 per page)
+        // Bug 5 fix: paginate the imports list (10 per page)
         $page    = max(1, (int)($this->params()->fromQuery('page', 1)));
-        $perPage = 20;
+        $perPage = 10;
 
         $totalCount  = (int)(($this->dbAdapter->query("SELECT COUNT(*) AS cnt FROM book_imports")->execute()->current()['cnt']) ?? 0);
         $totalPages  = max(1, (int)ceil($totalCount / $perPage));

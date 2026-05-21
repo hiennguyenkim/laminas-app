@@ -10,6 +10,23 @@ $statusMap = [
     'closed' => ['Đã phản hồi', 'badge-green'],
     '' => ['Chưa phản hồi', 'badge-orange']
 ];
+
+$page       = (int) ($page ?? 1);
+$perPage    = (int) ($perPage ?? 10);
+$totalCount = (int) ($totalCount ?? 0);
+$totalPages = (int) ($totalPages ?? 1);
+
+$queryBase = [
+    'search' => (string) ($filters['search'] ?? ''),
+    'status' => (string) ($filters['status'] ?? ''),
+];
+
+$buildPageUrl = function(int $p) use ($routePrefix, $queryBase): string {
+    $q = $queryBase;
+    $q['page'] = $p;
+    $q = array_filter($q, fn($v, $k) => $k === 'page' || $v !== '', ARRAY_FILTER_USE_BOTH);
+    return $this->url($routePrefix . '/ticket', [], ['query' => $q]);
+};
 ?>
 
 <div class="page-header">
@@ -22,6 +39,31 @@ $statusMap = [
         <i class="bi bi-plus-lg"></i>Gửi yêu cầu mới
     </a>
     <?php endif; ?>
+</div>
+
+<!-- FILTER TABS & SEARCH -->
+<div class="user-filters-bar">
+    <div class="filter-tabs user-filter-tabs">
+        <a href="<?= $this->url($routePrefix . '/ticket', [], ['query' => array_filter(['search' => $filters['search'] ?? ''])]) ?>" class="filter-tab <?= !($filters['status'] ?? '') ? 'active' : '' ?>">
+            Tất cả <span class="count"><?= (int)($allCount ?? 0) ?></span>
+        </a>
+        <a href="<?= $this->url($routePrefix . '/ticket', [], ['query' => array_filter(['status' => 'unanswered', 'search' => $filters['search'] ?? ''])]) ?>" class="filter-tab <?= ($filters['status'] ?? '') === 'unanswered' ? 'active' : '' ?>">
+            Chưa phản hồi <span class="count"><?= (int)($unansweredCount ?? 0) ?></span>
+        </a>
+        <a href="<?= $this->url($routePrefix . '/ticket', [], ['query' => array_filter(['status' => 'answered', 'search' => $filters['search'] ?? ''])]) ?>" class="filter-tab <?= ($filters['status'] ?? '') === 'answered' ? 'active' : '' ?>">
+            Đã phản hồi <span class="count"><?= (int)($answeredCount ?? 0) ?></span>
+        </a>
+    </div>
+    <form method="GET" class="user-search-form">
+        <?php if (!empty($filters['status'])): ?>
+            <input type="hidden" name="status" value="<?= htmlspecialchars($filters['status']) ?>">
+        <?php endif; ?>
+        <div class="topbar-search user-search-wrap">
+            <i class="bi bi-search"></i>
+            <input type="text" name="search" value="<?= htmlspecialchars($filters['search'] ?? '') ?>" placeholder="Tìm theo tiêu đề, nội dung...">
+        </div>
+        <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-search"></i>Tìm</button>
+    </form>
 </div>
 
 <div class="card">
@@ -70,3 +112,19 @@ $statusMap = [
         </table>
     </div>
 </div>
+
+<!-- PAGINATION -->
+<?php if ($totalPages > 1): ?>
+<div class="catalog-pagination-bar" style="margin-top:20px; width: 100%;">
+    <div class="catalog-pagination-info">
+        Hiển thị <?= min(($page-1)*$perPage+1,$totalCount) ?> – <?= min($page*$perPage,$totalCount) ?> / <?= $totalCount ?> yêu cầu
+    </div>
+    <div class="pagination">
+        <a class="page-btn <?= $page<=1?'disabled':'' ?>" href="<?= $page>1?$buildPageUrl($page-1):'#' ?>"><i class="bi bi-chevron-left"></i></a>
+        <?php for ($p=max(1,$page-2); $p<=min($totalPages,$page+2); $p++): ?>
+        <a class="page-btn <?= $p===$page?'active':'' ?>" href="<?= $buildPageUrl($p) ?>"><?= $p ?></a>
+        <?php endfor; ?>
+        <a class="page-btn <?= $page>=$totalPages?'disabled':'' ?>" href="<?= $page<$totalPages?$buildPageUrl($page+1):'#' ?>"><i class="bi bi-chevron-right"></i></a>
+    </div>
+</div>
+<?php endif; ?>
