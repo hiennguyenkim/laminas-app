@@ -99,16 +99,29 @@ CREATE TABLE IF NOT EXISTS book_reviews (
 -- 5. BẢNG book_imports (Nhập kho sách)
 -- ───────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS book_imports (
-    import_id   INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    book_id     INT UNSIGNED NOT NULL,
-    quantity    SMALLINT UNSIGNED NOT NULL DEFAULT 1,
-    import_date DATE         NOT NULL,
-    note        VARCHAR(500) DEFAULT NULL,
-    imported_by INT UNSIGNED NOT NULL COMMENT 'admin user_id',
-    created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_import_book  FOREIGN KEY (book_id)     REFERENCES books(book_id) ON DELETE CASCADE,
+    import_id      INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    book_id        INT UNSIGNED DEFAULT NULL          COMMENT 'FK to books.book_id, set after sync',
+    invoice_code   VARCHAR(50)  NOT NULL              COMMENT 'Mã hóa đơn (auto-generated if blank)',
+    title          VARCHAR(255) NOT NULL              COMMENT 'Tên sách nhập',
+    author         VARCHAR(150) NOT NULL DEFAULT 'Khác',
+    isbn           VARCHAR(30)  DEFAULT NULL,
+    category       VARCHAR(100) NOT NULL DEFAULT 'Khác',
+    publisher      VARCHAR(255) DEFAULT NULL,
+    published_year YEAR         DEFAULT NULL,
+    quantity       SMALLINT UNSIGNED NOT NULL DEFAULT 1,
+    import_type    ENUM('purchase','donation','other') NOT NULL DEFAULT 'purchase',
+    invoice_url    VARCHAR(500) DEFAULT NULL,
+    price          DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+    note           TEXT         DEFAULT NULL,
+    imported_by    INT UNSIGNED NOT NULL              COMMENT 'admin user_id',
+    status         ENUM('pending','approved','rejected') NOT NULL DEFAULT 'approved',
+    import_date    DATE         DEFAULT NULL,
+    created_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_import_book  FOREIGN KEY (book_id)     REFERENCES books(book_id) ON DELETE SET NULL,
     CONSTRAINT fk_import_admin FOREIGN KEY (imported_by) REFERENCES users(user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 
 -- ───────────────────────────────────────────────
 -- 6. BẢNG announcements (Bảng tin thông báo)
@@ -178,7 +191,7 @@ CREATE TABLE IF NOT EXISTS notifications (
     sender_id  INT UNSIGNED DEFAULT NULL,
     title      VARCHAR(255) NOT NULL,
     message    TEXT NOT NULL,
-    type       ENUM('system','ticket','borrow_alert','general','ticket_answered') NOT NULL DEFAULT 'system',
+    type       ENUM('system','ticket','borrow_alert','general','ticket_answered','borrow','borrow_approved') NOT NULL DEFAULT 'system',
     is_read    TINYINT(1) NOT NULL DEFAULT 0,
     related_id INT UNSIGNED DEFAULT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,

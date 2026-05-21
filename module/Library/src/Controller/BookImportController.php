@@ -38,7 +38,8 @@ class BookImportController extends BaseController
             $category = trim((string)($data['category'] ?? 'Khác'));
             $publisher = trim((string)($data['publisher'] ?? ''));
             $publishedYear = !empty($data['published_year']) ? (int)$data['published_year'] : null;
-            $quantity = max(1, (int)($data['quantity'] ?? 1));
+            // Bug 7 fix: cap quantity to 1–1000
+            $quantity = min(1000, max(1, (int)($data['quantity'] ?? 1)));
             $price = max(0.0, (float)($data['price'] ?? 0.0));
             $importType = $data['import_type'] ?? 'purchase';
             $invoiceCode = trim((string)($data['invoice_code'] ?? ''));
@@ -48,12 +49,26 @@ class BookImportController extends BaseController
             if ($title === '') {
                 $this->flash()->addErrorMessage('Vui lòng nhập Tên sách.');
             } else {
-                $sql = "INSERT INTO book_imports (book_id, invoice_code, title, author, isbn, category, publisher, published_year, quantity, import_type, invoice_url, price, note, imported_by, status, import_date, created_at, updated_at) 
-                        VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'approved', CURDATE(), NOW(), NOW())";
-                
                 try {
                     $generatedCode = $invoiceCode !== '' ? $invoiceCode : 'INV-' . strtoupper(uniqid());
+
+                    // Bug 1 fix: sync to books catalog FIRST to get a valid book_id,
+                    // then INSERT into book_imports with the real book_id (no NULL violation).
+                    $syncData = [
+                        'title'          => $title,
+                        'isbn'           => $isbn !== '' ? $isbn : null,
+                        'quantity'       => $quantity,
+                        'author'         => $author !== '' ? $author : 'Khác',
+                        'category'       => $category !== '' ? $category : 'Khác',
+                        'publisher'      => $publisher !== '' ? $publisher : null,
+                        'published_year' => $publishedYear,
+                    ];
+                    $bookId = $this->syncImportToBooks($syncData);
+
+                    $sql = "INSERT INTO book_imports (book_id, invoice_code, title, author, isbn, category, publisher, published_year, quantity, import_type, invoice_url, price, note, imported_by, status, import_date, created_at, updated_at)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'approved', CURDATE(), NOW(), NOW())";
                     $this->dbAdapter->query($sql, [
+                        $bookId,
                         $generatedCode,
                         $title,
                         $author !== '' ? $author : 'Khác',
@@ -68,19 +83,6 @@ class BookImportController extends BaseController
                         $note !== '' ? $note : null,
                         $currentUser['id']
                     ]);
-                    $importId = (int)$this->dbAdapter->getDriver()->getLastGeneratedValue();
-
-                    // Retrieve inserted record to sync
-                    $stmt = $this->dbAdapter->query("SELECT * FROM book_imports WHERE import_id = ? LIMIT 1");
-                    $insertedRow = iterator_to_array($stmt->execute([$importId]))[0];
-
-                    $bookId = $this->syncImportToBooks($insertedRow);
-
-                    // Update import record with book_id
-                    $this->dbAdapter->query(
-                        "UPDATE book_imports SET book_id = ? WHERE import_id = ?",
-                        [$bookId, $importId]
-                    );
 
                     $this->flash()->addSuccessMessage('Đã nhập kho sách trực tiếp thành công.');
                 } catch (\Throwable $e) {
@@ -90,17 +92,27 @@ class BookImportController extends BaseController
             }
         }
 
-        // Fetch imports
-        $sql = "SELECT i.*, u.username as admin_name, b.title as existing_book_title 
-                FROM book_imports i 
-                LEFT JOIN users u ON i.imported_by = u.user_id 
-                LEFT JOIN books b ON i.book_id = b.book_id 
-                ORDER BY i.created_at DESC";
-        $imports = iterator_to_array($this->dbAdapter->query($sql)->execute());
+        // Bug 5 fix: paginate the imports list (20 per page)
+        $page    = max(1, (int)($this->params()->fromQuery('page', 1)));
+        $perPage = 20;
 
-        // Fetch stats for the selected year grouped by Quarter (Q1, Q2, Q3, Q4) - filter by status = 'approved'
-        $statsSql = "SELECT 
-                        QUARTER(import_date) AS qtr, 
+        $totalCount  = (int)(($this->dbAdapter->query("SELECT COUNT(*) AS cnt FROM book_imports")->execute()->current()['cnt']) ?? 0);
+        $totalPages  = max(1, (int)ceil($totalCount / $perPage));
+        $page        = min($page, $totalPages);
+        $offset      = ($page - 1) * $perPage;
+
+        // Fetch paginated imports
+        $sql = "SELECT i.*, u.username as admin_name, b.title as existing_book_title
+                FROM book_imports i
+                LEFT JOIN users u ON i.imported_by = u.user_id
+                LEFT JOIN books b ON i.book_id = b.book_id
+                ORDER BY i.created_at DESC
+                LIMIT ? OFFSET ?";
+        $imports = iterator_to_array($this->dbAdapter->query($sql)->execute([$perPage, $offset]));
+
+        // Fetch stats for the selected year grouped by Quarter — filter by status = 'approved'
+        $statsSql = "SELECT
+                        QUARTER(import_date) AS qtr,
                         COUNT(*) AS total_count,
                         SUM(price * quantity) AS total_spend
                      FROM book_imports
@@ -114,7 +126,7 @@ class BookImportController extends BaseController
             3 => ['count' => 0, 'spend' => 0.0],
             4 => ['count' => 0, 'spend' => 0.0]
         ];
-        $totalSpendYear = 0.0;
+        $totalSpendYear  = 0.0;
         $totalImportsYear = 0;
 
         foreach ($statsRaw as $row) {
@@ -122,17 +134,20 @@ class BookImportController extends BaseController
             if (isset($quarterlyStats[$q])) {
                 $quarterlyStats[$q]['count'] = (int)$row['total_count'];
                 $quarterlyStats[$q]['spend'] = (float)$row['total_spend'];
-                $totalSpendYear += (float)$row['total_spend'];
+                $totalSpendYear  += (float)$row['total_spend'];
                 $totalImportsYear += (int)$row['total_count'];
             }
         }
 
         return new ViewModel([
-            'imports' => $imports,
-            'quarterlyStats' => $quarterlyStats,
-            'totalSpendYear' => $totalSpendYear,
+            'imports'          => $imports,
+            'quarterlyStats'   => $quarterlyStats,
+            'totalSpendYear'   => $totalSpendYear,
             'totalImportsYear' => $totalImportsYear,
-            'selectedYear' => $selectedYear
+            'selectedYear'     => $selectedYear,
+            'page'             => $page,
+            'totalPages'       => $totalPages,
+            'totalCount'       => $totalCount,
         ]);
     }
 
@@ -321,13 +336,14 @@ class BookImportController extends BaseController
 
     private function syncImportToBooks(array $import): int
     {
-        $title = $import['title'];
-        $isbn = $import['isbn'];
+        $title    = $import['title'];
+        // Bug 4 fix: use !empty() to handle both null and empty-string ISBN
+        $isbn     = !empty($import['isbn']) ? trim((string)$import['isbn']) : null;
         $quantity = (int)$import['quantity'];
 
-        // Try to find matching book by ISBN
+        // Try to find matching book by ISBN first
         $matchingBookId = null;
-        if ($isbn !== null && trim($isbn) !== '') {
+        if ($isbn !== null) {
             $checkStmt = $this->dbAdapter->query("SELECT book_id FROM books WHERE isbn = ? LIMIT 1");
             $books = iterator_to_array($checkStmt->execute([$isbn]));
             if (count($books) > 0) {
@@ -335,7 +351,7 @@ class BookImportController extends BaseController
             }
         }
 
-        // Fallback to title match
+        // Fallback: match by title
         if ($matchingBookId === null) {
             $checkStmt = $this->dbAdapter->query("SELECT book_id FROM books WHERE title = ? LIMIT 1");
             $books = iterator_to_array($checkStmt->execute([$title]));
@@ -345,23 +361,23 @@ class BookImportController extends BaseController
         }
 
         if ($matchingBookId !== null) {
-            // Increment quantity and make available
+            // Existing book — increment quantity and ensure status = available
             $this->dbAdapter->query(
-                "UPDATE books SET quantity = quantity + ?, status = 'available' WHERE book_id = ?", 
+                "UPDATE books SET quantity = quantity + ?, status = 'available' WHERE book_id = ?",
                 [$quantity, $matchingBookId]
             );
         } else {
-            // Insert as a new book in the catalog
-            $insertSql = "INSERT INTO books (title, author, isbn, category, publisher, published_year, quantity, status, import_date, created_at) 
+            // New book — insert into catalog
+            $insertSql = "INSERT INTO books (title, author, isbn, category, publisher, published_year, quantity, status, import_date, created_at)
                           VALUES (?, ?, ?, ?, ?, ?, ?, 'available', CURDATE(), NOW())";
             $this->dbAdapter->query($insertSql, [
                 $title,
-                $import['author'] !== '' ? $import['author'] : 'Khác',
-                $isbn !== '' ? $isbn : null,
-                $import['category'] !== '' ? $import['category'] : 'Khác',
-                $import['publisher'] !== '' ? $import['publisher'] : null,
-                $import['published_year'] !== '' ? $import['published_year'] : null,
-                $quantity
+                !empty($import['author'])        ? $import['author']        : 'Khác',
+                $isbn,
+                !empty($import['category'])      ? $import['category']      : 'Khác',
+                !empty($import['publisher'])     ? $import['publisher']     : null,
+                !empty($import['published_year']) ? $import['published_year'] : null,
+                $quantity,
             ]);
             $matchingBookId = (int)$this->dbAdapter->getDriver()->getLastGeneratedValue();
         }

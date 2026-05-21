@@ -141,12 +141,21 @@ class CirculationService
             // Tự động gửi thông báo cho sinh viên
             try {
                 $db = $this->adapter;
+                $adminId = null;
+                try {
+                    $adminRow = $db->query("SELECT user_id FROM users WHERE role = 'admin' LIMIT 1")->execute()->current();
+                    if ($adminRow) {
+                        $adminId = (int)$adminRow['user_id'];
+                    }
+                } catch (\Throwable $e) {}
+
                 $stmt = $db->createStatement(
                     "INSERT INTO notifications (user_id, sender_id, title, message, type, related_id) 
-                     VALUES (?, NULL, ?, ?, 'borrow_alert', ?)"
+                     VALUES (?, ?, ?, ?, 'borrow_approved', ?)"
                 );
                 $stmt->execute([
                     $record->userId,
+                    $adminId,
                     'Đăng ký mượn sách được phê duyệt',
                     "Yêu cầu mượn cuốn sách '" . $record->bookTitle . "' của bạn đã được phê duyệt. Hạn trả: " . ($returnDate ?? $record->returnDate),
                     $recordId

@@ -1,4 +1,6 @@
 <?php
+$authUser    = $this->currentUser();
+$routePrefix = ($authUser['role'] ?? '') === 'admin' ? 'library' : 'student';
 $this->headTitle('Chi tiết tài khoản');
 $this->layout('layout/library-layout');
 
@@ -164,7 +166,7 @@ $statusMap = [
         <div class="card-title" style="display:flex;align-items:center;gap:8px">
             <i class="bi bi-clock-history" style="color:var(--accent-purple)"></i>Lịch sử mượn / trả
         </div>
-        <a href="<?= $this->url('library/transaction', [], ['query' => ['user_id' => (int) $user->id]]) ?>"
+        <a href="<?= $this->url($routePrefix . '/transaction', [], ['query' => ['user_id' => (int) $user->id]]) ?>"
            class="btn btn-outline btn-sm">
             <i class="bi bi-box-arrow-up-right"></i>Quản lý mượn/trả
         </a>

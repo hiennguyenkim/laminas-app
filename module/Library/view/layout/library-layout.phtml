@@ -312,6 +312,57 @@ setTimeout(() => {
     .notification-item .noti-desc { font-size: 12px; color: var(--text-secondary); line-height: 1.4; }
     .notification-item .noti-time { font-size: 10px; color: var(--text-muted); margin-top: 4px; }
 
+    /* Wrapper & Delete Button for Notifications */
+    .notification-item-wrapper {
+        position: relative;
+        display: flex;
+        align-items: center;
+        border-bottom: 1px solid var(--border);
+        transition: background 0.2s;
+    }
+    .notification-item-wrapper:last-child {
+        border-bottom: none;
+    }
+    .notification-item-wrapper:hover {
+        background: var(--bg-body);
+    }
+    .notification-item-wrapper .notification-item {
+        flex: 1;
+        border-bottom: none;
+        padding-right: 48px; /* space for delete button */
+    }
+    .notification-item-wrapper .notification-item:hover {
+        background: transparent;
+    }
+    .notification-item-wrapper.read {
+        opacity: 0.65;
+    }
+    .notification-item-wrapper.read .noti-title {
+        font-weight: normal !important;
+    }
+    .delete-noti-btn {
+        position: absolute;
+        right: 14px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: none;
+        border: none;
+        padding: 6px;
+        cursor: pointer;
+        color: var(--text-muted);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        transition: color 0.2s, background-color 0.2s;
+        outline: none;
+        z-index: 2;
+    }
+    .delete-noti-btn:hover {
+        color: #ef4444 !important;
+        background-color: rgba(239, 68, 68, 0.1);
+    }
+
     .chatbox-container {
         position: fixed;
         bottom: 85px;
@@ -682,11 +733,17 @@ setTimeout(() => {
             const countBadge = document.getElementById('notification-count-badge');
             const list = document.getElementById('notification-list');
             
-            const count = data.length;
-            if (count > 0) {
-                badge.textContent = count;
-                badge.style.display = 'flex';
-                countBadge.textContent = count + ' mới';
+            const unreadCount = data.filter(item => item.is_read === 0).length;
+            
+            if (data.length > 0) {
+                if (unreadCount > 0) {
+                    badge.textContent = unreadCount;
+                    badge.style.display = 'flex';
+                    countBadge.textContent = unreadCount + ' mới';
+                } else {
+                    badge.style.display = 'none';
+                    countBadge.textContent = '0 mới';
+                }
                 
                 let html = '';
                 data.forEach(item => {
@@ -695,18 +752,27 @@ setTimeout(() => {
                     else if (item.type === 'ticket') iconClass = 'bi-chat-left-text';
                     else if (item.type === 'borrow_approved') iconClass = 'bi-patch-check-fill';
                     else if (item.type === 'ticket_answered') iconClass = 'bi-chat-left-text-fill';
-                    
+                    else if (item.type === 'borrow_alert') iconClass = 'bi-exclamation-triangle-fill';
+
+                    const readClass = item.is_read ? 'read' : '';
+
                     html += `
-                        <a href="${item.url}" class="notification-item ${item.type}">
-                            <div class="noti-icon">
-                                <i class="bi ${iconClass}"></i>
-                            </div>
-                            <div class="noti-content">
-                                <div class="noti-title">${item.title}</div>
-                                <div class="noti-desc">${item.description}</div>
-                                <div class="noti-time">${item.time}</div>
-                            </div>
-                        </a>
+                        <div class="notification-item-wrapper ${readClass}">
+                            <a href="${item.url}" class="notification-item ${item.type}" 
+                               onclick="markNotificationRead('${item.id}', '${item.url}', event); return false;">
+                                <div class="noti-icon">
+                                    <i class="bi ${iconClass}"></i>
+                                </div>
+                                <div class="noti-content">
+                                    <div class="noti-title">${item.title}</div>
+                                    <div class="noti-desc">${item.description}</div>
+                                    <div class="noti-time">${item.time}</div>
+                                </div>
+                            </a>
+                            <button class="delete-noti-btn" onclick="deleteNotification('${item.id}', event)" title="Xóa thông báo">
+                                <i class="bi bi-x-lg"></i>
+                            </button>
+                        </div>
                     `;
                 });
                 list.innerHTML = html;
@@ -722,6 +788,46 @@ setTimeout(() => {
             }
         } catch (e) {
             console.error('Failed to load notifications:', e);
+        }
+    }
+
+    async function markNotificationRead(itemId, itemUrl, event) {
+        if (event) event.preventDefault();
+        try {
+            await fetch('<?= $this->url('api/notifications') ?>', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ id: itemId })
+            });
+        } catch (e) {
+            console.error('Failed to mark notification read:', e);
+        }
+        window.location.href = itemUrl;
+    }
+
+    async function deleteNotification(itemId, event) {
+        if (event) {
+            event.stopPropagation();
+            event.preventDefault();
+        }
+        if (!confirm('Bạn có chắc chắn muốn xóa thông báo này?')) {
+            return;
+        }
+        try {
+            const response = await fetch('<?= $this->url('api/notifications') ?>', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ id: itemId, action: 'delete' })
+            });
+            if (response.ok) {
+                loadNotifications();
+            }
+        } catch (e) {
+            console.error('Failed to delete notification:', e);
         }
     }
 
