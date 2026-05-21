@@ -206,12 +206,37 @@ class DashboardController extends BaseController
             return $this->jsonResponse(['success' => true]);
         }
 
+        // Fetch pinned message if any
+        $pinnedSql = "SELECT c.*, COALESCE(NULLIF(u.nickname, ''), u.full_name, CONCAT('Độc giả #', u.user_id)) AS nickname, u.role, u.avatar_url 
+                      FROM public_chats c 
+                      JOIN users u ON c.user_id = u.user_id 
+                      WHERE c.is_pinned = 1 
+                      LIMIT 1";
+        $pinnedResult = $this->dbAdapter->query($pinnedSql)->execute()->current();
+        $formattedPinned = null;
+        if ($pinnedResult) {
+            $formattedPinned = [
+                'id'         => $pinnedResult['id'],
+                'user_id'    => $pinnedResult['user_id'],
+                'nickname'   => $pinnedResult['nickname'],
+                'message'    => $pinnedResult['message'],
+                'role'       => $pinnedResult['role'] ?? 'student',
+                'avatar_url' => $pinnedResult['avatar_url'] ?? '',
+                'is_pinned'  => (int)($pinnedResult['is_pinned'] ?? 0),
+                'reactions'  => $pinnedResult['reactions'] ?? '',
+                'created_at' => date('H:i', strtotime($pinnedResult['created_at']))
+            ];
+        }
+
         // Fetch last 50 messages joining with users to get nickname securely
-        $sql = "SELECT c.*, COALESCE(NULLIF(u.nickname, ''), u.full_name, CONCAT('Độc giả #', u.user_id)) AS nickname, u.role, u.avatar_url 
-                FROM public_chats c 
-                JOIN users u ON c.user_id = u.user_id 
-                ORDER BY c.created_at ASC 
-                LIMIT 50";
+        $sql = "SELECT * FROM (
+                    SELECT c.*, COALESCE(NULLIF(u.nickname, ''), u.full_name, CONCAT('Độc giả #', u.user_id)) AS nickname, u.role, u.avatar_url 
+                    FROM public_chats c 
+                    JOIN users u ON c.user_id = u.user_id 
+                    ORDER BY c.id DESC 
+                    LIMIT 50
+                ) sub
+                ORDER BY sub.id ASC";
         $results = iterator_to_array($this->dbAdapter->query($sql)->execute());
 
         // Format for display
@@ -229,7 +254,10 @@ class DashboardController extends BaseController
             ];
         }, $results);
 
-        return $this->jsonResponse($formattedResults);
+        return $this->jsonResponse([
+            'messages' => $formattedResults,
+            'pinned'   => $formattedPinned
+        ]);
     }
 
     public function borrowedAction(): Response

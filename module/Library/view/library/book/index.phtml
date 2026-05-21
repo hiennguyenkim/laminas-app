@@ -103,6 +103,17 @@ $catBadgeColors = ['Văn học'=>'badge-purple','Khoa học'=>'badge-blue','Lị
     </div>
 
     <div class="forum-card-wrap">
+        <!-- Pinned Banner -->
+        <div class="forum-pinned-banner" id="forum-pinned-banner" style="display:none;">
+            <div class="forum-pinned-content">
+                <i class="bi bi-pin-angle-fill text-purple"></i>
+                <span class="forum-pinned-text" id="forum-pinned-text"></span>
+            </div>
+            <button class="forum-pinned-unpin-btn" id="forum-pinned-unpin-btn" onclick="unpinCatalogMessage()" title="Gỡ ghim" style="display:none;">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+
         <!-- Message area -->
         <div class="catalog-chat-messages forum-list" id="catalog-chat-body">
             <div class="forum-empty">
@@ -410,7 +421,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Catalog Chat Room Functionality
     let catalogChatInterval = null;
-    const currentUserId = <?= json_encode($authUser['id'] ?? 0) ?>;
+    const currentUserId = parseInt(<?= json_encode($authUser['id'] ?? 0) ?>);
     const currentUserRole = <?= json_encode($authUser['role'] ?? '') ?>;
     const basePath = <?= json_encode($this->basePath()) ?>;
     let lastMessagesJson = '';
@@ -419,17 +430,88 @@ document.addEventListener('DOMContentLoaded', () => {
         return (unsafe || '').replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
     }
 
+    function renderReactionsHtml(msgId, msgReactions) {
+        let html = '';
+        const emojis = Object.keys(msgReactions);
+        if (emojis.length > 0) {
+            html += `<div class="forum-msg-reactions">`;
+            emojis.forEach(emoji => {
+                const userIds = msgReactions[emoji] || [];
+                if (userIds.length > 0) {
+                    const hasReacted = userIds.includes(currentUserId);
+                    const activeClass = hasReacted ? 'active' : '';
+                    html += `<span class="forum-reaction-badge ${activeClass}" onclick="reactCatalogMessage(${msgId}, '${emoji}')">
+                        ${emoji} ${userIds.length}
+                    </span>`;
+                }
+            });
+            html += `</div>`;
+        }
+        return html;
+    }
+
+    window.toggleReactionPicker = function(event, msgId) {
+        event.stopPropagation();
+        const existing = document.querySelector('.forum-react-picker');
+        if (existing) {
+            existing.remove();
+        }
+        
+        const btn = event.currentTarget;
+        const picker = document.createElement('div');
+        picker.className = 'forum-react-picker';
+        const emojis = ['👍', '❤️', '😂', '😮', '😢'];
+        emojis.forEach(emoji => {
+            const emojiSpan = document.createElement('span');
+            emojiSpan.className = 'forum-react-picker-emoji';
+            emojiSpan.innerText = emoji;
+            emojiSpan.onclick = function(e) {
+                e.stopPropagation();
+                reactCatalogMessage(msgId, emoji);
+                picker.remove();
+            };
+            picker.appendChild(emojiSpan);
+        });
+        btn.appendChild(picker);
+    };
+
+    document.addEventListener('click', function() {
+        const existing = document.querySelector('.forum-react-picker');
+        if (existing) {
+            existing.remove();
+        }
+    });
+
     async function loadCatalogMessages() {
         try {
             const response = await fetch('<?= $this->url($routePrefix . "/dashboard", ["action" => "chat"]) ?>');
             if (!response.ok) return;
-            const messages = await response.json();
+            const data = await response.json();
             
-            const messagesJson = JSON.stringify(messages);
+            const messages = data.messages || [];
+            const pinned = data.pinned || null;
+            
+            const messagesJson = JSON.stringify(data);
             if (messagesJson === lastMessagesJson) {
                 return;
             }
             lastMessagesJson = messagesJson;
+
+            // Handle Pinned Banner
+            const pinnedBanner = document.getElementById('forum-pinned-banner');
+            const pinnedText = document.getElementById('forum-pinned-text');
+            const pinnedUnpinBtn = document.getElementById('forum-pinned-unpin-btn');
+            if (pinnedBanner && pinnedText) {
+                if (pinned) {
+                    pinnedText.innerHTML = `<strong>${escapeHtml(pinned.nickname)}:</strong> ${escapeHtml(pinned.message)}`;
+                    pinnedBanner.style.display = 'flex';
+                    if (pinnedUnpinBtn) {
+                        pinnedUnpinBtn.style.display = (currentUserRole === 'admin') ? 'block' : 'none';
+                    }
+                } else {
+                    pinnedBanner.style.display = 'none';
+                }
+            }
 
             const container = document.getElementById('catalog-chat-body');
             if (!container) return;
@@ -453,9 +535,46 @@ document.addEventListener('DOMContentLoaded', () => {
                 const roleBadge = msg.role === 'admin' ? '<span class="badge badge-purple forum-role-badge">Thủ thư</span>' : '';
                 const username = escapeHtml(msg.nickname) + roleBadge;
                 const time = msg.created_at;
+                
+                // Parse reactions
+                let msgReactions = {};
+                try {
+                    if (msg.reactions && msg.reactions !== '') {
+                        msgReactions = JSON.parse(msg.reactions);
+                    }
+                } catch (e) {
+                    console.error('Failed to parse reactions:', e);
+                }
+
+                // Delete button
                 const deleteBtn = (parseInt(msg.user_id) === currentUserId || currentUserRole === 'admin')
                     ? `<span onclick="deleteCatalogMessage(${msg.id})" class="forum-msg-delete" title="Xóa"><i class="bi bi-trash"></i></span>`
                     : '';
+                
+                // Admin pin button
+                let pinBtn = '';
+                if (currentUserRole === 'admin') {
+                    if (msg.is_pinned === 1) {
+                        pinBtn = `<span onclick="unpinCatalogMessage()" class="forum-msg-pin active" title="Gỡ ghim"><i class="bi bi-pin-fill"></i></span>`;
+                    } else {
+                        pinBtn = `<span onclick="pinCatalogMessage(${msg.id})" class="forum-msg-pin" title="Ghim tin nhắn"><i class="bi bi-pin"></i></span>`;
+                    }
+                }
+
+                // React button
+                let reactBtn = '';
+                if (currentUserId > 0) {
+                    reactBtn = `<span class="forum-msg-react-btn" title="Thả cảm xúc" onclick="toggleReactionPicker(event, ${msg.id})">
+                        <i class="bi bi-emoji-smile"></i>
+                    </span>`;
+                }
+
+                const actionsHtml = `<div class="forum-msg-meta-actions">
+                    ${pinBtn}
+                    ${reactBtn}
+                    ${deleteBtn}
+                </div>`;
+
                 const message = escapeHtml(msg.message);
 
                 html += `<div class="forum-msg-row">
@@ -466,11 +585,12 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="forum-msg-meta">
                             <span class="forum-msg-username">${username}</span>
                             <span class="forum-msg-time">${time}</span>
-                            ${deleteBtn}
+                            ${actionsHtml}
                         </div>
                         <div class="forum-msg-text">
                             ${message}
                         </div>
+                        ${renderReactionsHtml(msg.id, msgReactions)}
                     </div>
                 </div>`;
             });

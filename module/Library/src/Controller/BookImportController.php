@@ -92,11 +92,67 @@ class BookImportController extends BaseController
             }
         }
 
+        // Extract filters
+        $search = trim((string)$this->params()->fromQuery('search', ''));
+        $type   = trim((string)$this->params()->fromQuery('type', ''));
+
+        // Query import type counts matching current search filter (to show in tabs)
+        $typeCountSql = "SELECT import_type, COUNT(*) AS cnt FROM book_imports";
+        $whereTypeCounts = [];
+        $paramsTypeCounts = [];
+        if ($search !== '') {
+            $whereTypeCounts[] = "(title LIKE ? OR author LIKE ? OR isbn LIKE ? OR invoice_code LIKE ? OR publisher LIKE ?)";
+            $searchWildcard = '%' . $search . '%';
+            $paramsTypeCounts[] = $searchWildcard;
+            $paramsTypeCounts[] = $searchWildcard;
+            $paramsTypeCounts[] = $searchWildcard;
+            $paramsTypeCounts[] = $searchWildcard;
+            $paramsTypeCounts[] = $searchWildcard;
+        }
+        if (count($whereTypeCounts) > 0) {
+            $typeCountSql .= " WHERE " . implode(" AND ", $whereTypeCounts);
+        }
+        $typeCountSql .= " GROUP BY import_type";
+
+        $typeCountRaw = iterator_to_array($this->dbAdapter->query($typeCountSql)->execute($paramsTypeCounts));
+        $typeCounts = [
+            'all'      => 0,
+            'purchase' => 0,
+            'donation' => 0,
+            'other'    => 0
+        ];
+        foreach ($typeCountRaw as $row) {
+            if (isset($typeCounts[$row['import_type']])) {
+                $typeCounts[$row['import_type']] = (int)$row['cnt'];
+            }
+            $typeCounts['all'] += (int)$row['cnt'];
+        }
+
         // Bug 5 fix: paginate the imports list (10 per page)
         $page    = max(1, (int)($this->params()->fromQuery('page', 1)));
         $perPage = 10;
 
-        $totalCount  = (int)(($this->dbAdapter->query("SELECT COUNT(*) AS cnt FROM book_imports")->execute()->current()['cnt']) ?? 0);
+        $whereList = [];
+        $paramsList = [];
+        if ($search !== '') {
+            $whereList[] = "(i.title LIKE ? OR i.author LIKE ? OR i.isbn LIKE ? OR i.invoice_code LIKE ? OR i.publisher LIKE ?)";
+            $searchWildcard = '%' . $search . '%';
+            $paramsList[] = $searchWildcard;
+            $paramsList[] = $searchWildcard;
+            $paramsList[] = $searchWildcard;
+            $paramsList[] = $searchWildcard;
+            $paramsList[] = $searchWildcard;
+        }
+        if ($type !== '') {
+            $whereList[] = "i.import_type = ?";
+            $paramsList[] = $type;
+        }
+
+        $totalSql = "SELECT COUNT(*) AS cnt FROM book_imports i";
+        if (count($whereList) > 0) {
+            $totalSql .= " WHERE " . implode(" AND ", $whereList);
+        }
+        $totalCount  = (int)(($this->dbAdapter->query($totalSql)->execute($paramsList)->current()['cnt']) ?? 0);
         $totalPages  = max(1, (int)ceil($totalCount / $perPage));
         $page        = min($page, $totalPages);
         $offset      = ($page - 1) * $perPage;
@@ -105,10 +161,17 @@ class BookImportController extends BaseController
         $sql = "SELECT i.*, u.username as admin_name, b.title as existing_book_title
                 FROM book_imports i
                 LEFT JOIN users u ON i.imported_by = u.user_id
-                LEFT JOIN books b ON i.book_id = b.book_id
-                ORDER BY i.created_at DESC
-                LIMIT ? OFFSET ?";
-        $imports = iterator_to_array($this->dbAdapter->query($sql)->execute([$perPage, $offset]));
+                LEFT JOIN books b ON i.book_id = b.book_id";
+        if (count($whereList) > 0) {
+            $sql .= " WHERE " . implode(" AND ", $whereList);
+        }
+        $sql .= " ORDER BY i.created_at DESC LIMIT ? OFFSET ?";
+        
+        $bindParams = $paramsList;
+        $bindParams[] = $perPage;
+        $bindParams[] = $offset;
+
+        $imports = iterator_to_array($this->dbAdapter->query($sql)->execute($bindParams));
 
         // Fetch stats for the selected year grouped by Quarter — filter by status = 'approved'
         $statsSql = "SELECT
@@ -148,6 +211,9 @@ class BookImportController extends BaseController
             'page'             => $page,
             'totalPages'       => $totalPages,
             'totalCount'       => $totalCount,
+            'search'           => $search,
+            'type'             => $type,
+            'typeCounts'       => $typeCounts,
         ]);
     }
 
@@ -206,15 +272,34 @@ class BookImportController extends BaseController
         }
 
         $selectedYear = (int)($this->params()->fromQuery('year', date('Y')));
+        $search = trim((string)$this->params()->fromQuery('search', ''));
+        $type   = trim((string)$this->params()->fromQuery('type', ''));
 
-        // Fetch imports
+        // Fetch imports with year filter and optional search/type filters
+        $whereList = ["YEAR(COALESCE(i.import_date, i.created_at)) = ?"];
+        $paramsList = [$selectedYear];
+
+        if ($search !== '') {
+            $whereList[] = "(i.title LIKE ? OR i.author LIKE ? OR i.isbn LIKE ? OR i.invoice_code LIKE ? OR i.publisher LIKE ?)";
+            $searchWildcard = '%' . $search . '%';
+            $paramsList[] = $searchWildcard;
+            $paramsList[] = $searchWildcard;
+            $paramsList[] = $searchWildcard;
+            $paramsList[] = $searchWildcard;
+            $paramsList[] = $searchWildcard;
+        }
+        if ($type !== '') {
+            $whereList[] = "i.import_type = ?";
+            $paramsList[] = $type;
+        }
+
         $sql = "SELECT i.*, u.username as admin_name, b.title as existing_book_title 
                 FROM book_imports i 
                 LEFT JOIN users u ON i.imported_by = u.user_id 
                 LEFT JOIN books b ON i.book_id = b.book_id 
-                WHERE YEAR(i.import_date) = ?
+                WHERE " . implode(" AND ", $whereList) . "
                 ORDER BY i.created_at DESC";
-        $imports = iterator_to_array($this->dbAdapter->query($sql)->execute([$selectedYear]));
+        $imports = iterator_to_array($this->dbAdapter->query($sql)->execute($paramsList));
 
         // Fetch quarterly stats
         $statsSql = "SELECT 

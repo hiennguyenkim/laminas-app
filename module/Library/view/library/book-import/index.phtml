@@ -1,5 +1,30 @@
 <?php
 $this->headTitle('Nhập sách Online & Thống kê chi tiêu');
+
+$buildUrlWithFilter = function(array $newParams) use ($selectedYear, $search, $type, $page) {
+    $params = [
+        'year'   => $selectedYear,
+        'search' => $search,
+        'type'   => $type,
+        'page'   => $page,
+    ];
+    
+    foreach ($newParams as $key => $value) {
+        if ($value === null || $value === '') {
+            unset($params[$key]);
+        } else {
+            $params[$key] = $value;
+        }
+    }
+    
+    if (!isset($newParams['page']) && (isset($newParams['search']) || isset($newParams['type']) || isset($newParams['year']))) {
+        $params['page'] = 1;
+    }
+    
+    return $this->url('library/books-import', [], ['query' => array_filter($params, function($val) {
+        return $val !== null && $val !== '';
+    })]);
+};
 ?>
 
 <div class="page-header book-import-header">
@@ -8,7 +33,7 @@ $this->headTitle('Nhập sách Online & Thống kê chi tiêu');
         <p class="text-muted book-import-subtitle">Quản lý quy trình nhập kho sách và theo dõi chi tiêu ngân sách thư viện.</p>
     </div>
     <div class="book-import-actions-row">
-        <a href="<?= $this->url('library/books-import', ['action' => 'export'], ['query' => ['year' => $selectedYear]]) ?>" class="btn btn-outline"><i class="bi bi-file-earmark-spreadsheet book-import-btn-report-icon"></i>Xuất báo cáo</a>
+        <a href="<?= $this->url('library/books-import', ['action' => 'export'], ['query' => array_filter(['year' => $selectedYear, 'search' => $search, 'type' => $type], function($val) { return $val !== null && $val !== ''; })]) ?>" class="btn btn-outline"><i class="bi bi-file-earmark-spreadsheet book-import-btn-report-icon"></i>Xuất báo cáo</a>
         <button class="btn btn-primary" onclick="toggleAddModal()"><i class="bi bi-plus-circle book-import-btn-new-icon"></i>Nhập kho mới</button>
     </div>
 </div>
@@ -61,6 +86,42 @@ $this->headTitle('Nhập sách Online & Thống kê chi tiêu');
     </div>
 </div>
 
+<!-- FILTER TABS AND SEARCH -->
+<div class="book-import-filters-container">
+    <div class="book-import-filters-left">
+        <!-- Import Type Tabs (3 hình thức) -->
+        <div class="filter-tabs book-import-filter-tabs">
+            <a href="<?= $buildUrlWithFilter(['type' => '']) ?>" class="filter-tab <?= $type === '' ? 'active' : '' ?>">
+                Tất cả hình thức <span class="count"><?= $typeCounts['all'] ?></span>
+            </a>
+            <a href="<?= $buildUrlWithFilter(['type' => 'purchase']) ?>" class="filter-tab <?= $type === 'purchase' ? 'active' : '' ?>">
+                <i class="bi bi-credit-card" style="margin-right: 4px;"></i> Mua sắm <span class="count"><?= $typeCounts['purchase'] ?></span>
+            </a>
+            <a href="<?= $buildUrlWithFilter(['type' => 'donation']) ?>" class="filter-tab <?= $type === 'donation' ? 'active' : '' ?>">
+                <i class="bi bi-gift" style="margin-right: 4px;"></i> Tặng/Biếu <span class="count"><?= $typeCounts['donation'] ?></span>
+            </a>
+            <a href="<?= $buildUrlWithFilter(['type' => 'other']) ?>" class="filter-tab <?= $type === 'other' ? 'active' : '' ?>">
+                <i class="bi bi-circle" style="margin-right: 4px;"></i> Khác <span class="count"><?= $typeCounts['other'] ?></span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Search Form -->
+    <form method="get" class="book-import-search-form">
+        <!-- Preserve selected year and type -->
+        <input type="hidden" name="year" value="<?= htmlspecialchars((string)$selectedYear) ?>">
+        <input type="hidden" name="type" value="<?= htmlspecialchars((string)$type) ?>">
+
+        <!-- Search Input -->
+        <div class="book-import-search-input-wrap">
+            <i class="bi bi-search"></i>
+            <input type="text" name="search" value="<?= htmlspecialchars($search) ?>" placeholder="Tìm tên sách, tác giả, ISBN, hóa đơn...">
+        </div>
+
+        <button type="submit" class="btn btn-primary"><i class="bi bi-search" style="margin-right: 6px;"></i>Tìm kiếm</button>
+    </form>
+</div>
+
 <!-- DATA LIST -->
 <div class="card">
     <div class="card-header">
@@ -87,7 +148,11 @@ $this->headTitle('Nhập sách Online & Thống kê chi tiêu');
                     <tr>
                         <td colspan="10" class="book-import-table-empty">
                             <i class="bi bi-box-seam book-import-table-empty-icon"></i>
-                            Chưa có yêu cầu nhập sách nào được ghi nhận.
+                            <?php if ($search !== '' || $type !== ''): ?>
+                                Không tìm thấy yêu cầu nhập sách nào phù hợp với bộ lọc hiện tại.
+                            <?php else: ?>
+                                Chưa có yêu cầu nhập sách nào được ghi nhận.
+                            <?php endif; ?>
                         </td>
                     </tr>
                 <?php else: ?>
@@ -156,8 +221,8 @@ $this->headTitle('Nhập sách Online & Thống kê chi tiêu');
     </div>
     <div class="book-import-pagination-btns">
         <?php if ($page > 1): ?>
-            <a href="<?= $this->url('library/books-import', [], ['query' => ['year' => $selectedYear, 'page' => 1]]) ?>" class="btn btn-outline btn-sm book-import-pagination-btn" title="Trang đầu"><i class="bi bi-chevron-double-left"></i></a>
-            <a href="<?= $this->url('library/books-import', [], ['query' => ['year' => $selectedYear, 'page' => $page - 1]]) ?>" class="btn btn-outline btn-sm book-import-pagination-btn"><i class="bi bi-chevron-left"></i> Trước</a>
+            <a href="<?= $buildUrlWithFilter(['page' => 1]) ?>" class="btn btn-outline btn-sm book-import-pagination-btn" title="Trang đầu"><i class="bi bi-chevron-double-left"></i></a>
+            <a href="<?= $buildUrlWithFilter(['page' => $page - 1]) ?>" class="btn btn-outline btn-sm book-import-pagination-btn"><i class="bi bi-chevron-left"></i> Trước</a>
         <?php endif; ?>
 
         <?php
@@ -165,14 +230,14 @@ $this->headTitle('Nhập sách Online & Thống kê chi tiêu');
         $endPage   = min($totalPages, $page + 2);
         for ($p = $startPage; $p <= $endPage; $p++):
         ?>
-            <a href="<?= $this->url('library/books-import', [], ['query' => ['year' => $selectedYear, 'page' => $p]]) ?>"
+            <a href="<?= $buildUrlWithFilter(['page' => $p]) ?>"
                class="btn btn-sm book-import-pagination-btn <?= $p === $page ? 'btn-primary' : 'btn-outline' ?>"
                style="min-width:32px;text-align:center"><?= $p ?></a>
         <?php endfor; ?>
 
         <?php if ($page < $totalPages): ?>
-            <a href="<?= $this->url('library/books-import', [], ['query' => ['year' => $selectedYear, 'page' => $page + 1]]) ?>" class="btn btn-outline btn-sm book-import-pagination-btn">Sau <i class="bi bi-chevron-right"></i></a>
-            <a href="<?= $this->url('library/books-import', [], ['query' => ['year' => $selectedYear, 'page' => $totalPages]]) ?>" class="btn btn-outline btn-sm book-import-pagination-btn" title="Trang cuối"><i class="bi bi-chevron-double-right"></i></a>
+            <a href="<?= $buildUrlWithFilter(['page' => $page + 1]) ?>" class="btn btn-outline btn-sm book-import-pagination-btn">Sau <i class="bi bi-chevron-right"></i></a>
+            <a href="<?= $buildUrlWithFilter(['page' => $totalPages]) ?>" class="btn btn-outline btn-sm book-import-pagination-btn" title="Trang cuối"><i class="bi bi-chevron-double-right"></i></a>
         <?php endif; ?>
     </div>
 </div>
@@ -270,3 +335,56 @@ function toggleAddModal() {
     }
 }
 </script>
+
+<style>
+.book-import-filters-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+.book-import-filters-left {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.book-import-filter-tabs {
+    margin-bottom: 0 !important;
+}
+.book-import-search-form {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+.book-import-search-input-wrap {
+    position: relative;
+    width: 280px;
+}
+.book-import-search-input-wrap i {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    font-size: 14px;
+}
+.book-import-search-input-wrap input {
+    padding-left: 38px;
+    border-radius: 40px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    width: 100%;
+}
+.book-import-search-input-wrap input:focus {
+    border-color: var(--accent-purple);
+    box-shadow: 0 0 0 3px rgba(124,106,255,0.12);
+}
+.book-import-search-form button {
+    border-radius: 40px;
+    padding: 8px 20px;
+}
+</style>

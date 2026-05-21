@@ -9,6 +9,9 @@ use Library\Model\Table\BookTable;
 use Library\Model\Table\BorrowTable;
 use Library\Model\Table\UserTable;
 use Library\Session\AuthSessionContainer;
+use Laminas\Db\Adapter\AdapterInterface;
+use Laminas\Db\Adapter\Driver\StatementInterface;
+use Laminas\Db\Adapter\Driver\ResultInterface;
 use Laminas\Test\PHPUnit\Controller\AbstractHttpControllerTestCase;
 
 class DashboardControllerTest extends AbstractHttpControllerTestCase
@@ -107,6 +110,270 @@ class DashboardControllerTest extends AbstractHttpControllerTestCase
         $this->assertResponseStatusCode(200);
         $this->assertControllerName(DashboardController::class);
         $this->assertMatchedRouteName('student/dashboard');
+    }
+
+    public function testChatActionGetReturnsJson(): void
+    {
+        $this->mockLoginAsRole('student');
+
+        $dbMock = $this->createMock(\Laminas\Db\Adapter\Adapter::class);
+
+        // Mock pinned statement & result
+        $pinnedStmtMock = $this->createMock(StatementInterface::class);
+        $pinnedResultMock = $this->createMock(ResultInterface::class);
+        $pinnedResultMock->method('current')->willReturn([
+            'id'         => 10,
+            'user_id'    => 1,
+            'nickname'   => 'Thủ thư',
+            'message'    => 'Thông báo ghim',
+            'role'       => 'admin',
+            'avatar_url' => '',
+            'is_pinned'  => 1,
+            'reactions'  => '',
+            'created_at' => '2026-05-21 12:00:00',
+        ]);
+        $pinnedStmtMock->method('execute')->willReturn($pinnedResultMock);
+
+        // Mock messages statement & result (Iterator)
+        $chatStmtMock = $this->createMock(StatementInterface::class);
+        $chatResultMock = $this->createMock(ResultInterface::class);
+
+        $messages = [
+            [
+                'id'         => 1,
+                'user_id'    => 2,
+                'nickname'   => 'Sinh viên A',
+                'message'    => 'Chào mọi người',
+                'role'       => 'student',
+                'avatar_url' => '',
+                'is_pinned'  => 0,
+                'reactions'  => '{"👍":[2]}',
+                'created_at' => '2026-05-21 12:05:00',
+            ]
+        ];
+
+        $index = 0;
+        $chatResultMock->method('rewind')->willReturnCallback(function() use (&$index) { $index = 0; });
+        $chatResultMock->method('valid')->willReturnCallback(function() use (&$index, $messages) { return $index < count($messages); });
+        $chatResultMock->method('current')->willReturnCallback(function() use (&$index, $messages) { return $messages[$index]; });
+        $chatResultMock->method('key')->willReturnCallback(function() use (&$index) { return $index; });
+        $chatResultMock->method('next')->willReturnCallback(function() use (&$index) { $index++; });
+        $chatStmtMock->method('execute')->willReturn($chatResultMock);
+
+        $dbMock->method('query')->willReturnCallback(function($sql) use ($pinnedStmtMock, $chatStmtMock) {
+            if (strpos($sql, 'is_pinned = 1') !== false) {
+                return $pinnedStmtMock;
+            }
+            return $chatStmtMock;
+        });
+
+        $serviceLocator = $this->getApplicationServiceLocator();
+        $serviceLocator->setAllowOverride(true);
+        $serviceLocator->setService(AdapterInterface::class, $dbMock);
+
+        $this->dispatch('/student/dashboard/chat', 'GET');
+        $this->assertResponseStatusCode(200);
+
+        $response = json_decode($this->getResponse()->getContent(), true);
+        $this->assertArrayHasKey('messages', $response);
+        $this->assertArrayHasKey('pinned', $response);
+
+        $this->assertEquals('Thông báo ghim', $response['pinned']['message']);
+        $this->assertCount(1, $response['messages']);
+        $this->assertEquals('Chào mọi người', $response['messages'][0]['message']);
+        $this->assertEquals('12:05', $response['messages'][0]['created_at']);
+    }
+
+    public function testChatActionPostMessage(): void
+    {
+        $this->mockLoginAsRole('student');
+
+        $dbMock = $this->createMock(\Laminas\Db\Adapter\Adapter::class);
+        $dbMock->expects(self::once())
+            ->method('query')
+            ->with(self::stringContains('INSERT INTO public_chats'), [2, 'Test message'])
+            ->willReturn($this->createMock(ResultInterface::class));
+
+        $serviceLocator = $this->getApplicationServiceLocator();
+        $serviceLocator->setAllowOverride(true);
+        $serviceLocator->setService(AdapterInterface::class, $dbMock);
+
+        $this->dispatch('/student/dashboard/chat', 'POST', ['message' => 'Test message']);
+        $this->assertResponseStatusCode(200);
+
+        $response = json_decode($this->getResponse()->getContent(), true);
+        $this->assertTrue($response['success']);
+    }
+
+    public function testChatActionPostMessageUnauthorized(): void
+    {
+        // No login
+        $this->dispatch('/student/dashboard/chat', 'POST', ['message' => 'Hello']);
+        $this->assertResponseStatusCode(401);
+    }
+
+    public function testChatActionPostDeleteAdmin(): void
+    {
+        $this->mockLoginAsRole('admin');
+
+        $dbMock = $this->createMock(\Laminas\Db\Adapter\Adapter::class);
+        $dbMock->expects(self::once())
+            ->method('query')
+            ->with(self::stringContains('DELETE FROM public_chats WHERE id = ?'), [5])
+            ->willReturn($this->createMock(ResultInterface::class));
+
+        $serviceLocator = $this->getApplicationServiceLocator();
+        $serviceLocator->setAllowOverride(true);
+        $serviceLocator->setService(AdapterInterface::class, $dbMock);
+
+        $this->dispatch('/admin/dashboard/chat', 'POST', ['action' => 'delete', 'id' => 5]);
+        $this->assertResponseStatusCode(200);
+    }
+
+    public function testChatActionPostDeleteStudentOwnMessage(): void
+    {
+        $this->mockLoginAsRole('student'); // ID is 2
+
+        $dbMock = $this->createMock(\Laminas\Db\Adapter\Adapter::class);
+        $dbMock->expects(self::once())
+            ->method('query')
+            ->with(self::stringContains('DELETE FROM public_chats WHERE id = ? AND user_id = ?'), [5, 2])
+            ->willReturn($this->createMock(ResultInterface::class));
+
+        $serviceLocator = $this->getApplicationServiceLocator();
+        $serviceLocator->setAllowOverride(true);
+        $serviceLocator->setService(AdapterInterface::class, $dbMock);
+
+        $this->dispatch('/student/dashboard/chat', 'POST', ['action' => 'delete', 'id' => 5]);
+        $this->assertResponseStatusCode(200);
+    }
+
+    public function testChatActionPostPinAdmin(): void
+    {
+        $this->mockLoginAsRole('admin');
+
+        $dbMock = $this->createMock(\Laminas\Db\Adapter\Adapter::class);
+        $dbMock->expects(self::exactly(2))
+            ->method('query')
+            ->willReturnCallback(function($sql, $params = []) {
+                if (strpos($sql, 'is_pinned = 0') !== false) {
+                    return $this->createMock(ResultInterface::class);
+                }
+                if (strpos($sql, 'is_pinned = 1 WHERE id = ?') !== false) {
+                    $this->assertEquals([15], $params);
+                    return $this->createMock(ResultInterface::class);
+                }
+                return $this->createMock(ResultInterface::class);
+            });
+
+        $serviceLocator = $this->getApplicationServiceLocator();
+        $serviceLocator->setAllowOverride(true);
+        $serviceLocator->setService(AdapterInterface::class, $dbMock);
+
+        $this->dispatch('/admin/dashboard/chat', 'POST', ['action' => 'pin', 'id' => 15]);
+        $this->assertResponseStatusCode(200);
+    }
+
+    public function testChatActionPostPinForbiddenForStudent(): void
+    {
+        $this->mockLoginAsRole('student');
+
+        $this->dispatch('/student/dashboard/chat', 'POST', ['action' => 'pin', 'id' => 15]);
+        $this->assertResponseStatusCode(403);
+    }
+
+    public function testChatActionPostUnpinAdmin(): void
+    {
+        $this->mockLoginAsRole('admin');
+
+        $dbMock = $this->createMock(\Laminas\Db\Adapter\Adapter::class);
+        $dbMock->expects(self::once())
+            ->method('query')
+            ->with(self::stringContains('UPDATE public_chats SET is_pinned = 0'))
+            ->willReturn($this->createMock(ResultInterface::class));
+
+        $serviceLocator = $this->getApplicationServiceLocator();
+        $serviceLocator->setAllowOverride(true);
+        $serviceLocator->setService(AdapterInterface::class, $dbMock);
+
+        $this->dispatch('/admin/dashboard/chat', 'POST', ['action' => 'unpin']);
+        $this->assertResponseStatusCode(200);
+    }
+
+    public function testChatActionPostReactNew(): void
+    {
+        $this->mockLoginAsRole('student'); // ID is 2
+
+        $dbMock = $this->createMock(\Laminas\Db\Adapter\Adapter::class);
+
+        // Mock SELECT reactions query
+        $selectStmtMock = $this->createMock(StatementInterface::class);
+        $selectResultMock = $this->createMock(ResultInterface::class);
+        $selectResultMock->method('current')->willReturn(['reactions' => '']);
+        $selectStmtMock->method('execute')->with([12])->willReturn($selectResultMock);
+
+        $dbMock->method('query')->willReturnCallback(function($sql, $params = []) use ($selectStmtMock) {
+            if (strpos($sql, 'SELECT reactions') !== false) {
+                return $selectStmtMock;
+            }
+            if (strpos($sql, 'UPDATE public_chats SET reactions') !== false) {
+                // Reactions should contain user 2 for emoji 👍
+                $expectedReactions = json_encode(['👍' => [2]], JSON_UNESCAPED_UNICODE);
+                $this->assertEquals([$expectedReactions, 12], $params);
+                return $this->createMock(ResultInterface::class);
+            }
+            return $this->createMock(ResultInterface::class);
+        });
+
+        $serviceLocator = $this->getApplicationServiceLocator();
+        $serviceLocator->setAllowOverride(true);
+        $serviceLocator->setService(AdapterInterface::class, $dbMock);
+
+        $this->dispatch('/student/dashboard/chat', 'POST', [
+            'action' => 'react',
+            'id'     => 12,
+            'emoji'  => '👍'
+        ]);
+        $this->assertResponseStatusCode(200);
+    }
+
+    public function testChatActionPostReactToggleOff(): void
+    {
+        $this->mockLoginAsRole('student'); // ID is 2
+
+        $dbMock = $this->createMock(\Laminas\Db\Adapter\Adapter::class);
+
+        // Mock SELECT reactions query showing user 2 already reacted
+        $selectStmtMock = $this->createMock(StatementInterface::class);
+        $selectResultMock = $this->createMock(ResultInterface::class);
+        $selectResultMock->method('current')->willReturn([
+            'reactions' => json_encode(['👍' => [2]])
+        ]);
+        $selectStmtMock->method('execute')->with([12])->willReturn($selectResultMock);
+
+        $dbMock->method('query')->willReturnCallback(function($sql, $params = []) use ($selectStmtMock) {
+            if (strpos($sql, 'SELECT reactions') !== false) {
+                return $selectStmtMock;
+            }
+            if (strpos($sql, 'UPDATE public_chats SET reactions') !== false) {
+                // Reactions should be empty json [] because user 2 toggled off
+                $expectedReactions = json_encode([], JSON_UNESCAPED_UNICODE);
+                $this->assertEquals([$expectedReactions, 12], $params);
+                return $this->createMock(ResultInterface::class);
+            }
+            return $this->createMock(ResultInterface::class);
+        });
+
+        $serviceLocator = $this->getApplicationServiceLocator();
+        $serviceLocator->setAllowOverride(true);
+        $serviceLocator->setService(AdapterInterface::class, $dbMock);
+
+        $this->dispatch('/student/dashboard/chat', 'POST', [
+            'action' => 'react',
+            'id'     => 12,
+            'emoji'  => '👍'
+        ]);
+        $this->assertResponseStatusCode(200);
     }
 
     private function mockLoginAsRole(string $role): void
