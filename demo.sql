@@ -1,5 +1,6 @@
 -- ═══════════════════════════════════════════════════════════════════════
--- HCMUE Library System — EXPANDED Demo/Seed Data x10
+-- HCMUE Library System — Demo / Seed Data
+-- Dữ liệu: 101 users · 125 sách · 120 giao dịch · 30 chat · ...
 -- Mật khẩu tất cả tài khoản: Admin@123
 -- Chạy SAU KHI đã chạy database.sql để tạo cấu trúc bảng.
 -- ═══════════════════════════════════════════════════════════════════════
