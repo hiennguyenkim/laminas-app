@@ -456,7 +456,7 @@ $due14d   = date('Y-m-d', strtotime('+14 days'));
 
         document.getElementById('selected-user-name').textContent = user.label;
         document.getElementById('selected-user-role').textContent = 'MSSV / Mã: #' + user.id;
-        if (selectedUserCard) selectedUserCard.style.display = 'block';
+        if (selectedUserCard) selectedUserCard.classList.remove('d-none');
 
         if (userSearchInput) userSearchInput.style.outline = '';
         const err = document.getElementById('user-select-error');
@@ -474,7 +474,7 @@ $due14d   = date('Y-m-d', strtotime('+14 days'));
             userSearchInput.focus();
         }
         if (clearUserBtn) clearUserBtn.style.display = 'none';
-        if (selectedUserCard) selectedUserCard.style.display = 'none';
+        if (selectedUserCard) selectedUserCard.classList.add('d-none');
         userDropdown.style.display = 'none';
     }
 
@@ -505,7 +505,7 @@ $due14d   = date('Y-m-d', strtotime('+14 days'));
                 selectedUserId = 0;
                 if (realUserSelect) realUserSelect.value = '';
                 if (clearUserBtn) clearUserBtn.style.display = 'none';
-                if (selectedUserCard) selectedUserCard.style.display = 'none';
+                if (selectedUserCard) selectedUserCard.classList.add('d-none');
             }
             debouncedUserSearch(q);
         });

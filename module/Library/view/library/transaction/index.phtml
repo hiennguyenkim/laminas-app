@@ -297,7 +297,7 @@ function openApproveModal(actionUrl, userName, bookTitle, borrowDate, returnDate
         modalReturnInput.value = borrowVal.toISOString().split('T')[0];
     }
 
-    modal.style.display = 'flex';
+    modal.classList.remove('d-none');
     setTimeout(() => {
         modal.classList.add('show');
     }, 15);
@@ -307,7 +307,7 @@ function closeApproveModal() {
     const modal = document.getElementById('approveModal');
     modal.classList.remove('show');
     setTimeout(() => {
-        modal.style.display = 'none';
+        modal.classList.add('d-none');
     }, 220);
 }
 </script>
