@@ -19,45 +19,45 @@ $this->layout('layout/library-layout');
 </div>
 
 <?php if ($isEdit && isset($book) && $book->status === 'borrowed'): ?>
-<div class="alert alert-info" style="margin-bottom:20px"><i class="bi bi-info-circle"></i>Sách này hiện hết bản khả dụng — trạng thái đang mượn.</div>
+<div class="alert alert-info book-form-alert"><i class="bi bi-info-circle"></i>Sách này hiện hết bản khả dụng — trạng thái đang mượn.</div>
 <?php endif; ?>
 
-<div style="max-width:720px">
+<div class="book-form-container">
 <div class="card">
     <div class="card-body">
-        <form method="POST" action="<?= $actionUrl ?>">
+        <form method="POST" action="<?= $actionUrl ?>" enctype="multipart/form-data">
             <?= $this->formHidden($form->get('id')) ?>
-            <div style="display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:16px">
-                <div class="form-group" style="margin-bottom:0">
+            <div class="book-form-grid-2-1">
+                <div class="form-group book-form-group-compact">
                     <label class="form-label">Nhan đề *</label>
                     <input type="text" name="title" class="form-control"
                            value="<?= htmlspecialchars((string)($form->get('title')->getValue() ?? '')) ?>"
                            maxlength="255" required>
                     <?php $msgs = $form->get('title')->getMessages(); if ($msgs): ?>
-                    <div style="color:#ef4444;font-size:12px;margin-top:5px"><?= htmlspecialchars(implode(', ', $msgs)) ?></div>
+                    <div class="book-form-error"><?= htmlspecialchars(implode(', ', $msgs)) ?></div>
                     <?php endif; ?>
                 </div>
-                <div class="form-group" style="margin-bottom:0">
+                <div class="form-group book-form-group-compact">
                     <label class="form-label">ISBN</label>
                     <input type="text" name="isbn" class="form-control"
                            value="<?= htmlspecialchars((string)($form->get('isbn')->getValue() ?? '')) ?>"
                            placeholder="978-..." maxlength="30">
                 </div>
             </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px">
-                <div class="form-group" style="margin-bottom:0">
+            <div class="book-form-grid-1-1-1">
+                <div class="form-group book-form-group-compact">
                     <label class="form-label">Tác giả *</label>
                     <input type="text" name="author" class="form-control"
                            value="<?= htmlspecialchars((string)($form->get('author')->getValue() ?? '')) ?>" required>
                     <?php $msgs = $form->get('author')->getMessages(); if ($msgs): ?>
-                    <div style="color:#ef4444;font-size:12px;margin-top:5px"><?= htmlspecialchars(implode(', ', $msgs)) ?></div>
+                    <div class="book-form-error"><?= htmlspecialchars(implode(', ', $msgs)) ?></div>
                     <?php endif; ?>
                 </div>
-                <div class="form-group" style="margin-bottom:0">
+                <div class="form-group book-form-group-compact">
                     <label class="form-label">Thể loại *</label>
                     <?= $this->formSelect($form->get('category')->setAttribute('class', 'form-select')) ?>
                 </div>
-                <div class="form-group" style="margin-bottom:0">
+                <div class="form-group book-form-group-compact">
                     <label class="form-label">Số lượng *</label>
                     <input type="number" name="quantity" class="form-control" min="1" max="999"
                            value="<?= htmlspecialchars((string)($form->get('quantity')->getValue() ?: 1)) ?>" required>
@@ -68,40 +68,63 @@ $this->layout('layout/library-layout');
                 <textarea name="description" class="form-control" rows="3"><?= htmlspecialchars((string)($form->get('description')->getValue() ?? '')) ?></textarea>
             </div>
 
-            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px">
-                <div class="form-group" style="margin-bottom:0">
+            <div class="book-form-grid-1-1-1">
+                <div class="form-group book-form-group-compact">
                     <label class="form-label">Nhà xuất bản</label>
                     <input type="text" name="publisher" class="form-control" value="<?= htmlspecialchars((string)($form->get('publisher')->getValue() ?? '')) ?>">
                 </div>
-                <div class="form-group" style="margin-bottom:0">
+                <div class="form-group book-form-group-compact">
                     <label class="form-label">Năm xuất bản</label>
                     <input type="text" name="published_year" class="form-control" value="<?= htmlspecialchars((string)($form->get('published_year')->getValue() ?? '')) ?>">
                 </div>
-                <div class="form-group" style="margin-bottom:0">
+                <div class="form-group book-form-group-compact">
                     <label class="form-label">Ngày nhập kho</label>
                     <input type="date" name="import_date" class="form-control" value="<?= htmlspecialchars((string)($form->get('import_date')->getValue() ?? '')) ?>">
                 </div>
             </div>
 
             <div class="form-group">
-                <label class="form-label">URL Ảnh bìa</label>
-                <input type="text" name="cover_image_url" class="form-control" value="<?= htmlspecialchars((string)($form->get('cover_image_url')->getValue() ?? '')) ?>">
+                <label class="form-label">Ảnh bìa sách</label>
+                <div class="book-cover-upload-container book-cover-upload">
+                    <?php
+                    $currentCover = $form->get('cover_image_url')->getValue();
+                    $previewStyle = $currentCover
+                        ? 'background: url(' . htmlspecialchars($currentCover) . ') center/cover no-repeat'
+                        : 'background: linear-gradient(135deg,#7c6aff,#5b4fcf)';
+                    ?>
+                    <div class="book-cover-preview book-cover-preview-static" id="coverPreview" style="<?= $previewStyle ?>">
+                        <?php if (!$currentCover): ?>
+                            <i class="bi bi-image"></i>
+                        <?php endif; ?>
+                    </div>
+                    <div class="book-cover-info">
+                        <div class="book-cover-title">Chọn tệp ảnh bìa</div>
+                        <div class="book-cover-desc">Hỗ trợ JPG, PNG, WEBP. Dung lượng tối đa 2MB.</div>
+                        <input type="file" name="cover_image" id="coverImageInput" accept="image/*" class="d-none">
+                        <button type="button" class="btn btn-sm btn-outline" onclick="document.getElementById('coverImageInput').click()"><i class="bi bi-upload book-form-btn-icon"></i>Tải lên file mới</button>
+                        
+                        <div class="book-cover-url-wrap">
+                            <span class="book-cover-url-label">Hoặc nhập URL liên kết:</span>
+                            <input type="text" name="cover_image_url" id="coverImageUrlInput" class="form-control form-control-sm book-cover-url-input" value="<?= htmlspecialchars((string)($currentCover ?? '')) ?>" placeholder="https://example.com/cover.jpg">
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div class="form-group">
                 <label class="form-label">Trạng thái vận hành</label>
-                <select name="status" class="form-select" style="max-width:240px">
+                <select name="status" class="form-select book-form-status-select">
                     <option value="available"   <?= $statusValue==='available'?'selected':'' ?>>Khả dụng</option>
                     <option value="unavailable" <?= $statusValue==='unavailable'?'selected':'' ?>>Không khả dụng</option>
                 </select>
             </div>
-            <div style="background:rgba(124,106,255,.08);border:1px solid rgba(124,106,255,.2);border-radius:8px;padding:14px;margin-bottom:20px;font-size:13px;color:var(--text-secondary)">
-                <i class="bi bi-info-circle" style="color:var(--accent-purple);margin-right:8px"></i>
-                Trạng thái <strong style="color:var(--text-primary)">đang mượn</strong> được hệ thống tự tính. Dùng <strong style="color:var(--text-primary)">không khả dụng</strong> để khoá đầu sách khỏi quy trình mượn trả.
+            <div class="book-form-info-card">
+                <i class="bi bi-info-circle book-form-info-icon"></i>
+                Trạng thái <strong class="book-form-info-text">đang mượn</strong> được hệ thống tự tính. Dùng <strong class="book-form-info-text">không khả dụng</strong> để khoá đầu sách khỏi quy trình mượn trả.
             </div>
             <?= $this->formHidden($form->get('csrf')) ?>
             <?php $msgs = $form->get('csrf')->getMessages(); if ($msgs): ?>
-            <div style="color:#ef4444;font-size:12px;margin-bottom:14px"><?= htmlspecialchars(implode(', ', $msgs)) ?></div>
+            <div class="book-form-error-csrf"><?= htmlspecialchars(implode(', ', $msgs)) ?></div>
             <?php endif; ?>
             <div class="d-flex gap-2">
                 <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i><?= $isEdit ? 'Lưu thay đổi' : 'Tạo đầu sách' ?></button>
@@ -111,3 +134,34 @@ $this->layout('layout/library-layout');
     </div>
 </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const fileInput = document.getElementById('coverImageInput');
+    const urlInput = document.getElementById('coverImageUrlInput');
+    const preview = document.getElementById('coverPreview');
+
+    fileInput.addEventListener('change', function() {
+        const file = this.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                preview.style.background = `url(${e.target.result}) center/cover no-repeat`;
+                preview.innerHTML = '';
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+
+    urlInput.addEventListener('input', function() {
+        const val = this.value.trim();
+        if (val) {
+            preview.style.background = `url(${val}) center/cover no-repeat`;
+            preview.innerHTML = '';
+        } else if (!fileInput.files[0]) {
+            preview.style.background = 'linear-gradient(135deg,#7c6aff,#5b4fcf)';
+            preview.innerHTML = '<i class="bi bi-image"></i>';
+        }
+    });
+});
+</script>

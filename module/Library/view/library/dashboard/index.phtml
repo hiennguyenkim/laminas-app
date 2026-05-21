@@ -26,25 +26,25 @@ $statusLabels = [
 </div>
 
 <?php if (isset($isLocked) && $isLocked): ?>
-<div style="background:rgba(239,68,68,0.08);border:1px dashed rgba(239,68,68,0.3);color:#ef4444;padding:16px 20px;border-radius:10px;font-size:13px;margin-bottom:24px;display:flex;align-items:flex-start;gap:12px;width:100%">
-    <i class="bi bi-shield-slash" style="font-size:24px;line-height:1"></i>
+<div class="db-alert db-alert-danger">
+    <i class="bi bi-shield-slash db-alert-icon"></i>
     <div>
-        <strong style="font-size:15px">Thẻ thư viện của bạn hiện đang BỊ KHÓA MƯỢN SÁCH</strong>
-        <div style="margin-top:6px;font-size:13px"><strong>Lý do khóa:</strong> <?= htmlspecialchars($lockReason !== '' ? $lockReason : 'Vi phạm nội quy thư viện') ?></div>
+        <strong class="db-alert-title">Thẻ thư viện của bạn hiện đang BỊ KHÓA MƯỢN SÁCH</strong>
+        <div class="db-alert-text-medium"><strong>Lý do khóa:</strong> <?= htmlspecialchars($lockReason !== '' ? $lockReason : 'Vi phạm nội quy thư viện') ?></div>
         <?php if (isset($lockedAt) && $lockedAt !== ''): ?>
-            <div style="margin-top:2px;font-size:11px;opacity:0.85"><strong>Thời điểm khóa:</strong> <?= htmlspecialchars(date('d/m/Y H:i:s', strtotime($lockedAt))) ?></div>
+            <div class="db-alert-text-small"><strong>Thời điểm khóa:</strong> <?= htmlspecialchars(date('d/m/Y H:i:s', strtotime($lockedAt))) ?></div>
         <?php endif; ?>
-        <div style="margin-top:8px;font-size:12px;opacity:0.9">Hệ thống ghi nhận bạn đã bị khóa tính năng mượn sách. Vui lòng hoàn trả các sách trễ hạn hoặc liên hệ thủ thư tại quầy để được hỗ trợ mở khóa tài khoản.</div>
+        <div class="db-alert-desc">Hệ thống ghi nhận bạn đã bị khóa tính năng mượn sách. Vui lòng hoàn trả các sách trễ hạn hoặc liên hệ thủ thư tại quầy để được hỗ trợ mở khóa tài khoản.</div>
     </div>
 </div>
 <?php endif; ?>
 
 <?php if (!$isAdmin && isset($dueSoon) && $dueSoon > 0): ?>
-<div style="background:rgba(245,158,11,0.08);border:1px dashed rgba(245,158,11,0.3);color:#d97706;padding:16px 20px;border-radius:10px;font-size:13px;margin-bottom:24px;display:flex;align-items:flex-start;gap:12px;width:100%">
-    <i class="bi bi-exclamation-circle" style="font-size:24px;line-height:1"></i>
+<div class="db-alert db-alert-warning">
+    <i class="bi bi-exclamation-circle db-alert-icon"></i>
     <div>
-        <strong style="font-size:15px">Cảnh báo: Bạn có <?= $dueSoon ?> cuốn sách sắp đến hạn trả!</strong>
-        <div style="margin-top:6px;font-size:13px">Vui lòng kiểm tra lại hạn trả trong phần Lịch sử mượn và hoàn trả đúng hẹn để không bị phạt quá hạn hoặc khóa tài khoản.</div>
+        <strong class="db-alert-title">Cảnh báo: Bạn có <?= $dueSoon ?> cuốn sách sắp đến hạn trả!</strong>
+        <div class="db-alert-text-medium">Vui lòng kiểm tra lại hạn trả trong phần Lịch sử mượn và hoàn trả đúng hẹn để không bị phạt quá hạn hoặc khóa tài khoản.</div>
     </div>
 </div>
 <?php endif; ?>
@@ -52,32 +52,32 @@ $statusLabels = [
 <!-- STAT CARDS -->
 <div class="stat-cards">
     <!-- Card 1: Books/History -->
-    <a href="<?= $isAdmin ? $this->url('library/book') : $this->url('student/transaction') ?>" class="stat-card purple" style="text-decoration:none;color:inherit;display:block">
+    <a href="<?= $isAdmin ? $this->url('library/book') : $this->url('student/transaction') ?>" class="stat-card purple stat-card-link">
         <div class="stat-icon purple"><i class="bi bi-book-half"></i></div>
         <div class="stat-value"><?= number_format((int)($isAdmin ? $totalBooks : ($loanSummary['total'] ?? 0))) ?></div>
         <div class="stat-label"><?= $isAdmin ? 'Tổng số sách' : 'Lịch sử mượn' ?></div>
-        <div class="stat-bar"><div class="stat-bar-fill" style="width:<?= min(100, (int)($isAdmin ? $totalBooks : ($loanSummary['total'] ?? 0)) * 5) ?>%;background:#7c6aff"></div></div>
+        <div class="stat-bar"><div class="stat-bar-fill stat-bar-fill--purple" style="width:<?= min(100, (int)($isAdmin ? $totalBooks : ($loanSummary['total'] ?? 0)) * 5) ?>%"></div></div>
     </a>
     <!-- Card 2: Members/Returned -->
-    <a href="<?= $isAdmin ? $this->url('library/user') : $this->url('student/transaction', [], ['query' => ['status' => 'returned']]) ?>" class="stat-card green" style="text-decoration:none;color:inherit;display:block">
+    <a href="<?= $isAdmin ? $this->url('library/user') : $this->url('student/transaction', [], ['query' => ['status' => 'returned']]) ?>" class="stat-card green stat-card-link">
         <div class="stat-icon green"><i class="bi bi-bookmark-check-fill"></i></div>
         <div class="stat-value"><?= number_format((int)($isAdmin ? ($totalMembers ?? 0) : ($loanSummary['returned'] ?? 0))) ?></div>
         <div class="stat-label"><?= $isAdmin ? 'Thành viên' : 'Đã hoàn trả' ?></div>
-        <div class="stat-bar"><div class="stat-bar-fill" style="width:<?= min(100, (int)($isAdmin ? ($totalMembers ?? 0) : ($loanSummary['returned'] ?? 0)) * 10) ?>%;background:#22c55e"></div></div>
+        <div class="stat-bar"><div class="stat-bar-fill stat-bar-fill--green" style="width:<?= min(100, (int)($isAdmin ? ($totalMembers ?? 0) : ($loanSummary['returned'] ?? 0)) * 10) ?>%"></div></div>
     </a>
     <!-- Card 3: Borrowing -->
-    <a href="<?= $this->url($routePrefix . '/transaction', [], ['query' => ['status' => 'borrowed']]) ?>" class="stat-card orange" style="text-decoration:none;color:inherit;display:block">
+    <a href="<?= $this->url($routePrefix . '/transaction', [], ['query' => ['status' => 'borrowed']]) ?>" class="stat-card orange stat-card-link">
         <div class="stat-icon orange"><i class="bi bi-bookmark-check"></i></div>
         <div class="stat-value"><?= number_format((int)$totalBorrowed) ?></div>
         <div class="stat-label"><?= $isAdmin ? 'Đang mượn' : 'Sách đang mượn' ?></div>
-        <div class="stat-bar"><div class="stat-bar-fill" style="width:<?= min(100, (int)$totalBorrowed * 5) ?>%;background:#f97316"></div></div>
+        <div class="stat-bar"><div class="stat-bar-fill stat-bar-fill--orange" style="width:<?= min(100, (int)$totalBorrowed * 5) ?>%"></div></div>
     </a>
     <!-- Card 4: Overdue -->
-    <a href="<?= $this->url($routePrefix . '/transaction', [], ['query' => ['status' => 'overdue']]) ?>" class="stat-card pink" style="text-decoration:none;color:inherit;display:block">
+    <a href="<?= $this->url($routePrefix . '/transaction', [], ['query' => ['status' => 'overdue']]) ?>" class="stat-card pink stat-card-link">
         <div class="stat-icon pink"><i class="bi bi-exclamation-triangle"></i></div>
         <div class="stat-value"><?= number_format((int)$totalOverdue) ?></div>
         <div class="stat-label"><?= $isAdmin ? 'Quá hạn' : 'Sách quá hạn' ?></div>
-        <div class="stat-bar"><div class="stat-bar-fill" style="width:<?= min(100, (int)$totalOverdue * 10) ?>%;background:#ec4899"></div></div>
+        <div class="stat-bar"><div class="stat-bar-fill stat-bar-fill--pink" style="width:<?= min(100, (int)$totalOverdue * 10) ?>%"></div></div>
     </a>
 </div>
 
@@ -90,13 +90,13 @@ $statusLabels = [
                 <div class="card-title">Thống kê mượn / trả sách</div>
                 <div class="card-subtitle">Theo tháng trong năm <?= date('Y') ?></div>
             </div>
-            <div class="d-flex gap-2 align-center" style="font-size:12px;color:var(--text-muted)">
-                <span style="display:flex;align-items:center;gap:5px"><span style="width:10px;height:10px;background:#7c6aff;border-radius:2px;display:inline-block"></span>Mượn</span>
-                <span style="display:flex;align-items:center;gap:5px"><span style="width:10px;height:10px;background:#22c55e;border-radius:2px;display:inline-block"></span>Trả</span>
+            <div class="d-flex gap-2 align-center dashboard-legend-container">
+                <span class="dashboard-legend-item"><span class="dashboard-legend-box dashboard-legend-box--purple"></span>Mượn</span>
+                <span class="dashboard-legend-item"><span class="dashboard-legend-box dashboard-legend-box--green"></span>Trả</span>
             </div>
         </div>
         <div class="card-body">
-            <div class="chart-area" style="height:220px">
+            <div class="chart-area dashboard-chart-area">
                 <canvas id="borrowChart"></canvas>
             </div>
         </div>
@@ -111,8 +111,8 @@ $statusLabels = [
             </div>
         </div>
         <div class="card-body">
-            <div style="height:160px;display:flex;align-items:center;justify-content:center">
-                <canvas id="categoryChart" style="max-height:160px"></canvas>
+            <div class="dashboard-donut-container">
+                <canvas id="categoryChart" class="dashboard-donut-chart"></canvas>
             </div>
             <?php
             $catPalette = ['#7c6aff','#22c55e','#f97316','#ec4899','#3b82f6','#14b8a6','#fbbf24','#ef4444'];
@@ -130,38 +130,23 @@ $statusLabels = [
                 </div>
                 <?php endforeach; ?>
                 <?php if (!$catStatsView): ?>
-                <div style="color:var(--text-muted);font-size:12px;text-align:center;padding:12px 0">Chưa có dữ liệu</div>
+                <div class="dashboard-empty-data">Chưa có dữ liệu</div>
                 <?php endif; ?>
             </div>
         </div>
     </div>
 </div>
 
-<style>
-.dashboard-grid-2 {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 24px;
-    align-items: start;
-    margin-top: 24px;
-}
-@media (max-width: 992px) {
-    .dashboard-grid-2 {
-        grid-template-columns: 1fr;
-    }
-}
-</style>
-
 <div class="dashboard-grid-2">
     <!-- RECENT TRANSACTIONS -->
-    <div class="card" style="margin-bottom:0">
+    <div class="card dashboard-card-flat">
         <div class="card-header">
             <div>
-                <div class="card-title"><i class="bi bi-clock-history" style="color:#7c6aff;margin-right:8px"></i><?= $isAdmin ? 'Phiếu mượn gần đây' : 'Hoạt động mượn gần đây' ?></div>
+                <div class="card-title"><i class="bi bi-clock-history dashboard-recent-icon"></i><?= $isAdmin ? 'Phiếu mượn gần đây' : 'Hoạt động mượn gần đây' ?></div>
             </div>
             <a href="<?= $this->url($routePrefix . '/transaction') ?>" class="btn btn-outline btn-sm">Xem tất cả</a>
         </div>
-        <div style="overflow-x:auto">
+        <div class="dashboard-table-responsive">
             <table class="data-table">
                 <thead>
                     <tr>
@@ -176,7 +161,7 @@ $statusLabels = [
                 </thead>
                 <tbody>
                 <?php if ($recentBorrows === []): ?>
-                    <tr><td colspan="<?= $isAdmin ? 7 : 6 ?>" style="text-align:center;padding:40px;color:var(--text-muted)">Chưa có dữ liệu mượn trả gần đây.</td></tr>
+                    <tr><td colspan="<?= $isAdmin ? 7 : 6 ?>" class="dashboard-table-empty">Chưa có dữ liệu mượn trả gần đây.</td></tr>
                 <?php else: ?>
                     <?php foreach ($recentBorrows as $record): ?>
                     <?php $s = $statusLabels[$record->status] ?? ['label' => $record->status, 'class' => 'badge-gray']; ?>

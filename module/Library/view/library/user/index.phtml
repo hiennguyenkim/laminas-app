@@ -21,8 +21,8 @@ $initials = function(string $name): string {
 </div>
 
 <!-- FILTER TABS -->
-<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:22px">
-    <div class="filter-tabs" style="margin-bottom:0">
+<div class="user-filters-bar">
+    <div class="filter-tabs user-filter-tabs">
         <a href="<?= $this->url('library/user') ?>" class="filter-tab <?= !($filters['role']??'') ? 'active' : '' ?>">
             Tất cả <span class="count"><?= (int)($summary['total']??0) ?></span>
         </a>
@@ -30,8 +30,8 @@ $initials = function(string $name): string {
             Độc giả <span class="count"><?= (int)($summary['students']??0) ?></span>
         </a>
     </div>
-    <form method="GET" style="display:flex;gap:8px">
-        <div class="topbar-search" style="max-width:260px;flex:1">
+    <form method="GET" class="user-search-form">
+        <div class="topbar-search user-search-wrap">
             <i class="bi bi-search"></i>
             <input type="text" name="search" value="<?= htmlspecialchars($filters['search']??'') ?>" placeholder="Tìm theo tên, username...">
         </div>
@@ -42,8 +42,8 @@ $initials = function(string $name): string {
 <!-- MEMBER CARDS GRID -->
 <div class="member-grid">
 <?php if (!count($users)): ?>
-    <div style="grid-column:1/-1;text-align:center;padding:60px;color:var(--text-muted)">
-        <i class="bi bi-people" style="font-size:40px;display:block;margin-bottom:12px"></i>
+    <div class="user-empty-grid">
+        <i class="bi bi-people user-empty-icon"></i>
         Không tìm thấy thành viên phù hợp.
     </div>
 <?php else: ?>
@@ -52,11 +52,11 @@ $initials = function(string $name): string {
     $color   = $avatarColors[$idx % count($avatarColors)];
     $isNew   = isset($user->createdAt) && strtotime($user->createdAt) > strtotime('-30 days');
     if ($user->role === 'admin') {
-        $statusBadge = '<span class="badge badge-orange"><span style="width:6px;height:6px;background:#f97316;border-radius:50%;display:inline-block"></span>Admin</span>';
+        $statusBadge = '<span class="badge badge-orange"><span class="user-status-dot user-status-dot--admin"></span>Admin</span>';
     } elseif ($user->isLocked()) {
-        $statusBadge = '<span class="badge badge-red"><span style="width:6px;height:6px;background:#ef4444;border-radius:50%;display:inline-block"></span>Đã khóa</span>';
+        $statusBadge = '<span class="badge badge-red"><span class="user-status-dot user-status-dot--locked"></span>Đã khóa</span>';
     } else {
-        $statusBadge = '<span class="badge badge-green"><span style="width:6px;height:6px;background:#22c55e;border-radius:50%;display:inline-block"></span>Hoạt động</span>';
+        $statusBadge = '<span class="badge badge-green"><span class="user-status-dot user-status-dot--active"></span>Hoạt động</span>';
     }
     $borrowCount = (int)($user->borrowCount ?? 0);
     $overdueCount = (int)($user->overdueCount ?? 0);
@@ -81,8 +81,8 @@ $initials = function(string $name): string {
                 <div class="member-stat-value"><?= $borrowCount ?></div>
                 <div class="member-stat-label">Đang mượn</div>
             </div>
-            <div class="member-stat-box" style="<?= $overdueCount > 0 ? 'background:rgba(239,68,68,0.06);border-color:rgba(239,68,68,0.15)' : '' ?>">
-                <div class="member-stat-value" style="<?= $overdueCount > 0 ? 'color:#ef4444' : '' ?>"><?= $overdueCount ?></div>
+            <div class="member-stat-box <?= $overdueCount > 0 ? 'member-stat-box--overdue' : '' ?>">
+                <div class="member-stat-value"><?= $overdueCount ?></div>
                 <div class="member-stat-label">Số lần trễ</div>
             </div>
         </div>
@@ -91,36 +91,36 @@ $initials = function(string $name): string {
             Tham gia <?= htmlspecialchars($user->createdAt ?? date('d/m/Y')) ?>
         </div>
         <?php if ($user->isLocked()): ?>
-        <div class="lock-reason-banner" style="background:rgba(239,68,68,0.08);border:1px dashed rgba(239,68,68,0.25);color:#ef4444;padding:8px 12px;border-radius:6px;font-size:11px;margin-top:10px;display:flex;align-items:flex-start;gap:6px">
-            <i class="bi bi-shield-exclamation" style="font-size:14px;margin-top:1px"></i>
+        <div class="user-lock-banner">
+            <i class="bi bi-shield-exclamation user-lock-icon"></i>
             <div>
                 <strong>Lý do khóa:</strong> <?= htmlspecialchars($user->lockReason !== '' ? $user->lockReason : 'Vi phạm nội quy') ?>
                 <?php if ($user->lockedAt !== ''): ?>
-                    <br><span style="opacity:0.8;font-size:9px">Thời gian: <?= htmlspecialchars(date('d/m/Y H:i', strtotime($user->lockedAt))) ?></span>
+                    <br><span class="user-lock-time">Thời gian: <?= htmlspecialchars(date('d/m/Y H:i', strtotime($user->lockedAt))) ?></span>
                 <?php endif; ?>
             </div>
         </div>
         <?php endif; ?>
-        <div style="display:flex;gap:6px;margin-top:14px">
-            <a href="<?= $this->url('library/user', ['action' => 'view', 'id' => $user->id]) ?>" class="btn btn-outline btn-sm" style="flex:1;justify-content:center">
+        <div class="user-actions-wrap">
+            <a href="<?= $this->url('library/user', ['action' => 'view', 'id' => $user->id]) ?>" class="btn btn-outline btn-sm user-action-btn">
                 <i class="bi bi-eye"></i>Chi tiết
             </a>
-            <a href="<?= $this->url('library/user', ['action' => 'edit', 'id' => $user->id]) ?>" class="btn btn-primary btn-sm" style="flex:1;justify-content:center">
+            <a href="<?= $this->url('library/user', ['action' => 'edit', 'id' => $user->id]) ?>" class="btn btn-primary btn-sm user-action-btn">
                 <i class="bi bi-pencil"></i>Sửa
             </a>
         </div>
         <?php if ($user->role === 'student'): ?>
-            <div style="display:flex;gap:6px;margin-top:6px">
+            <div class="user-actions-wrap-secondary">
                 <?php if ($user->isLocked()): ?>
-                <form method="POST" action="<?= $this->url('library/user', ['action' => 'unlock', 'id' => $user->id]) ?>" style="flex:1;margin:0">
-                    <button type="submit" class="btn btn-outline btn-sm" style="width:100%;justify-content:center;color:#22c55e;border-color:#22c55e">
+                <form method="POST" action="<?= $this->url('library/user', ['action' => 'unlock', 'id' => $user->id]) ?>" class="user-action-btn-form">
+                    <button type="submit" class="btn btn-outline btn-sm user-btn-w100 btn-outline--success">
                         <i class="bi bi-unlock"></i>Mở khóa
                     </button>
                 </form>
                 <?php else: ?>
-                <form method="POST" action="<?= $this->url('library/user', ['action' => 'lock', 'id' => $user->id]) ?>" style="flex:1;margin:0">
+                <form method="POST" action="<?= $this->url('library/user', ['action' => 'lock', 'id' => $user->id]) ?>" class="user-action-btn-form">
                     <input type="hidden" name="reason" value="Vi phạm nội quy">
-                    <button type="submit" class="btn btn-outline btn-sm" style="width:100%;justify-content:center;color:#ef4444;border-color:#ef4444" onclick="const reason = prompt('Nhập lý do khóa thẻ:', 'Vi phạm nội quy thư viện'); if (reason === null) return false; this.form.reason.value = reason; return true;">
+                    <button type="submit" class="btn btn-outline btn-sm user-btn-w100 btn-outline--danger" onclick="const reason = prompt('Nhập lý do khóa thẻ:', 'Vi phạm nội quy thư viện'); if (reason === null) return false; this.form.reason.value = reason; return true;">
                         <i class="bi bi-lock"></i>Khóa thẻ
                     </button>
                 </form>

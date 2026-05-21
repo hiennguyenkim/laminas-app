@@ -26,7 +26,7 @@ $filterStatus = (string)($filters['status']??'');
         <div class="page-subtitle"><?= number_format((int)($summary['total'] ?? count((array)($records ?? [])))) ?> giao dịch gần đây</div>
     </div>
     <div class="d-flex gap-2">
-        <span class="btn btn-outline" style="opacity:0.45;cursor:not-allowed" title="Chức năng này đang được phát triển"><i class="bi bi-file-earmark-excel"></i>Xuất Excel</span>
+        <span class="btn btn-outline tx-btn-disabled" title="Chức năng này đang được phát triển"><i class="bi bi-file-earmark-excel"></i>Xuất Excel</span>
         <?php if ($isAdmin): ?>
         <a href="<?= $this->url($routePrefix . '/transaction', ['action' => 'borrow']) ?>" class="btn btn-primary">
             <i class="bi bi-plus-lg"></i>Tạo phiếu mượn
@@ -40,48 +40,48 @@ $filterStatus = (string)($filters['status']??'');
 </div>
 
 <!-- MINI STAT CARDS -->
-<div class="stat-cards" style="grid-template-columns:repeat(5,1fr);margin-bottom:22px">
-    <a href="<?= $this->url($routePrefix . '/transaction', [], ['query' => ['status' => 'borrowed']]) ?>" class="stat-card purple" style="padding:18px;text-decoration:none;color:inherit;display:block">
+<div class="stat-cards tx-stat-cards">
+    <a href="<?= $this->url($routePrefix . '/transaction', [], ['query' => ['status' => 'borrowed']]) ?>" class="stat-card purple tx-stat-card-link">
         <div class="d-flex align-center gap-3">
-            <div class="stat-icon purple" style="width:36px;height:36px;font-size:16px;margin-bottom:0"><i class="bi bi-bookmark-check"></i></div>
+            <div class="stat-icon purple tx-stat-icon"><i class="bi bi-bookmark-check"></i></div>
             <div>
-                <div class="stat-value" style="font-size:24px"><?= (int)($summary['borrowed']??0) ?></div>
+                <div class="stat-value tx-stat-value"><?= (int)($summary['borrowed']??0) ?></div>
                 <div class="stat-label">Đang mượn</div>
             </div>
         </div>
     </a>
-    <a href="<?= $this->url($routePrefix . '/transaction', [], ['query' => ['status' => 'pending']]) ?>" class="stat-card warning" style="padding:18px;text-decoration:none;color:inherit;display:block">
+    <a href="<?= $this->url($routePrefix . '/transaction', [], ['query' => ['status' => 'pending']]) ?>" class="stat-card warning tx-stat-card-link">
         <div class="d-flex align-center gap-3">
-            <div class="stat-icon warning" style="width:36px;height:36px;font-size:16px;margin-bottom:0;background:rgba(245, 158, 11, 0.1);color:#f59e0b"><i class="bi bi-hourglass-split"></i></div>
+            <div class="stat-icon warning tx-stat-icon tx-stat-icon-warning"><i class="bi bi-hourglass-split"></i></div>
             <div>
-                <div class="stat-value" style="font-size:24px;color:#f59e0b"><?= (int)($summary['pending']??0) ?></div>
+                <div class="stat-value tx-stat-value tx-stat-value-warning"><?= (int)($summary['pending']??0) ?></div>
                 <div class="stat-label">Chờ duyệt</div>
             </div>
         </div>
     </a>
-    <a href="<?= $this->url($routePrefix . '/transaction', [], ['query' => ['status' => 'returned']]) ?>" class="stat-card green" style="padding:18px;text-decoration:none;color:inherit;display:block">
+    <a href="<?= $this->url($routePrefix . '/transaction', [], ['query' => ['status' => 'returned']]) ?>" class="stat-card green tx-stat-card-link">
         <div class="d-flex align-center gap-3">
-            <div class="stat-icon green" style="width:36px;height:36px;font-size:16px;margin-bottom:0"><i class="bi bi-check-circle"></i></div>
+            <div class="stat-icon green tx-stat-icon"><i class="bi bi-check-circle"></i></div>
             <div>
-                <div class="stat-value" style="font-size:24px"><?= (int)($summary['returned']??0) ?></div>
+                <div class="stat-value tx-stat-value"><?= (int)($summary['returned']??0) ?></div>
                 <div class="stat-label">Đã trả</div>
             </div>
         </div>
     </a>
-    <a href="<?= $this->url($routePrefix . '/transaction', [], ['query' => ['status' => 'overdue']]) ?>" class="stat-card pink" style="padding:18px;text-decoration:none;color:inherit;display:block">
+    <a href="<?= $this->url($routePrefix . '/transaction', [], ['query' => ['status' => 'overdue']]) ?>" class="stat-card pink tx-stat-card-link">
         <div class="d-flex align-center gap-3">
-            <div class="stat-icon pink" style="width:36px;height:36px;font-size:16px;margin-bottom:0"><i class="bi bi-exclamation-triangle"></i></div>
+            <div class="stat-icon pink tx-stat-icon"><i class="bi bi-exclamation-triangle"></i></div>
             <div>
-                <div class="stat-value" style="font-size:24px"><?= (int)($summary['overdue']??0) ?></div>
+                <div class="stat-value tx-stat-value"><?= (int)($summary['overdue']??0) ?></div>
                 <div class="stat-label">Quá hạn</div>
             </div>
         </div>
     </a>
-    <a href="<?= $this->url($routePrefix . '/transaction') ?>" class="stat-card orange" style="padding:18px;text-decoration:none;color:inherit;display:block">
+    <a href="<?= $this->url($routePrefix . '/transaction') ?>" class="stat-card orange tx-stat-card-link">
         <div class="d-flex align-center gap-3">
-            <div class="stat-icon orange" style="width:36px;height:36px;font-size:16px;margin-bottom:0"><i class="bi bi-lightning-charge"></i></div>
+            <div class="stat-icon orange tx-stat-icon"><i class="bi bi-lightning-charge"></i></div>
             <div>
-                <div class="stat-value" style="font-size:24px"><?= (int)($summary['borrowed']??0)+(int)($summary['returned']??0)+(int)($summary['overdue']??0)+(int)($summary['pending']??0) ?></div>
+                <div class="stat-value tx-stat-value"><?= (int)($summary['borrowed']??0)+(int)($summary['returned']??0)+(int)($summary['overdue']??0)+(int)($summary['pending']??0) ?></div>
                 <div class="stat-label">Tổng</div>
             </div>
         </div>
@@ -89,8 +89,8 @@ $filterStatus = (string)($filters['status']??'');
 </div>
 
 <!-- FILTER TABS + SEARCH -->
-<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:22px">
-    <div class="filter-tabs" style="margin-bottom:0">
+<div class="tx-filters-bar">
+    <div class="filter-tabs tx-filter-tabs">
         <a href="<?= $this->url($routePrefix . '/transaction') ?>" class="filter-tab <?= $filterStatus===''?'active':'' ?>">
             Tất cả <span class="count"><?= (int)($summary['borrowed']??0)+(int)($summary['returned']??0)+(int)($summary['overdue']??0)+(int)($summary['pending']??0) ?></span>
         </a>
@@ -107,8 +107,8 @@ $filterStatus = (string)($filters['status']??'');
             Quá hạn <span class="count"><?= (int)($summary['overdue']??0) ?></span>
         </a>
     </div>
-    <form method="GET" style="display:flex;gap:8px">
-        <div class="topbar-search" style="max-width:260px;flex:1">
+    <form method="GET" class="tx-filter-form">
+        <div class="topbar-search tx-search-wrap">
             <i class="bi bi-search"></i>
             <input type="text" name="search" value="<?= htmlspecialchars($filters['search']??'') ?>" placeholder="Tìm theo sách, thành viên...">
         </div>
@@ -119,7 +119,7 @@ $filterStatus = (string)($filters['status']??'');
 
 <!-- TRANSACTION TABLE -->
 <div class="card">
-    <div style="overflow-x:auto">
+    <div class="tx-table-responsive">
         <table class="data-table">
             <thead>
                 <tr>
@@ -134,8 +134,8 @@ $filterStatus = (string)($filters['status']??'');
             <tbody>
             <?php if ($records === []): ?>
                 <tr>
-                    <td colspan="6" style="text-align:center;padding:50px;color:var(--text-muted)">
-                        <i class="bi bi-inbox" style="font-size:32px;display:block;margin-bottom:10px"></i>
+                    <td colspan="6" class="tx-empty-state">
+                        <i class="bi bi-inbox tx-empty-icon"></i>
                         Chưa có phiếu mượn nào.
                     </td>
                 </tr>
@@ -170,8 +170,8 @@ $filterStatus = (string)($filters['status']??'');
                     </td>
                     <td>
                         <div class="avatar-row">
-                            <div class="avatar" style="background:<?= $bColor ?>;border-radius:6px">
-                                <i class="bi bi-book" style="font-size:14px"></i>
+                            <div class="avatar tx-book-avatar" style="background:<?= $bColor ?>">
+                                <i class="bi bi-book tx-book-icon"></i>
                             </div>
                             <div>
                                 <div class="fw-medium"><?= htmlspecialchars($record->bookTitle) ?></div>
@@ -181,21 +181,21 @@ $filterStatus = (string)($filters['status']??'');
                     </td>
                     <td>
                         <div class="d-flex align-center gap-2">
-                            <i class="bi bi-calendar3" style="color:var(--text-muted)"></i>
+                            <i class="bi bi-calendar3 tx-icon-muted"></i>
                             <?= htmlspecialchars(($record->borrowDate && $record->borrowDate !== '0000-00-00') ? date('d/m/Y', strtotime($record->borrowDate)) : '—') ?>
                         </div>
                     </td>
                     <td>
-                        <div class="d-flex align-center gap-2" style="<?= $isOverdue ? 'color:#ef4444;font-weight:600' : '' ?>">
-                            <i class="bi bi-clock" style="color:<?= $isOverdue ? '#ef4444' : 'var(--text-muted)' ?>"></i>
+                        <div class="d-flex align-center gap-2 <?= $isOverdue ? 'tx-overdue-alert' : '' ?>">
+                            <i class="bi bi-clock <?= $isOverdue ? 'tx-color-danger' : 'tx-color-muted' ?>"></i>
                             <?= htmlspecialchars(($record->returnDate && $record->returnDate !== '0000-00-00') ? date('d/m/Y', strtotime($record->returnDate)) : '—') ?>
                         </div>
                     </td>
                     <td><span class="badge <?= $statusClass ?>"><?= $statusLabel ?></span></td>
                     <td>
                         <?php if ($isAdmin && $record->status === 'pending'): ?>
-                        <div style="display:flex;gap:6px">
-                            <button type="button" class="btn btn-primary btn-sm" style="padding:4px 8px;font-size:11px"
+                        <div class="tx-actions-row">
+                            <button type="button" class="btn btn-primary btn-sm tx-btn-tiny"
                                     onclick="openApproveModal(
                                         '<?= $this->url($routePrefix . '/transaction', ['action' => 'approve', 'id' => $record->id]) ?>',
                                         '<?= addslashes(htmlspecialchars($record->userFullName ?? '')) ?>',
@@ -206,8 +206,8 @@ $filterStatus = (string)($filters['status']??'');
                                 <i class="bi bi-patch-check"></i>Duyệt
                             </button>
                             <form method="POST" action="<?= $this->url($routePrefix . '/transaction', ['action' => 'reject', 'id' => $record->id]) ?>"
-                                  data-confirm="Từ chối duyệt yêu cầu mượn sách '<?= htmlspecialchars($record->bookTitle) ?>' của '<?= htmlspecialchars($record->userFullName ?? '') ?>'?" style="margin:0">
-                                <button type="submit" class="btn btn-sm btn-outline" style="color:#ef4444;border-color:#ef4444;padding:4px 8px;font-size:11px">
+                                  data-confirm="Từ chối duyệt yêu cầu mượn sách '<?= htmlspecialchars($record->bookTitle) ?>' của '<?= htmlspecialchars($record->userFullName ?? '') ?>'?" class="tx-form-inline">
+                                <button type="submit" class="btn btn-sm btn-outline tx-btn-tiny-danger">
                                     <i class="bi bi-x-circle"></i>Từ chối
                                 </button>
                             </form>
@@ -222,14 +222,14 @@ $filterStatus = (string)($filters['status']??'');
                         <?php elseif ($isAdmin && $record->status === 'overdue'): ?>
                         <span class="badge badge-red"><i class="bi bi-bell"></i>Nhắc nhở</span>
                         <?php elseif (!$isAdmin && $record->status === 'pending'): ?>
-                        <span style="font-size:12px;color:var(--text-muted);font-style:italic"><i class="bi bi-hourglass-split"></i> Đang chờ duyệt</span>
+                        <span class="tx-status-hint tx-status-hint-italic"><i class="bi bi-hourglass-split"></i> Đang chờ duyệt</span>
                         <?php elseif (!$isAdmin && in_array($record->status, ['borrowed','overdue'], true)): ?>
-                        <span style="font-size:12px;color:var(--text-muted)">Liên hệ thủ thư để trả</span>
+                        <span class="tx-status-hint">Liên hệ thủ thư để trả</span>
                         <?php else: ?>
                         <?php if ($record->returnedAt): ?>
-                        <span style="font-size:12px;color:var(--text-muted)">Trả: <?= htmlspecialchars($record->returnedAt) ?></span>
+                        <span class="tx-status-hint">Trả: <?= htmlspecialchars($record->returnedAt) ?></span>
                         <?php else: ?>
-                        <span style="font-size:12px;color:var(--text-muted)">Hoàn tất</span>
+                        <span class="tx-status-hint">Hoàn tất</span>
                         <?php endif; ?>
                         <?php endif; ?>
                     </td>
@@ -243,18 +243,18 @@ $filterStatus = (string)($filters['status']??'');
 
 <?php if ($isAdmin): ?>
 <!-- HTML Custom Modal for Approving Loan with Dates -->
-<div id="approveModal" class="custom-modal" style="display:none">
+<div id="approveModal" class="custom-modal d-none">
     <div class="custom-modal-overlay" onclick="closeApproveModal()"></div>
     <div class="custom-modal-content">
         <div class="custom-modal-header">
-            <div class="custom-modal-title"><i class="bi bi-calendar-check" style="color:var(--accent-purple)"></i> Phê duyệt phiếu mượn</div>
+            <div class="custom-modal-title"><i class="bi bi-calendar-check"></i> Phê duyệt phiếu mượn</div>
             <button type="button" class="custom-modal-close-btn" onclick="closeApproveModal()">&times;</button>
         </div>
         <form id="approveForm" method="POST" action="">
             <div class="custom-modal-body">
-                <p style="margin-bottom:20px; color:var(--text-secondary); font-size:13.5px; line-height:1.5;">
-                    Bạn đang phê duyệt yêu cầu mượn sách của <strong id="modalUser" style="color:var(--text-primary)"></strong>.<br>
-                    Cuốn sách: <strong id="modalBook" style="color:var(--text-primary)"></strong>.
+                <p class="tx-modal-desc">
+                    Bạn đang phê duyệt yêu cầu mượn sách của <strong id="modalUser" class="tx-modal-desc-highlight"></strong>.<br>
+                    Cuốn sách: <strong id="modalBook" class="tx-modal-desc-highlight"></strong>.
                 </p>
                 <div class="form-group">
                     <label class="form-label">Ngày mượn thực tế</label>
@@ -272,79 +272,6 @@ $filterStatus = (string)($filters['status']??'');
         </form>
     </div>
 </div>
-
-<style>
-.custom-modal {
-    position: fixed;
-    top: 0; left: 0; right: 0; bottom: 0;
-    z-index: 1000;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 16px;
-}
-.custom-modal-overlay {
-    position: absolute;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(15, 17, 23, 0.75);
-    backdrop-filter: blur(5px);
-    transition: opacity 0.22s ease;
-}
-.custom-modal-content {
-    background: var(--bg-card);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius);
-    width: 100%;
-    max-width: 460px;
-    position: relative;
-    z-index: 2;
-    box-shadow: var(--shadow);
-    transform: scale(0.92);
-    opacity: 0;
-    transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
-}
-.custom-modal.show .custom-modal-content {
-    transform: scale(1);
-    opacity: 1;
-}
-.custom-modal-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 18px 22px;
-    border-bottom: 1px solid var(--border-color);
-}
-.custom-modal-title {
-    font-size: 15px;
-    font-weight: 600;
-    color: var(--text-primary);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-.custom-modal-close-btn {
-    background: none;
-    border: none;
-    font-size: 26px;
-    color: var(--text-muted);
-    cursor: pointer;
-    line-height: 1;
-}
-.custom-modal-close-btn:hover {
-    color: var(--text-primary);
-}
-.custom-modal-body {
-    padding: 22px;
-}
-.custom-modal-footer {
-    padding: 14px 22px;
-    border-top: 1px solid var(--border-color);
-    display: flex;
-    justify-content: flex-end;
-    gap: 10px;
-    background: rgba(0, 0, 0, 0.15);
-}
-</style>
 
 <script>
 function openApproveModal(actionUrl, userName, bookTitle, borrowDate, returnDate) {

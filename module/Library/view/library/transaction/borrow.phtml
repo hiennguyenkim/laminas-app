@@ -36,150 +36,6 @@ $today    = date('Y-m-d');
 $due14d   = date('Y-m-d', strtotime('+14 days'));
 ?>
 
-<style>
-/* ─── Book Autocomplete Component ─────────────────────────── */
-.book-search-wrap {
-    position: relative;
-}
-.book-search-input-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    background: var(--bg-card);
-    border: 1.5px solid var(--border);
-    border-radius: 10px;
-    padding: 10px 14px;
-    transition: border-color .2s, box-shadow .2s;
-}
-.book-search-input-row:focus-within {
-    border-color: var(--accent-purple);
-    box-shadow: 0 0 0 3px rgba(124,106,255,.15);
-}
-.book-search-input-row i { color: var(--text-muted); font-size: 16px; flex-shrink: 0; }
-#book-search-input, #user-search-input {
-    flex: 1;
-    border: none;
-    background: transparent;
-    outline: none;
-    color: var(--text-primary);
-    font-size: 14px;
-    font-family: inherit;
-}
-#book-search-input::placeholder, #user-search-input::placeholder { color: var(--text-muted); }
-#clear-book-btn, #clear-user-btn {
-    display: none;
-    background: none;
-    border: none;
-    cursor: pointer;
-    color: var(--text-muted);
-    font-size: 16px;
-    padding: 0;
-    line-height: 1;
-}
-#clear-book-btn:hover, #clear-user-btn:hover { color: var(--text-primary); }
-
-/* Dropdown kết quả tìm kiếm */
-#book-dropdown, #user-dropdown {
-    display: none;
-    position: absolute;
-    top: calc(100% + 6px);
-    left: 0; right: 0;
-    background: var(--bg-card);
-    border: 1.5px solid var(--border);
-    border-radius: 10px;
-    box-shadow: 0 8px 32px rgba(0,0,0,.25);
-    z-index: 200;
-    overflow: hidden;
-    max-height: 320px;
-    overflow-y: auto;
-}
-.book-option {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px 14px;
-    cursor: pointer;
-    transition: background .15s;
-    border-bottom: 1px solid var(--border);
-}
-.book-option:last-child { border-bottom: none; }
-.book-option:hover, .book-option.highlighted { background: rgba(124,106,255,.08); }
-.book-option-icon {
-    width: 36px; height: 36px;
-    border-radius: 8px;
-    background: linear-gradient(135deg,#7c6aff,#a78bfa);
-    display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0;
-    color: #fff; font-size: 15px;
-}
-.book-option-info { flex: 1; min-width: 0; }
-.book-option-title {
-    font-weight: 600;
-    font-size: 13.5px;
-    color: var(--text-primary);
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.book-option-meta {
-    font-size: 12px;
-    color: var(--text-muted);
-    margin-top: 2px;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.book-option-qty {
-    flex-shrink: 0;
-    font-size: 11px;
-    font-weight: 600;
-    color: #22c55e;
-    background: rgba(34,197,94,.12);
-    border-radius: 6px;
-    padding: 3px 8px;
-}
-.search-loading, .search-no-result {
-    padding: 18px;
-    text-align: center;
-    color: var(--text-muted);
-    font-size: 13px;
-}
-.search-loading i { animation: spin .8s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
-
-/* Card thông tin sách đã chọn */
-#selected-book-card {
-    display: none;
-    background: linear-gradient(135deg, rgba(124,106,255,.08), rgba(124,106,255,.03));
-    border: 1.5px solid rgba(124,106,255,.3);
-    border-radius: 12px;
-    padding: 14px 16px;
-    margin-top: 10px;
-}
-.selected-book-inner { display: flex; align-items: center; gap: 14px; }
-.selected-book-cover {
-    width: 44px; height: 56px;
-    border-radius: 8px;
-    background: linear-gradient(135deg,#7c6aff,#a78bfa);
-    display: flex; align-items: center; justify-content: center;
-    color: #fff; font-size: 20px;
-    flex-shrink: 0;
-}
-.selected-book-details { flex: 1; min-width: 0; }
-.selected-book-title {
-    font-weight: 700;
-    font-size: 14px;
-    color: var(--text-primary);
-}
-.selected-book-author {
-    font-size: 12px;
-    color: var(--text-muted);
-    margin-top: 2px;
-}
-.selected-book-badges {
-    display: flex;
-    gap: 6px;
-    margin-top: 6px;
-    flex-wrap: wrap;
-}
-</style>
-
 <!-- PAGE HEADER -->
 <div class="page-header">
     <div class="d-flex align-center gap-3">
@@ -193,7 +49,7 @@ $due14d   = date('Y-m-d', strtotime('+14 days'));
     </div>
 </div>
 
-<div style="max-width:560px">
+<div class="borrow-form-container">
 <div class="card">
     <div class="card-body">
 
@@ -210,7 +66,7 @@ $due14d   = date('Y-m-d', strtotime('+14 days'));
             <!-- ── CHỌN SÁCH ─── -->
             <div class="form-group">
                 <label class="form-label" for="book-search-input">
-                    Tìm sách * <span style="font-size:11px;color:var(--text-muted);font-weight:400">(nhập tên, tác giả hoặc mã ISBN)</span>
+                    Tìm sách * <span class="borrow-label-hint">(nhập tên, tác giả hoặc mã ISBN)</span>
                 </label>
 
                 <!-- Ô tìm kiếm -->
@@ -234,7 +90,7 @@ $due14d   = date('Y-m-d', strtotime('+14 days'));
                 <input type="hidden" name="book_id" id="book-id-hidden" value="">
 
                 <?php $msgs = $form->get('book_id')->getMessages(); if ($msgs): ?>
-                <div style="color:#ef4444;font-size:12px;margin-top:5px">
+                <div class="borrow-error-text">
                     <?= htmlspecialchars(implode(', ', $msgs)) ?>
                 </div>
                 <?php endif; ?>
@@ -247,11 +103,11 @@ $due14d   = date('Y-m-d', strtotime('+14 days'));
                             <div class="selected-book-title" id="selected-title">—</div>
                             <div class="selected-book-author" id="selected-author">—</div>
                             <div class="selected-book-badges">
-                                <span class="badge badge-purple" id="selected-category" style="font-size:11px">—</span>
-                                <span class="badge badge-green"  id="selected-qty"      style="font-size:11px">—</span>
+                                <span class="badge badge-purple borrow-badge-small" id="selected-category">—</span>
+                                <span class="badge badge-green borrow-badge-small"  id="selected-qty">—</span>
                             </div>
                         </div>
-                        <i class="bi bi-check-circle-fill" style="color:#22c55e;font-size:20px;flex-shrink:0"></i>
+                        <i class="bi bi-check-circle-fill borrow-success-icon"></i>
                     </div>
                 </div>
             </div>
@@ -260,11 +116,11 @@ $due14d   = date('Y-m-d', strtotime('+14 days'));
             <?php if ($isAdmin): ?>
             <div class="form-group">
                 <label class="form-label" for="user-search-input">
-                    Thành viên * <span style="font-size:11px;color:var(--text-muted);font-weight:400">(nhập tên, MSSV hoặc chọn từ danh sách)</span>
+                    Thành viên * <span class="borrow-label-hint">(nhập tên, MSSV hoặc chọn từ danh sách)</span>
                 </label>
 
                 <!-- Ẩn select thực tế của Laminas, gán ID để JS điều khiển -->
-                <div style="display:none">
+                <div class="d-none">
                     <?= $this->formSelect($form->get('user_id')->setAttribute('id', 'real-user-select')) ?>
                 </div>
 
@@ -286,19 +142,19 @@ $due14d   = date('Y-m-d', strtotime('+14 days'));
                 </div>
 
                 <!-- Card thông tin thành viên đã chọn -->
-                <div id="selected-user-card" style="display:none;background:linear-gradient(135deg, rgba(34,197,94,.08), rgba(34,197,94,.03));border:1.5px solid rgba(34,197,94,.3);border-radius:12px;padding:14px 16px;margin-top:10px">
-                    <div style="display:flex;align-items:center;gap:14px">
-                        <div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#22c55e,#10b981);display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;flex-shrink:0"><i class="bi bi-person-check"></i></div>
-                        <div style="flex:1;min-width:0">
-                            <div class="selected-book-title" id="selected-user-name" style="font-weight:700;font-size:14px;color:var(--text-primary)">—</div>
-                            <div class="selected-book-author" id="selected-user-role" style="font-size:12px;color:var(--text-muted);margin-top:2px">MSSV/Tài khoản: —</div>
+                <div id="selected-user-card" class="borrow-selected-user-card d-none">
+                    <div class="borrow-flex-row">
+                        <div class="borrow-user-avatar"><i class="bi bi-person-check"></i></div>
+                        <div class="borrow-flex-fill-min">
+                            <div class="selected-book-title borrow-user-name" id="selected-user-name">—</div>
+                            <div class="selected-book-author borrow-user-role" id="selected-user-role">MSSV/Tài khoản: —</div>
                         </div>
-                        <i class="bi bi-check-circle-fill" style="color:#22c55e;font-size:20px;flex-shrink:0"></i>
+                        <i class="bi bi-check-circle-fill borrow-success-icon"></i>
                     </div>
                 </div>
 
                 <?php $msgs = $form->get('user_id')->getMessages(); if ($msgs): ?>
-                <div style="color:#ef4444;font-size:12px;margin-top:5px" id="user-select-error">
+                <div class="borrow-error-text" id="user-select-error">
                     <?= htmlspecialchars(implode(', ', $msgs)) ?>
                 </div>
                 <?php endif; ?>
@@ -306,29 +162,29 @@ $due14d   = date('Y-m-d', strtotime('+14 days'));
             <?php else: ?>
             <div class="form-group">
                 <label class="form-label">Người mượn</label>
-                <input type="text" class="form-control"
-                       value="<?= $currentUserLabel ?>" disabled style="opacity:.7">
+                <input type="text" class="form-control borrow-input-disabled"
+                       value="<?= $currentUserLabel ?>" disabled>
                 <input type="hidden" name="user_id" id="real-user-select" value="<?= (int)($currentUser['id'] ?? 0) ?>">
             </div>
             <?php endif; ?>
 
             <!-- ── NGÀY MƯỢN / HẠN TRẢ ─── -->
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-                <div class="form-group" style="margin-bottom:0">
+            <div class="borrow-grid-2">
+                <div class="form-group borrow-form-group-compact">
                     <label class="form-label">Ngày mượn *</label>
                     <input type="date" name="borrow_date" id="borrow-date" class="form-control"
                            value="<?= htmlspecialchars((string)$form->get('borrow_date')->getValue() ?: $today) ?>"
                            required min="<?= $today ?>">
                 </div>
-                <div class="form-group" style="margin-bottom:0">
+                <div class="form-group borrow-form-group-compact">
                     <label class="form-label">Hạn trả *
-                        <span style="font-size:11px;color:var(--text-muted);font-weight:400">(tối đa 30 ngày)</span>
+                        <span class="borrow-label-hint">(tối đa 30 ngày)</span>
                     </label>
                     <input type="date" name="return_date" id="return-date" class="form-control"
                            value="<?= htmlspecialchars((string)$form->get('return_date')->getValue() ?: $due14d) ?>"
                            required min="<?= $today ?>">
                     <?php $msgs = $form->get('return_date')->getMessages(); if ($msgs): ?>
-                    <div style="color:#ef4444;font-size:12px;margin-top:5px">
+                    <div class="borrow-error-text">
                         <?= htmlspecialchars(implode(', ', $msgs)) ?>
                     </div>
                     <?php endif; ?>
@@ -337,13 +193,13 @@ $due14d   = date('Y-m-d', strtotime('+14 days'));
 
             <?= $this->formHidden($form->get('csrf')) ?>
             <?php $msgs = $form->get('csrf')->getMessages(); if ($msgs): ?>
-            <div style="color:#ef4444;font-size:12px;margin:10px 0">
+            <div class="borrow-csrf-error">
                 <?= htmlspecialchars(implode(', ', $msgs)) ?>
             </div>
             <?php endif; ?>
 
             <!-- ── SUBMIT ─── -->
-            <div class="d-flex gap-2" style="margin-top:22px">
+            <div class="d-flex gap-2 borrow-actions">
                 <button type="submit" id="submit-btn" class="btn btn-success"
                         <?= !$hasBooks ? 'disabled' : '' ?>>
                     <i class="bi bi-check-circle"></i>Xác nhận mượn
@@ -427,7 +283,7 @@ $due14d   = date('Y-m-d', strtotime('+14 days'));
         if (! query) return esc(text);
         const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         const re = new RegExp('(' + escaped + ')', 'gi');
-        return esc(text).replace(re, '<mark style="background:rgba(124,106,255,.25);color:inherit;border-radius:2px;padding:0 1px">$1</mark>');
+        return esc(text).replace(re, '<mark class="search-highlight">$1</mark>');
     }
 
     /* ==========================================================================
@@ -568,7 +424,7 @@ $due14d   = date('Y-m-d', strtotime('+14 days'));
         } else {
             userDropdown.innerHTML = users.map((u, idx) => `
                 <div class="book-option user-option" data-idx="${idx}" data-user='${JSON.stringify(u).replace(/'/g, "&#39;")}'>
-                    <div class="book-option-icon" style="background:linear-gradient(135deg,#3b82f6,#60a5fa)"><i class="bi bi-person"></i></div>
+                    <div class="book-option-icon user-option-icon"><i class="bi bi-person"></i></div>
                     <div class="book-option-info">
                         <div class="book-option-title">${highlight(u.label, query)}</div>
                         <div class="book-option-meta">Mã thành viên: #${u.id}</div>
@@ -734,7 +590,7 @@ $due14d   = date('Y-m-d', strtotime('+14 days'));
             if (! err) {
                 err = document.createElement('div');
                 err.id = 'book-search-error';
-                err.style.cssText = 'color:#ef4444;font-size:12px;margin-top:5px';
+                err.className = 'borrow-error-text';
                 err.textContent   = 'Vui lòng chọn một cuốn sách từ danh sách.';
                 const wrap = document.getElementById('book-search-wrap');
                 if (wrap) wrap.after(err);
@@ -751,7 +607,7 @@ $due14d   = date('Y-m-d', strtotime('+14 days'));
             if (! err) {
                 err = document.createElement('div');
                 err.id = 'user-select-error';
-                err.style.cssText = 'color:#ef4444;font-size:12px;margin-top:5px';
+                err.className = 'borrow-error-text';
                 err.textContent   = 'Vui lòng chọn một thành viên từ danh sách.';
                 const wrap = document.getElementById('user-search-wrap');
                 if (wrap) wrap.after(err);

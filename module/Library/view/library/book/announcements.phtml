@@ -1,0 +1,172 @@
+<?php
+$this->headTitle('Bảng tin Thư viện');
+$this->layout('layout/library-layout');
+
+$typeFilter = (string) ($filters['type'] ?? 'all');
+$searchVal = (string) ($filters['search'] ?? '');
+
+$typeTabs = [
+    'all'     => ['Tất cả', 'bi-grid-fill'],
+    'general' => ['Thông báo', 'bi-info-circle-fill'],
+    'event'   => ['Sự kiện', 'bi-star-fill'],
+    'contest' => ['Cuộc thi', 'bi-trophy-fill'],
+    'holiday' => ['Nghỉ lễ', 'bi-balloon-fill'],
+];
+
+$typeConfig = [
+    'general' => [
+        'label'    => 'Thông báo',
+        'icon'     => 'bi-info-circle-fill',
+        'emoji'    => '📢',
+        'gradient' => 'linear-gradient(135deg,#6366f1,#8b5cf6)',
+        'glow'     => 'rgba(99,102,241,0.25)',
+        'light'    => 'rgba(99,102,241,0.08)',
+        'border'   => '#6366f1',
+    ],
+    'event' => [
+        'label'    => 'Sự kiện',
+        'icon'     => 'bi-star-fill',
+        'emoji'    => '🎉',
+        'gradient' => 'linear-gradient(135deg,#ec4899,#f43f5e)',
+        'glow'     => 'rgba(236,72,153,0.25)',
+        'light'    => 'rgba(236,72,153,0.08)',
+        'border'   => '#ec4899',
+    ],
+    'contest' => [
+        'label'    => 'Cuộc thi',
+        'icon'     => 'bi-trophy-fill',
+        'emoji'    => '🏆',
+        'gradient' => 'linear-gradient(135deg,#f59e0b,#f97316)',
+        'glow'     => 'rgba(245,158,11,0.25)',
+        'light'    => 'rgba(245,158,11,0.08)',
+        'border'   => '#f59e0b',
+    ],
+    'holiday' => [
+        'label'    => 'Nghỉ lễ',
+        'icon'     => 'bi-balloon-fill',
+        'emoji'    => '🌴',
+        'gradient' => 'linear-gradient(135deg,#10b981,#06b6d4)',
+        'glow'     => 'rgba(16,185,129,0.25)',
+        'light'    => 'rgba(16,185,129,0.08)',
+        'border'   => '#10b981',
+    ],
+];
+?>
+
+<!-- PAGE HEADER -->
+<div class="page-header">
+    <div>
+        <div class="page-title">
+            <i class="bi bi-megaphone-fill ann-title-icon"></i>Bảng tin Thư viện
+        </div>
+        <div class="page-subtitle">Cập nhật tin tức, sự kiện và thông báo mới nhất từ Thư viện HDPE</div>
+    </div>
+    <div>
+        <a href="<?= $this->url('catalog') ?>" class="btn btn-outline ann-btn-back">
+            <i class="bi bi-arrow-left"></i>Quay lại danh mục
+        </a>
+    </div>
+</div>
+
+<!-- FILTERS SECTION -->
+<div class="ann-filters-bar">
+    <div class="filter-tabs ann-filter-tabs-wrap">
+        <?php foreach ($typeTabs as $key => $tab): ?>
+        <a href="<?= $this->url('announcements', [], ['query' => ['type' => $key, 'search' => $searchVal]]) ?>"
+           class="filter-tab <?= $typeFilter === $key ? 'active' : '' ?> ann-filter-tab-link">
+            <i class="bi <?= $tab[1] ?>"></i>
+            <?= $tab[0] ?>
+        </a>
+        <?php endforeach; ?>
+    </div>
+    
+    <form method="GET" action="<?= $this->url('announcements') ?>" class="ann-search-form">
+        <input type="hidden" name="type" value="<?= htmlspecialchars($typeFilter) ?>">
+        <div class="topbar-search ann-search-input-wrap">
+            <i class="bi bi-search"></i>
+            <input type="text" name="search" value="<?= htmlspecialchars($searchVal) ?>" placeholder="Tìm nội dung bản tin...">
+        </div>
+        <button type="submit" class="btn btn-primary ann-search-submit-btn">
+            <i class="bi bi-search"></i>Tìm kiếm
+        </button>
+    </form>
+</div>
+
+<!-- ANNOUNCEMENTS GRID -->
+<?php if (empty($announcements)): ?>
+<div class="ann-empty-card">
+    <i class="bi bi-megaphone-fill ann-empty-icon"></i>
+    <h3 class="ann-empty-title">Không có bản tin nào</h3>
+    <p class="ann-empty-desc">Không tìm thấy bản tin nào phù hợp với bộ lọc hiện tại.</p>
+    <?php if ($typeFilter !== 'all' || $searchVal !== ''): ?>
+    <a href="<?= $this->url('announcements') ?>" class="btn btn-outline btn-sm ann-empty-btn">Xóa bộ lọc</a>
+    <?php endif; ?>
+</div>
+<?php else: ?>
+<div class="ann-grid">
+    <?php foreach ($announcements as $i => $ann):
+        $cfg = $typeConfig[$ann['type']] ?? $typeConfig['general'];
+        $isNew = (strtotime($ann['created_at']) > strtotime('-3 days'));
+
+        // Date range display
+        $dateStr = '';
+        if ($ann['start_date'] && $ann['end_date']) {
+            $dateStr = date('d/m', strtotime($ann['start_date'])) . ' – ' . date('d/m/Y', strtotime($ann['end_date']));
+        } elseif ($ann['start_date']) {
+            $dateStr = 'Từ ' . date('d/m/Y', strtotime($ann['start_date']));
+        } elseif ($ann['end_date']) {
+            $dateStr = 'Đến ' . date('d/m/Y', strtotime($ann['end_date']));
+        }
+
+        // Check if expired
+        $isExpired = $ann['end_date'] && strtotime($ann['end_date']) < strtotime('today');
+    ?>
+    <div class="ann-card <?= $isExpired ? 'ann-card--expired' : '' ?>"
+         style="--ann-border:<?= $cfg['border'] ?>;--ann-glow:<?= $cfg['glow'] ?>;--ann-light:<?= $cfg['light'] ?>;animation-delay:<?= $i * 0.07 ?>s">
+
+        <!-- Top banner gradient -->
+        <div class="ann-banner" style="background:<?= $cfg['gradient'] ?>">
+            <span class="ann-emoji"><?= $cfg['emoji'] ?></span>
+            <div class="ann-banner-right">
+                <span class="ann-type-badge">
+                    <i class="bi <?= $cfg['icon'] ?>"></i>
+                    <?= $cfg['label'] ?>
+                </span>
+                <?php if ($isNew && !$isExpired): ?>
+                    <span class="ann-new-dot">MỚI</span>
+                <?php endif; ?>
+            </div>
+        </div>
+
+        <!-- Content -->
+        <div class="ann-body">
+            <h3 class="ann-card-title"><?= htmlspecialchars($ann['title']) ?></h3>
+            <div class="ann-content-text">
+                <?= nl2br(htmlspecialchars($ann['content'])) ?>
+            </div>
+
+            <!-- Footer meta -->
+            <div class="ann-meta">
+                <?php if ($dateStr): ?>
+                <span class="ann-meta-item ann-meta-item--accent">
+                    <i class="bi bi-calendar-event"></i> <?= $dateStr ?>
+                </span>
+                <?php endif; ?>
+                <span class="ann-meta-item">
+                    <i class="bi bi-clock"></i>
+                    <?= date('d/m/Y', strtotime($ann['created_at'])) ?>
+                </span>
+                <?php if ($isExpired): ?>
+                <span class="ann-meta-item ann-expired-tag">
+                    <i class="bi bi-archive"></i> Đã kết thúc
+                </span>
+                <?php endif; ?>
+            </div>
+        </div>
+
+        <!-- Left accent bar -->
+        <div class="ann-accent-bar" style="background:<?= $cfg['gradient'] ?>"></div>
+    </div>
+    <?php endforeach; ?>
+</div>
+<?php endif; ?>

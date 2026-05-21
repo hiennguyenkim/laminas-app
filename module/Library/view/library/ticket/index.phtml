@@ -25,40 +25,40 @@ $statusMap = [
 </div>
 
 <div class="card">
-    <div class="card-body" style="padding:0">
-        <table class="data-table" style="width:100%; border-collapse:collapse;">
+    <div class="card-body ticket-table-card-body">
+        <table class="data-table">
             <thead>
                 <tr>
-                    <th style="padding:16px;text-align:left;border-bottom:1px solid var(--border)">Mã Ticket</th>
-                    <th style="padding:16px;text-align:left;border-bottom:1px solid var(--border)">Tiêu đề</th>
+                    <th class="ticket-table-th">Mã Ticket</th>
+                    <th class="ticket-table-th">Tiêu đề</th>
                     <?php if ($isAdmin): ?>
-                    <th style="padding:16px;text-align:left;border-bottom:1px solid var(--border)">Người gửi</th>
+                    <th class="ticket-table-th">Người gửi</th>
                     <?php endif; ?>
-                    <th style="padding:16px;text-align:left;border-bottom:1px solid var(--border)">Cập nhật lần cuối</th>
-                    <th style="padding:16px;text-align:left;border-bottom:1px solid var(--border)">Trạng thái</th>
-                    <th style="padding:16px;text-align:right;border-bottom:1px solid var(--border)">Thao tác</th>
+                    <th class="ticket-table-th">Cập nhật lần cuối</th>
+                    <th class="ticket-table-th">Trạng thái</th>
+                    <th class="ticket-table-th--right">Thao tác</th>
                 </tr>
             </thead>
             <tbody>
                 <?php if (empty($tickets)): ?>
                 <tr>
-                    <td colspan="<?= $isAdmin ? 6 : 5 ?>" style="text-align:center;padding:40px;color:var(--text-muted)">
-                        <i class="bi bi-inbox" style="font-size:32px;display:block;margin-bottom:8px"></i>
+                    <td colspan="<?= $isAdmin ? 6 : 5 ?>" class="ticket-table-empty">
+                        <i class="bi bi-inbox ticket-table-empty-icon"></i>
                         Không có yêu cầu hỗ trợ nào.
                     </td>
                 </tr>
                 <?php else: ?>
                 <?php foreach ($tickets as $t): ?>
                 <?php [$statusLabel, $statusClass] = $statusMap[$t['status']] ?? ['Không rõ', 'badge-gray']; ?>
-                <tr style="border-bottom:1px solid var(--border)">
-                    <td style="padding:16px;color:var(--text-muted)">#<?= $t['id'] ?></td>
-                    <td style="padding:16px;font-weight:600;color:var(--text-primary)"><?= htmlspecialchars($t['title']) ?></td>
+                <tr class="ticket-table-row">
+                    <td class="ticket-table-td--muted">#<?= $t['id'] ?></td>
+                    <td class="ticket-table-td--title"><?= htmlspecialchars($t['title']) ?></td>
                     <?php if ($isAdmin): ?>
-                    <td style="padding:16px;color:var(--text-secondary)"><?= htmlspecialchars($t['author_name']) ?></td>
+                    <td class="ticket-table-td--secondary"><?= htmlspecialchars($t['author_name']) ?></td>
                     <?php endif; ?>
-                    <td style="padding:16px;color:var(--text-secondary)"><?= date('d/m/Y H:i', strtotime($t['updated_at'])) ?></td>
-                    <td style="padding:16px;"><span class="badge <?= $statusClass ?>"><?= $statusLabel ?></span></td>
-                    <td style="padding:16px;text-align:right;">
+                    <td class="ticket-table-td--secondary"><?= date('d/m/Y H:i', strtotime($t['updated_at'])) ?></td>
+                    <td class="ticket-table-td"><span class="badge <?= $statusClass ?>"><?= $statusLabel ?></span></td>
+                    <td class="ticket-table-td--right">
                         <a href="<?= $this->url($routePrefix . '/ticket', ['action' => 'view', 'id' => $t['id']]) ?>" class="btn btn-sm btn-outline">
                             Chi tiết
                         </a>

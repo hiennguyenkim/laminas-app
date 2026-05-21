@@ -15,18 +15,18 @@ $routePrefix = ($authUser['role'] ?? '') === 'admin' ? 'library' : 'student';
     </div>
 </div>
 
-<div class="card" style="max-width:800px">
+<div class="card ticket-create-card">
     <div class="card-body">
         <form method="POST" action="<?= $this->url($routePrefix . '/ticket', ['action' => 'create']) ?>">
             <div class="form-group">
-                <label class="form-label">Tiêu đề yêu cầu <span style="color:#ef4444">*</span></label>
+                <label class="form-label">Tiêu đề yêu cầu <span class="ticket-required-star">*</span></label>
                 <input type="text" name="subject" class="form-control" required placeholder="Ví dụ: Xin gia hạn sách đang mượn">
             </div>
             <div class="form-group">
-                <label class="form-label">Nội dung chi tiết <span style="color:#ef4444">*</span></label>
+                <label class="form-label">Nội dung chi tiết <span class="ticket-required-star">*</span></label>
                 <textarea name="content" class="form-control" rows="6" required placeholder="Mô tả chi tiết vấn đề bạn đang gặp phải..."></textarea>
             </div>
-            <div class="d-flex gap-2" style="margin-top:24px">
+            <div class="d-flex gap-2 ticket-actions-row">
                 <button type="submit" class="btn btn-primary"><i class="bi bi-send"></i>Gửi yêu cầu</button>
                 <a href="<?= $this->url($routePrefix . '/ticket') ?>" class="btn btn-outline">Hủy bỏ</a>
             </div>

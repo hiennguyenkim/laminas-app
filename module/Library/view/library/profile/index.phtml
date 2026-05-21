@@ -15,36 +15,36 @@ $routePrefix = ($authUser['role'] ?? '') === 'admin' ? 'library' : 'student';
 </div>
 
 <?php if (!$isAdmin && $user->isLocked()): ?>
-<div style="background:rgba(239,68,68,0.08);border:1px dashed rgba(239,68,68,0.3);color:#ef4444;padding:16px 20px;border-radius:10px;font-size:13px;margin-bottom:24px;display:flex;align-items:flex-start;gap:12px;width:100%">
-    <i class="bi bi-shield-slash" style="font-size:24px;line-height:1"></i>
+<div class="profile-alert-danger">
+    <i class="bi bi-shield-slash profile-alert-icon"></i>
     <div>
-        <strong style="font-size:15px">Thẻ thư viện của bạn hiện đang BỊ KHÓA MƯỢN SÁCH</strong>
-        <div style="margin-top:6px;font-size:13px"><strong>Lý do khóa:</strong> <?= htmlspecialchars($user->lockReason !== '' ? $user->lockReason : 'Vi phạm nội quy thư viện') ?></div>
+        <strong class="profile-alert-title">Thẻ thư viện của bạn hiện đang BỊ KHÓA MƯỢN SÁCH</strong>
+        <div class="profile-alert-desc"><strong>Lý do khóa:</strong> <?= htmlspecialchars($user->lockReason !== '' ? $user->lockReason : 'Vi phạm nội quy thư viện') ?></div>
         <?php if ($user->lockedAt !== ''): ?>
-            <div style="margin-top:2px;font-size:11px;opacity:0.85"><strong>Thời điểm khóa:</strong> <?= htmlspecialchars(date('d/m/Y H:i:s', strtotime($user->lockedAt))) ?></div>
+            <div class="profile-alert-meta"><strong>Thời điểm khóa:</strong> <?= htmlspecialchars(date('d/m/Y H:i:s', strtotime($user->lockedAt))) ?></div>
         <?php endif; ?>
-        <div style="margin-top:8px;font-size:12px;opacity:0.9">Vui lòng hoàn trả các sách trễ hạn hoặc liên hệ thủ thư tại quầy để được hỗ trợ mở khóa tài khoản.</div>
+        <div class="profile-alert-subtext">Vui lòng hoàn trả các sách trễ hạn hoặc liên hệ thủ thư tại quầy để được hỗ trợ mở khóa tài khoản.</div>
     </div>
 </div>
 <?php endif; ?>
 
 <div class="d-flex gap-4 flex-wrap">
     <!-- Left Column: Profile Form -->
-    <div style="flex: 1; min-width: 320px;">
+    <div class="profile-col-left">
         <div class="card">
             <div class="card-body">
                 <form method="POST" action="<?= $this->url($routePrefix . '/profile', ['action' => 'update']) ?>" enctype="multipart/form-data">
-                    <div style="display: flex; gap: 20px; align-items: flex-start; margin-bottom: 20px;">
-                        <div class="avatar-preview" style="width: 80px; height: 80px; border-radius: 50%; overflow: hidden; background: var(--bg-card); border: 2px solid var(--border);">
+                    <div class="profile-avatar-row">
+                        <div class="avatar-preview profile-avatar-preview">
                             <?php if ($user->avatarUrl): ?>
-                                <img src="<?= $this->basePath($user->avatarUrl) ?>" style="width: 100%; height: 100%; object-fit: cover;">
+                                <img src="<?= $this->basePath($user->avatarUrl) ?>" class="profile-avatar-img">
                             <?php else: ?>
-                                <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg,#7c6aff,#a78bfa); color: #fff; font-size: 24px; font-weight: bold;">
+                                <div class="profile-avatar-placeholder">
                                     <?= substr($user->fullName ?: $user->username, 0, 1) ?>
                                 </div>
                             <?php endif; ?>
                         </div>
-                        <div style="flex: 1;">
+                        <div class="profile-flex-fill">
                             <label class="form-label">Ảnh đại diện</label>
                             <input type="file" name="avatar" class="form-control" accept="image/*">
                         </div>
@@ -65,7 +65,7 @@ $routePrefix = ($authUser['role'] ?? '') === 'admin' ? 'library' : 'student';
                         <input type="text" name="nickname" class="form-control" value="<?= htmlspecialchars($user->nickname) ?>" placeholder="Nhập biệt danh của bạn...">
                     </div>
 
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                    <div class="profile-grid-2">
                         <div class="form-group">
                             <label class="form-label">Ngày sinh</label>
                             <input type="date" name="date_of_birth" class="form-control" value="<?= htmlspecialchars($user->dateOfBirth) ?>">
@@ -76,7 +76,7 @@ $routePrefix = ($authUser['role'] ?? '') === 'admin' ? 'library' : 'student';
                         </div>
                     </div>
 
-                    <button type="submit" class="btn btn-primary" style="margin-top: 10px;">
+                    <button type="submit" class="btn btn-primary profile-submit-btn">
                         <i class="bi bi-save"></i> Cập nhật hồ sơ
                     </button>
                 </form>
@@ -85,70 +85,70 @@ $routePrefix = ($authUser['role'] ?? '') === 'admin' ? 'library' : 'student';
     </div>
 
     <!-- Right Column: Stats & History -->
-    <div style="flex: 1.5; min-width: 400px;">
+    <div class="profile-col-right">
         <?php if ($isAdmin): ?>
             <!-- Admin Stats -->
-            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px;">
-                <div class="card" style="padding: 16px; text-align: center;">
-                    <div style="font-size: 24px; font-weight: bold; color: var(--accent-purple);"><?= number_format($adminStats['total_books']) ?></div>
-                    <div style="font-size: 13px; color: var(--text-muted);">Tổng số bản sách</div>
+            <div class="profile-stats-grid">
+                <div class="card profile-stat-card">
+                    <div class="profile-stat-val profile-stat-val--purple"><?= number_format($adminStats['total_books']) ?></div>
+                    <div class="profile-stat-label">Tổng số bản sách</div>
                 </div>
-                <div class="card" style="padding: 16px; text-align: center;">
-                    <div style="font-size: 24px; font-weight: bold; color: var(--accent-blue);"><?= number_format($adminStats['total_members']) ?></div>
-                    <div style="font-size: 13px; color: var(--text-muted);">Số thành viên</div>
+                <div class="card profile-stat-card">
+                    <div class="profile-stat-val profile-stat-val--blue"><?= number_format($adminStats['total_members']) ?></div>
+                    <div class="profile-stat-label">Số thành viên</div>
                 </div>
-                <div class="card" style="padding: 16px; text-align: center;">
-                    <div style="font-size: 24px; font-weight: bold; color: #f59e0b;"><?= number_format($adminStats['active_loans']) ?></div>
-                    <div style="font-size: 13px; color: var(--text-muted);">Sách đang mượn</div>
+                <div class="card profile-stat-card">
+                    <div class="profile-stat-val profile-stat-val--orange"><?= number_format($adminStats['active_loans']) ?></div>
+                    <div class="profile-stat-label">Sách đang mượn</div>
                 </div>
             </div>
 
             <div class="card">
-                <div class="card-header" style="padding: 16px; border-bottom: 1px solid var(--border); font-weight: 600;">
+                <div class="card-header profile-card-header">
                     <i class="bi bi-shield-lock-fill"></i> Quyền hạn Quản trị viên
                 </div>
-                <div class="card-body" style="padding: 20px; font-size: 13px; line-height: 1.6; color: var(--text-secondary);">
-                    <p style="margin-bottom: 12px;">Bạn đang đăng nhập bằng tài khoản <strong>Quản trị viên (Admin) / Thủ kho</strong>. Các chức năng chính bạn có thể thực hiện bao gồm:</p>
-                    <ul style="padding-left: 20px; margin-bottom: 16px; display: flex; flex-direction: column; gap: 8px;">
-                        <li><i class="bi bi-check-circle" style="color:var(--accent-purple);margin-right:8px"></i> Nhập kho và cập nhật số lượng sách mới về.</li>
-                        <li><i class="bi bi-check-circle" style="color:var(--accent-purple);margin-right:8px"></i> Quản lý danh mục sách và phê duyệt đăng ký mượn của độc giả.</li>
-                        <li><i class="bi bi-check-circle" style="color:var(--accent-purple);margin-right:8px"></i> Xem báo cáo doanh thu, thống kê chi phí chi tiết theo thời gian.</li>
+                <div class="card-body profile-card-body-text">
+                    <p class="profile-paragraph">Bạn đang đăng nhập bằng tài khoản <strong>Quản trị viên (Admin) / Thủ kho</strong>. Các chức năng chính bạn có thể thực hiện bao gồm:</p>
+                    <ul class="profile-list">
+                        <li><i class="bi bi-check-circle profile-list-icon"></i> Nhập kho và cập nhật số lượng sách mới về.</li>
+                        <li><i class="bi bi-check-circle profile-list-icon"></i> Quản lý danh mục sách và phê duyệt đăng ký mượn của độc giả.</li>
+                        <li><i class="bi bi-check-circle profile-list-icon"></i> Xem báo cáo doanh thu, thống kê chi phí chi tiết theo thời gian.</li>
                     </ul>
-                    <div style="background: rgba(255,255,255,0.02); padding: 12px; border-radius: 8px; border: 1px solid var(--border);">
-                        <i class="bi bi-info-circle-fill" style="color:var(--accent-blue);margin-right:6px"></i>
+                    <div class="profile-info-box">
+                        <i class="bi bi-info-circle-fill profile-info-box-icon"></i>
                         Thông tin của bạn được hiển thị bằng nickname trên các phòng chat công khai để tăng tính riêng tư.
                     </div>
                 </div>
             </div>
         <?php else: ?>
             <!-- Student Stats -->
-            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px;">
-                <div class="card" style="padding: 16px; text-align: center;">
-                    <div style="font-size: 24px; font-weight: bold; color: var(--accent-purple);"><?= $stats['total_borrowed'] ?></div>
-                    <div style="font-size: 13px; color: var(--text-muted);">Đã mượn</div>
+            <div class="profile-stats-grid">
+                <div class="card profile-stat-card">
+                    <div class="profile-stat-val profile-stat-val--purple"><?= $stats['total_borrowed'] ?></div>
+                    <div class="profile-stat-label">Đã mượn</div>
                 </div>
-                <div class="card" style="padding: 16px; text-align: center;">
-                    <div style="font-size: 24px; font-weight: bold; color: var(--accent-blue);"><?= $stats['active_loans'] ?></div>
-                    <div style="font-size: 13px; color: var(--text-muted);">Đang mượn</div>
+                <div class="card profile-stat-card">
+                    <div class="profile-stat-val profile-stat-val--blue"><?= $stats['active_loans'] ?></div>
+                    <div class="profile-stat-label">Đang mượn</div>
                 </div>
-                <div class="card" style="padding: 16px; text-align: center;">
-                    <div style="font-size: 24px; font-weight: bold; color: #ef4444;"><?= $stats['overdue_count'] ?></div>
-                    <div style="font-size: 13px; color: var(--text-muted);">Trễ hạn</div>
+                <div class="card profile-stat-card">
+                    <div class="profile-stat-val profile-stat-val--red"><?= $stats['overdue_count'] ?></div>
+                    <div class="profile-stat-label">Trễ hạn</div>
                 </div>
             </div>
 
             <div class="card">
-                <div class="card-header" style="padding: 16px; border-bottom: 1px solid var(--border); font-weight: 600;">
+                <div class="card-header profile-card-header">
                     <i class="bi bi-clock-history"></i> Lịch sử mượn trả
                 </div>
-                <div class="card-body" style="padding: 0;">
+                <div class="card-body profile-card-body-flat">
                     <?php if (empty($history)): ?>
-                        <div style="padding: 30px; text-align: center; color: var(--text-muted);">
-                            <i class="bi bi-inbox" style="font-size: 32px; opacity: 0.5;"></i>
-                            <p style="margin-top: 10px;">Bạn chưa mượn cuốn sách nào.</p>
+                        <div class="profile-empty">
+                            <i class="bi bi-inbox profile-empty-icon"></i>
+                            <p class="profile-empty-text">Bạn chưa mượn cuốn sách nào.</p>
                         </div>
                     <?php else: ?>
-                        <table class="data-table" style="margin: 0;">
+                        <table class="data-table profile-table">
                             <thead>
                                 <tr>
                                     <th>Sách</th>
@@ -173,28 +173,28 @@ $routePrefix = ($authUser['role'] ?? '') === 'admin' ? 'library' : 'student';
                                 ?>
                                 <tr>
                                     <td>
-                                        <div style="font-weight: 600; color: var(--text-primary); font-size: 13px;">
+                                        <div class="profile-book-title">
                                             <?= htmlspecialchars($record->bookTitle) ?>
                                         </div>
                                         <?php if ($record->bookIsbn): ?>
-                                            <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">ISBN: <?= htmlspecialchars($record->bookIsbn) ?></div>
+                                            <div class="profile-book-isbn">ISBN: <?= htmlspecialchars($record->bookIsbn) ?></div>
                                         <?php endif; ?>
                                     </td>
-                                    <td style="white-space: nowrap;">
+                                    <td class="profile-nowrap">
                                         <div class="d-flex align-center gap-2">
-                                            <i class="bi bi-calendar3" style="color:var(--text-muted); font-size: 12px;"></i>
+                                            <i class="bi bi-calendar3 profile-table-icon"></i>
                                             <?= htmlspecialchars($borrowedDateFormatted) ?>
                                         </div>
                                     </td>
-                                    <td style="white-space: nowrap;">
+                                    <td class="profile-nowrap">
                                         <?php if ($record->status === 'returned'): ?>
-                                            <div class="d-flex align-center gap-2" style="color:var(--accent-green)">
-                                                <i class="bi bi-calendar-check" style="font-size: 12px;"></i>
+                                            <div class="d-flex align-center gap-2 profile-returned-color">
+                                                <i class="bi bi-calendar-check profile-table-icon-small"></i>
                                                 <span>Trả: <?= htmlspecialchars($returnedAtFormatted ?: $returnDateFormatted) ?></span>
                                             </div>
                                         <?php else: ?>
-                                            <div class="d-flex align-center gap-2" style="<?= $isRecordOverdue ? 'color:#ef4444;font-weight:600' : 'color:var(--text-secondary)' ?>">
-                                                <i class="bi bi-clock" style="font-size: 12px; color: <?= $isRecordOverdue ? '#ef4444' : 'var(--text-muted)' ?>"></i>
+                                            <div class="d-flex align-center gap-2 <?= $isRecordOverdue ? 'profile-overdue-alert' : 'profile-active-alert' ?>">
+                                                <i class="bi bi-clock profile-table-icon-small <?= $isRecordOverdue ? 'profile-color-danger' : 'profile-color-muted' ?>"></i>
                                                 <span>Hạn: <?= htmlspecialchars($returnDateFormatted) ?></span>
                                             </div>
                                         <?php endif; ?>

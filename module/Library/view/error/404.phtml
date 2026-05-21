@@ -2,10 +2,10 @@
 declare(strict_types=1);
 $this->layout('layout/library-layout');
 ?>
-<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;text-align:center;padding:40px 24px">
-    <div style="font-size:96px;font-weight:800;background:linear-gradient(135deg,#7c6aff,#ec4899);-webkit-background-clip:text;-webkit-text-fill-color:transparent;line-height:1;margin-bottom:16px">404</div>
-    <div style="font-size:22px;font-weight:700;color:var(--text-primary);margin-bottom:10px">Không tìm thấy trang</div>
-    <p style="color:var(--text-muted);font-size:14px;max-width:400px;margin:0 auto 28px">
+<div class="error-container">
+    <div class="error-404-title">404</div>
+    <div class="error-msg-title">Không tìm thấy trang</div>
+    <p class="error-404-desc">
         <?= $this->escapeHtml((string) ($this->message ?? 'Đường dẫn này hiện không tồn tại hoặc đã thay đổi.')) ?>
     </p>
     <a href="<?= $this->url('home') ?>" class="btn btn-primary">

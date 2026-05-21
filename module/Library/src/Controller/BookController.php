@@ -62,8 +62,13 @@ class BookController extends BaseController
             $statusFilter = 'available';
         }
 
+        $searchQuery = trim((string)$this->queryString('search', ''));
+        if ($searchQuery === '') {
+            $searchQuery = trim((string)$this->queryString('q', ''));
+        }
+
         $filters = [
-            'search'   => trim($this->queryString('search')),
+            'search'   => $searchQuery,
             'category' => $this->queryString('category'),
             'status'   => $statusFilter,
         ];
@@ -78,7 +83,7 @@ class BookController extends BaseController
         $announcements = [];
         if ($this->dbAdapter) {
             try {
-                $sql = 'SELECT * FROM announcements WHERE is_active = 1 AND (start_date IS NULL OR start_date <= CURDATE()) AND (end_date IS NULL OR end_date >= CURDATE()) ORDER BY created_at DESC LIMIT 5';
+                $sql = 'SELECT * FROM announcements WHERE is_active = 1 AND (start_date IS NULL OR start_date <= CURDATE()) AND (end_date IS NULL OR end_date >= CURDATE()) ORDER BY created_at DESC LIMIT 3';
                 $statement = $this->dbAdapter->query($sql);
                 $announcements = $statement->execute();
                 $announcements = iterator_to_array($announcements);
@@ -147,6 +152,47 @@ class BookController extends BaseController
         return $this->redirect()->toRoute('library/book', ['action' => 'add']);
     }
 
+    private function handleCoverUpload(?string $existingUrl = null): ?string
+    {
+        $file = $_FILES['cover_image'] ?? null;
+        if (!$file || $file['error'] !== UPLOAD_ERR_OK) {
+            return null;
+        }
+
+        $maxSize = 2 * 1024 * 1024; // 2 MB
+        if ($file['size'] > $maxSize) {
+            $this->flash()->addWarningMessage('File ảnh bìa quá lớn. Tối đa 2MB. Sử dụng ảnh mặc định.');
+            return null;
+        }
+
+        $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+        $allowed = ['png', 'jpg', 'jpeg', 'webp', 'gif'];
+        if (!in_array($ext, $allowed)) {
+            $this->flash()->addWarningMessage('Định dạng ảnh bìa không hỗ trợ. Chỉ chấp nhận: ' . implode(', ', $allowed));
+            return null;
+        }
+
+        $uploadDir = getcwd() . '/public/img/uploads/covers/';
+        if (!is_dir($uploadDir)) {
+            mkdir($uploadDir, 0777, true);
+        }
+
+        // Delete existing local cover if it exists
+        if ($existingUrl && str_starts_with($existingUrl, '/img/uploads/covers/')) {
+            $oldPath = getcwd() . '/public' . $existingUrl;
+            if (file_exists($oldPath)) {
+                @unlink($oldPath);
+            }
+        }
+
+        $newFilename = 'cover_' . uniqid() . '.' . $ext;
+        if (move_uploaded_file($file['tmp_name'], $uploadDir . $newFilename)) {
+            return '/img/uploads/covers/' . $newFilename;
+        }
+
+        return null;
+    }
+
     public function addAction(): Response|ViewModel
     {
         if ($response = $this->requireAdmin()) {
@@ -165,6 +211,13 @@ class BookController extends BaseController
                 $data = $form->getData();
                 $book = new Book();
                 $book->exchangeArray($data);
+
+                // Handle file upload
+                $uploadedUrl = $this->handleCoverUpload();
+                if ($uploadedUrl) {
+                    $book->coverImageUrl = $uploadedUrl;
+                }
+
                 $this->bookTable->saveBook($book);
                 $this->flash()->addSuccessMessage('Đã thêm sách "' . $book->title . '" vào thư viện.');
                 return $this->redirect()->toRoute('library/book');
@@ -201,6 +254,16 @@ class BookController extends BaseController
         if ($this->httpRequest()->isPost()) {
             $form->setData($this->postData());
             if ($form->isValid()) {
+                $oldCoverUrl = $book->coverImageUrl;
+
+                // Form binding automatically updates $book properties with form inputs
+                // So $book->coverImageUrl has the value from $form->get('cover_image_url')
+                // If a new cover image file is uploaded, handle it and override coverImageUrl
+                $uploadedUrl = $this->handleCoverUpload($oldCoverUrl);
+                if ($uploadedUrl) {
+                    $book->coverImageUrl = $uploadedUrl;
+                }
+
                 $this->bookTable->saveBook($book);
                 $this->flash()->addSuccessMessage('Đã cập nhật thông tin sách.');
                 return $this->redirect()->toRoute('library/book');
@@ -230,6 +293,16 @@ class BookController extends BaseController
 
             return $this->redirect()->toRoute('library/book');
         }
+
+        try {
+            $book = $this->bookTable->getBook($id);
+            if ($book->coverImageUrl && str_starts_with($book->coverImageUrl, '/img/uploads/covers/')) {
+                $oldPath = getcwd() . '/public' . $book->coverImageUrl;
+                if (file_exists($oldPath)) {
+                    @unlink($oldPath);
+                }
+            }
+        } catch (\Exception $e) {}
 
         $this->bookTable->deleteBook($id);
         $this->flash()->addSuccessMessage('Đã xóa sách khỏi thư viện.');
@@ -292,4 +365,58 @@ class BookController extends BaseController
 
         return $this->redirect()->toRoute('library/book', ['action' => 'view', 'id' => $bookId]);
     }
+
+    public function announcementsAction(): ViewModel
+    {
+        $currentUser = $this->currentUser();
+        if ($currentUser === null) {
+            $layout = $this->layout();
+            if (method_exists($layout, 'setVariable')) {
+                $layout->setVariable('guestCatalogMode', true);
+            }
+        }
+
+        $typeFilter = $this->queryString('type', 'all');
+        $searchQuery = trim((string)$this->queryString('search', ''));
+        if ($searchQuery === '') {
+            $searchQuery = trim((string)$this->queryString('q', ''));
+        }
+
+        $announcements = [];
+        if ($this->dbAdapter) {
+            try {
+                $sql = 'SELECT * FROM announcements WHERE is_active = 1 AND (start_date IS NULL OR start_date <= CURDATE()) AND (end_date IS NULL OR end_date >= CURDATE())';
+                $params = [];
+
+                if ($typeFilter !== 'all') {
+                    $sql .= ' AND type = ?';
+                    $params[] = $typeFilter;
+                }
+
+                if ($searchQuery !== '') {
+                    $sql .= ' AND (title LIKE ? OR content LIKE ?)';
+                    $params[] = '%' . $searchQuery . '%';
+                    $params[] = '%' . $searchQuery . '%';
+                }
+
+                $sql .= ' ORDER BY created_at DESC';
+
+                $statement = $this->dbAdapter->query($sql);
+                $result = $statement->execute($params);
+                $announcements = iterator_to_array($result);
+            } catch (\Exception $e) {
+                // ignore
+            }
+        }
+
+        return new ViewModel([
+            'announcements' => $announcements,
+            'filters' => [
+                'type' => $typeFilter,
+                'search' => $searchQuery,
+            ],
+            'currentUser' => $currentUser,
+        ]);
+    }
 }
+

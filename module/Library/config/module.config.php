@@ -9,6 +9,7 @@ use Library\Controller\AuthController;
 use Library\Controller\BookController;
 use Library\Controller\DashboardController;
 use Library\Controller\ProfileController;
+use Library\Controller\SettingsController;
 use Library\Controller\TransactionController;
 use Library\Controller\UserController;
 use Library\Controller\BookImportController;
@@ -19,6 +20,7 @@ use Library\Factory\Controller\BookControllerFactory;
 use Library\Factory\Controller\DashboardControllerFactory;
 use Library\Factory\Controller\HomeControllerFactory;
 use Library\Factory\Controller\ProfileControllerFactory;
+use Library\Factory\Controller\SettingsControllerFactory;
 use Library\Factory\Controller\TransactionControllerFactory;
 use Library\Factory\Controller\UserControllerFactory;
 use Library\Factory\Form\BookFormFactory;
@@ -68,6 +70,13 @@ return [
                 'options' => [
                     'route'    => '/books',
                     'defaults' => ['controller' => BookController::class, 'action' => 'index'],
+                ],
+            ],
+            'announcements' => [
+                'type'    => Literal::class,
+                'options' => [
+                    'route'    => '/announcements',
+                    'defaults' => ['controller' => BookController::class, 'action' => 'announcements'],
                 ],
             ],
             'library' => [
@@ -154,6 +163,17 @@ return [
                             'route'       => '/profile[/:action]',
                             'constraints' => ['action' => '[a-zA-Z][a-zA-Z0-9_-]*'],
                             'defaults'    => ['controller' => ProfileController::class, 'action' => 'index'],
+                        ],
+                    ],
+                    'settings' => [
+                        'type'    => Segment::class,
+                        'options' => [
+                            'route'       => '/settings[/:action[/:id]]',
+                            'constraints' => [
+                                'action' => '[a-zA-Z][a-zA-Z0-9_-]*',
+                                'id'     => '[0-9]+',
+                            ],
+                            'defaults'    => ['controller' => SettingsController::class, 'action' => 'index'],
                         ],
                     ],
                 ],
@@ -322,6 +342,7 @@ return [
     'controllers' => [
         'factories' => [
             BookImportController::class  => BookImportControllerFactory::class,
+            SettingsController::class     => SettingsControllerFactory::class,
             HomeController::class        => HomeControllerFactory::class,
             AuthController::class        => AuthControllerFactory::class,
             Controller\BookController::class        => Factory\Controller\BookControllerFactory::class,

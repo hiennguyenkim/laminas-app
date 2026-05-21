@@ -20,19 +20,23 @@ $navItems = [];
 if ($authUser) {
     $navItems[] = ['url' => $this->url($routePrefix . '/dashboard'), 'icon' => 'bi-grid-1x2-fill', 'label' => 'Tổng quan', 'key' => 'dashboard', 'color' => '#7c6aff'];
     $navItems[] = ['url' => $this->url($bookRouteName), 'icon' => 'bi-book', 'label' => $isAdmin ? 'Sách' : 'Danh mục sách', 'key' => 'book', 'color' => '#f97316'];
+    $navItems[] = ['url' => $this->url('announcements'), 'icon' => 'bi-megaphone-fill', 'label' => 'Bảng tin', 'key' => 'announcements', 'color' => '#ef4444'];
     if ($isAdmin) {
         $navItems[] = ['url' => $this->url('library/user'), 'icon' => 'bi-people', 'label' => 'Thành viên', 'key' => 'user', 'color' => '#22c55e'];
         $navItems[] = ['url' => $this->url('library/books-import'), 'icon' => 'bi-box-seam', 'label' => 'Nhập sách', 'key' => 'books-import', 'color' => '#f59e0b'];
+        $navItems[] = ['url' => $this->url('library/settings'), 'icon' => 'bi-gear-fill', 'label' => 'Cài đặt', 'key' => 'settings', 'color' => '#8b5cf6'];
     }
     $navItems[] = ['url' => $this->url($routePrefix . '/transaction'), 'icon' => 'bi-arrow-left-right', 'label' => 'Mượn / Trả', 'key' => 'transaction', 'color' => '#ec4899'];
     $navItems[] = ['url' => $this->url($routePrefix . '/ticket'), 'icon' => 'bi-chat-left-text', 'label' => 'Hỏi đáp & Hỗ trợ', 'key' => 'ticket', 'color' => '#14b8a6'];
     $navItems[] = ['url' => $this->url($routePrefix . '/profile'), 'icon' => 'bi-person-circle', 'label' => 'Hồ sơ', 'key' => 'profile', 'color' => '#3b82f6'];
 }
 
-$pageColors = ['dashboard' => '#7c6aff', 'book' => '#f97316', 'user' => '#22c55e', 'books-import' => '#f59e0b', 'transaction' => '#ec4899', 'ticket' => '#14b8a6', 'profile' => '#3b82f6'];
+$pageColors = ['dashboard' => '#7c6aff', 'book' => '#f97316', 'announcements' => '#ef4444', 'user' => '#22c55e', 'books-import' => '#f59e0b', 'transaction' => '#ec4899', 'ticket' => '#14b8a6', 'profile' => '#3b82f6', 'settings' => '#8b5cf6'];
 $activeKey  = 'dashboard';
 // Match actual route segments: /admin/book, /admin/user, /admin/borrow, /admin/ticket or /library/ticket
 if      (strpos($currentUri, '/books/import') !== false) $activeKey = 'books-import';
+elseif  (strpos($currentUri, '/settings')    !== false) $activeKey = 'settings';
+elseif  (strpos($currentUri, '/announcements')!== false) $activeKey = 'announcements';
 elseif  (strpos($currentUri, '/book')   !== false) $activeKey = 'book';
 elseif  (strpos($currentUri, '/user')   !== false) $activeKey = 'user';
 elseif  (strpos($currentUri, '/borrow') !== false) $activeKey = 'transaction';
@@ -44,11 +48,13 @@ $activeColor = $pageColors[$activeKey] ?? '#7c6aff';
 $pageLabels = [
     'dashboard'    => 'Tổng quan',
     'book'         => ($isAdmin ? 'Sách' : 'Danh mục sách'),
+    'announcements'=> 'Bảng tin thư viện',
     'user'         => 'Thành viên',
     'books-import' => 'Nhập sách Online',
     'transaction'  => 'Mượn / Trả',
     'ticket'       => 'Hỏi đáp & Hỗ trợ',
     'profile'      => 'Hồ sơ cá nhân',
+    'settings'     => 'Cài đặt hệ thống',
 ];
 $pageLabel = $authUser ? ($pageLabels[$activeKey] ?? '') : 'Đăng nhập';
 ?>
@@ -62,6 +68,8 @@ $pageLabel = $authUser ? ($pageLabels[$activeKey] ?? '') : 'Đăng nhập';
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
     <link href="<?= $this->basePath('css/app.css') ?>" rel="stylesheet">
+    <link href="<?= $this->basePath('css/chatbot.css') ?>" rel="stylesheet">
+    <link href="<?= $this->basePath('css/pages.css') ?>" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
@@ -71,7 +79,7 @@ $pageLabel = $authUser ? ($pageLabels[$activeKey] ?? '') : 'Đăng nhập';
 <div class="login-shell">
     <?php $flash = $this->flashMessenger(); ?>
     <?php if ($flash->hasErrorMessages()): foreach ($flash->getErrorMessages() as $msg): ?>
-        <div class="alert alert-danger" style="position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:999;min-width:320px">
+        <div class="alert alert-danger layout-alert">
             <i class="bi bi-exclamation-triangle"></i> <?= htmlspecialchars($msg) ?>
         </div>
     <?php endforeach; endif; ?>
@@ -85,7 +93,24 @@ $pageLabel = $authUser ? ($pageLabels[$activeKey] ?? '') : 'Đăng nhập';
     <!-- SIDEBAR -->
     <nav class="sidebar" id="sidebar">
         <div class="sidebar-brand">
-            <div class="sidebar-brand-icon"><i class="bi bi-bookshelf"></i></div>
+            <?php
+            // Detect custom logo uploaded by admin
+            $customLogoFile = null;
+            foreach (['logo.png','logo.jpg','logo.jpeg','logo.svg','logo.webp'] as $_lf) {
+                if (file_exists(getcwd() . '/public/img/uploads/' . $_lf)) {
+                    $customLogoFile = '/img/uploads/' . $_lf; break;
+                }
+            }
+            ?>
+            <div class="sidebar-brand-icon sidebar-brand-icon-wrap">
+                <?php if ($customLogoFile): ?>
+                    <img src="<?= $customLogoFile ?>?t=<?= filemtime(getcwd() . '/public' . $customLogoFile) ?>"
+                         alt="Logo thư viện"
+                         class="sidebar-brand-img">
+                <?php else: ?>
+                    <i class="bi bi-bookshelf"></i>
+                <?php endif; ?>
+            </div>
             <div class="sidebar-brand-text">
                 <div class="name">Thư Viện HDPE</div>
                 <div class="sub">Hệ thống quản lý thư viện</div>
@@ -104,8 +129,8 @@ $pageLabel = $authUser ? ($pageLabels[$activeKey] ?? '') : 'Đăng nhập';
 
 
 
-            <div style="margin-top:24px;padding:0 14px;font-size:11px;color:var(--text-muted)">
-                <span>© 2026 Bản quyền thuộc về<br><strong style="color:var(--text-secondary)">Thư Viện HDPE</strong></span>
+            <div class="sidebar-credits">
+                <span>© 2026 Bản quyền thuộc về<br><strong class="sidebar-credits-strong">Thư Viện HDPE</strong></span>
             </div>
         </div>
 
@@ -114,14 +139,14 @@ $pageLabel = $authUser ? ($pageLabels[$activeKey] ?? '') : 'Đăng nhập';
                 <div class="sidebar-user-avatar">
                     <?= $initials(htmlspecialchars($authUser['full_name'] ?? 'QL')) ?>
                 </div>
-                <div class="sidebar-user-info" style="flex:1;min-width:0">
-                    <a href="<?= $this->url($routePrefix . '/profile') ?>" style="text-decoration:none;">
+                <div class="sidebar-user-info sidebar-user-info-wrap">
+                    <a href="<?= $this->url($routePrefix . '/profile') ?>" class="sidebar-user-info-link">
                         <div class="uname"><?= $isAdmin ? 'Quản Lý' : htmlspecialchars($authUser['full_name'] ?? '') ?></div>
                         <div class="uemail"><?= htmlspecialchars($authUser['email'] ?? 'admin@library.vn') ?></div>
                     </a>
                 </div>
                 <a href="<?= $this->url('library/auth', ['action' => 'logout']) ?>"
-                   title="Đăng xuất" style="color:var(--text-muted);font-size:16px;text-decoration:none">
+                   title="Đăng xuất" class="sidebar-logout-link">
                     <i class="bi bi-box-arrow-right"></i>
                 </a>
             </div>
@@ -130,7 +155,7 @@ $pageLabel = $authUser ? ($pageLabels[$activeKey] ?? '') : 'Đăng nhập';
     <?php endif; ?>
 
     <!-- MAIN CONTENT -->
-    <div class="main-content" <?= !$authUser ? 'style="margin-left:0"' : '' ?>>
+    <div class="main-content <?= !$authUser ? 'main-content--guest' : '' ?>">
 
         <?php if ($authUser): ?>
         <!-- TOPBAR -->
@@ -138,26 +163,26 @@ $pageLabel = $authUser ? ($pageLabels[$activeKey] ?? '') : 'Đăng nhập';
             <div class="topbar-left">
                 <div class="page-breadcrumb"><?= $pageLabel ?></div>
             </div>
-            <div class="topbar-right" style="display:flex;align-items:center;gap:20px">
+            <div class="topbar-right topbar-right-wrap">
                 <!-- NOTIFICATION BELL -->
-                <div class="notification-bell-container" style="position:relative">
-                    <button class="notification-bell-btn" onclick="toggleNotificationsDropdown()" style="background:none;border:none;cursor:pointer;position:relative;padding:6px;color:var(--text-secondary);display:flex;align-items:center;justify-content:center;transition:color 0.2s;outline:none">
-                        <i class="bi bi-bell-fill" style="font-size:20px"></i>
-                        <span class="notification-badge" id="notification-badge" style="display:none;position:absolute;top:2px;right:2px;background:#ef4444;color:white;font-size:9px;font-weight:bold;border-radius:50%;width:16px;height:16px;align-items:center;justify-content:center;border:2px solid var(--bg-card)">0</span>
+                <div class="notification-bell-container noti-bell-container">
+                    <button class="notification-bell-btn noti-bell-btn" onclick="toggleNotificationsDropdown()">
+                        <i class="bi bi-bell-fill"></i>
+                        <span class="notification-badge noti-badge" id="notification-badge" style="display:none;">0</span>
                     </button>
                     <!-- DROPDOWN PANEL -->
-                    <div class="notification-dropdown" id="notification-dropdown" style="display:none;position:absolute;top:100%;right:0;margin-top:10px;width:320px;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,0.15);z-index:1000;overflow:hidden">
-                        <div class="notification-header" style="padding:14px 18px;border-bottom:1px solid var(--border-color);font-weight:600;font-size:14px;color:var(--text-primary);display:flex;justify-content:space-between;align-items:center">
+                    <div class="notification-dropdown noti-dropdown" id="notification-dropdown" style="display:none;">
+                        <div class="notification-header noti-dropdown-header">
                             <span>Thông báo</span>
-                            <div style="display:flex;gap:8px;align-items:center">
-                                <span class="badge badge-purple" id="notification-count-badge" style="font-size:10px">0 mới</span>
-                                <a href="#" onclick="markAllNotificationsRead(event)" style="font-size:11px;color:var(--accent-purple);text-decoration:none"><i class="bi bi-check2-all"></i> Đọc hết</a>
+                            <div class="noti-dropdown-header-actions">
+                                <span class="badge badge-purple" id="notification-count-badge">0 mới</span>
+                                <a href="#" onclick="markAllNotificationsRead(event)"><i class="bi bi-check2-all"></i> Đọc hết</a>
                             </div>
                         </div>
-                        <div class="notification-list" id="notification-list" style="max-height:300px;overflow-y:auto;display:flex;flex-direction:column">
+                        <div class="notification-list noti-list" id="notification-list">
                             <!-- Items inserted dynamically -->
-                            <div class="notification-empty" style="padding:30px;text-align:center;color:var(--text-muted);font-size:12px">
-                                <i class="bi bi-bell-slash" style="font-size:24px;display:block;margin-bottom:6px"></i>
+                            <div class="notification-empty noti-empty">
+                                <i class="bi bi-bell-slash"></i>
                                 Không có thông báo nào mới.
                             </div>
                         </div>
@@ -172,17 +197,20 @@ $pageLabel = $authUser ? ($pageLabels[$activeKey] ?? '') : 'Đăng nhập';
         </header>
         <?php else: ?>
         <!-- PREMIUM TOPBAR FOR GUEST READERS -->
-        <header class="topbar" style="justify-content:space-between;padding:0 32px">
-            <div style="display:flex;align-items:center;gap:12px">
-                <i class="bi bi-bookshelf" style="font-size:22px;color:var(--accent-purple)"></i>
-                <span style="font-weight:700;font-size:16px;color:var(--text-primary);letter-spacing:0.5px">Thư Viện HDPE</span>
-                <span class="badge badge-purple" style="font-size:10px">Cổng tra cứu</span>
+        <header class="topbar topbar--guest">
+            <div class="topbar-guest-left">
+                <i class="bi bi-bookshelf"></i>
+                <span class="topbar-guest-title">Thư Viện HDPE</span>
+                <span class="badge badge-purple">Cổng tra cứu</span>
             </div>
-            <div style="display:flex;align-items:center;gap:12px">
-                <a href="<?= $this->url('library/auth', ['action' => 'login']) ?>" class="btn btn-primary btn-sm" style="padding:8px 16px">
+            <div class="topbar-guest-right">
+                <a href="<?= $this->url('announcements') ?>" class="btn btn-outline btn-sm topbar-guest-btn-announcement">
+                    <i class="bi bi-megaphone-fill"></i>Bảng tin
+                </a>
+                <a href="<?= $this->url('library/auth', ['action' => 'login']) ?>" class="btn btn-primary btn-sm topbar-guest-btn-login">
                     <i class="bi bi-box-arrow-in-right"></i>Đăng nhập
                 </a>
-                <a href="<?= $this->url('library/auth', ['action' => 'register']) ?>" class="btn btn-outline btn-sm" style="padding:8px 16px">
+                <a href="<?= $this->url('library/auth', ['action' => 'register']) ?>" class="btn btn-outline btn-sm topbar-guest-btn-register">
                     Đăng ký
                 </a>
             </div>
@@ -192,7 +220,7 @@ $pageLabel = $authUser ? ($pageLabels[$activeKey] ?? '') : 'Đăng nhập';
         <!-- FLASH MESSAGES -->
         <?php $flash = $this->flashMessenger(); ?>
         <?php if ($flash->hasSuccessMessages()): ?>
-        <div style="padding:16px 28px 0">
+        <div class="layout-flash-wrap">
             <?php foreach ($flash->getSuccessMessages() as $msg): ?>
             <div class="alert alert-success">
                 <i class="bi bi-check-circle"></i> <?= htmlspecialchars($msg) ?>
@@ -201,7 +229,7 @@ $pageLabel = $authUser ? ($pageLabels[$activeKey] ?? '') : 'Đăng nhập';
         </div>
         <?php endif; ?>
         <?php if ($flash->hasErrorMessages()): ?>
-        <div style="padding:16px 28px 0">
+        <div class="layout-flash-wrap">
             <?php foreach ($flash->getErrorMessages() as $msg): ?>
             <div class="alert alert-danger">
                 <i class="bi bi-exclamation-triangle"></i> <?= htmlspecialchars($msg) ?>
@@ -210,7 +238,7 @@ $pageLabel = $authUser ? ($pageLabels[$activeKey] ?? '') : 'Đăng nhập';
         </div>
         <?php endif; ?>
         <?php if ($flash->hasInfoMessages()): ?>
-        <div style="padding:16px 28px 0">
+        <div class="layout-flash-wrap">
             <?php foreach ($flash->getInfoMessages() as $msg): ?>
             <div class="alert alert-info">
                 <i class="bi bi-info-circle"></i> <?= htmlspecialchars($msg) ?>
@@ -223,7 +251,7 @@ $pageLabel = $authUser ? ($pageLabels[$activeKey] ?? '') : 'Đăng nhập';
         <?php if ($authUser): ?>
         <div class="page-body"><?= $this->content ?></div>
         <?php else: ?>
-        <div style="padding:32px 28px;flex:1;max-width:1200px;margin:0 auto;width:100%"><?= $this->content ?></div>
+        <div class="layout-guest-content-wrap"><?= $this->content ?></div>
         <?php endif; ?>
 
     </div><!-- /.main-content -->
@@ -258,16 +286,16 @@ setTimeout(() => {
     <!-- AI CHATBOX WIDGET -->
     <div id="ai-chatbox" class="chatbox-container">
         <div class="chatbox-header" onclick="toggleChatbox()">
-            <div style="display:flex;align-items:center;gap:10px;">
-                <div style="width:32px;height:32px;background:rgba(255, 255, 255, 0.15);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:bold;border: 1px solid rgba(255, 255, 255, 0.25);">
-                    <i class="bi bi-robot" style="font-size:16px;"></i>
+            <div class="chat-header-left">
+                <div class="chat-robot-avatar-wrap">
+                    <i class="bi bi-robot"></i>
                 </div>
                 <div>
-                    <div style="font-weight:bold;font-size:14px;color:var(--text-primary);">Trợ Lý AI Thư Viện</div>
-                    <div style="font-size:11px;color:var(--accent-green);display:flex;align-items:center;gap:4px;"><span style="width:6px;height:6px;background:var(--accent-green);border-radius:50%"></span>Hoạt động</div>
+                    <div class="chat-robot-name">Trợ Lý AI Thư Viện</div>
+                    <div class="chat-robot-status"><span class="chat-robot-status-dot"></span>Hoạt động</div>
                 </div>
             </div>
-            <i class="bi bi-chevron-down" id="chatbox-toggle-icon" style="color:var(--text-secondary);transition:transform 0.3s"></i>
+            <i class="bi bi-chevron-down chat-header-toggle-icon" id="chatbox-toggle-icon"></i>
         </div>
         <div class="chatbox-body" id="chatbox-body">
             <div class="chat-msg-row ai">
@@ -291,313 +319,7 @@ setTimeout(() => {
 
 
 
-    <style>
-    /* NOTIFICATION ITEMS STYLE */
-    .notification-item {
-        padding: 12px 18px; border-bottom: 1px solid var(--border); display: flex; gap: 12px;
-        text-decoration: none; color: inherit; transition: background 0.2s; cursor: pointer;
-        text-align: left;
-    }
-    .notification-item:hover { background: var(--bg-body); }
-    .notification-item:last-child { border-bottom: none; }
-    .notification-item .noti-icon {
-        width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-        background: rgba(124, 106, 255, 0.1); color: var(--accent-purple); font-size: 14px; flex-shrink: 0;
-    }
-    .notification-item.ticket .noti-icon { background: rgba(20, 184, 166, 0.1); color: #14b8a6; }
-    .notification-item.borrow_approved .noti-icon { background: rgba(34, 197, 94, 0.1); color: #22c55e; }
-    .notification-item.ticket_answered .noti-icon { background: rgba(20, 184, 166, 0.1); color: #14b8a6; }
-    .notification-item .noti-content { flex: 1; min-width: 0; }
-    .notification-item .noti-title { font-weight: 600; font-size: 13px; color: var(--text-primary); margin-bottom: 2px; }
-    .notification-item .noti-desc { font-size: 12px; color: var(--text-secondary); line-height: 1.4; }
-    .notification-item .noti-time { font-size: 10px; color: var(--text-muted); margin-top: 4px; }
 
-    /* Wrapper & Delete Button for Notifications */
-    .notification-item-wrapper {
-        position: relative;
-        display: flex;
-        align-items: center;
-        border-bottom: 1px solid var(--border);
-        transition: background 0.2s;
-    }
-    .notification-item-wrapper:last-child {
-        border-bottom: none;
-    }
-    .notification-item-wrapper:hover {
-        background: var(--bg-body);
-    }
-    .notification-item-wrapper .notification-item {
-        flex: 1;
-        border-bottom: none;
-        padding-right: 48px; /* space for delete button */
-    }
-    .notification-item-wrapper .notification-item:hover {
-        background: transparent;
-    }
-    .notification-item-wrapper.read {
-        opacity: 0.65;
-    }
-    .notification-item-wrapper.read .noti-title {
-        font-weight: normal !important;
-    }
-    .delete-noti-btn {
-        position: absolute;
-        right: 14px;
-        top: 50%;
-        transform: translateY(-50%);
-        background: none;
-        border: none;
-        padding: 6px;
-        cursor: pointer;
-        color: var(--text-muted);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 50%;
-        transition: color 0.2s, background-color 0.2s;
-        outline: none;
-        z-index: 2;
-    }
-    .delete-noti-btn:hover {
-        color: #ef4444 !important;
-        background-color: rgba(239, 68, 68, 0.1);
-    }
-
-    .chatbox-container {
-        position: fixed;
-        bottom: 85px;
-        right: 24px;
-        width: 360px;
-        height: 480px;
-        background: linear-gradient(135deg, rgba(22, 24, 36, 0.85), rgba(30, 33, 48, 0.9));
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
-        border: 1px solid rgba(124, 106, 255, 0.25);
-        border-radius: 16px;
-        box-shadow: 0 20px 50px rgba(0,0,0,0.5), 0 0 30px rgba(124, 106, 255, 0.08);
-        display: flex;
-        flex-direction: column;
-        overflow: hidden;
-        transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
-        z-index: 9999;
-        transform-origin: bottom right;
-        transform: scale(0.8) translateY(30px);
-        opacity: 0;
-        pointer-events: none;
-    }
-    .chatbox-container.active {
-        transform: scale(1) translateY(0);
-        opacity: 1;
-        pointer-events: auto;
-    }
-    .chatbox-header {
-        background: rgba(124, 106, 255, 0.04);
-        border-bottom: 1px solid rgba(124, 106, 255, 0.15);
-        color: var(--text-primary);
-        padding: 14px 18px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        cursor: pointer;
-    }
-    .chatbox-container.active .chatbox-header #chatbox-toggle-icon {
-        transform: rotate(180deg);
-    }
-    .chatbox-body {
-        flex: 1;
-        padding: 16px;
-        overflow-y: auto;
-        display: flex;
-        flex-direction: column;
-        gap: 16px;
-        background: transparent;
-    }
-    .chatbox-body::-webkit-scrollbar {
-        width: 5px;
-    }
-    .chatbox-body::-webkit-scrollbar-track {
-        background: transparent;
-    }
-    .chatbox-body::-webkit-scrollbar-thumb {
-        background: rgba(124, 106, 255, 0.2);
-        border-radius: 10px;
-    }
-    .chat-msg-row {
-        display: flex;
-        gap: 10px;
-        max-width: 85%;
-        align-items: flex-end;
-    }
-    .chat-msg-row.ai {
-        align-self: flex-start;
-    }
-    .chat-msg-row.user {
-        align-self: flex-end;
-        flex-direction: row-reverse;
-    }
-    .chat-avatar {
-        width: 28px;
-        height: 28px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 11px;
-        font-weight: 700;
-        flex-shrink: 0;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-    }
-    .ai-avatar {
-        background: linear-gradient(135deg, var(--accent-purple), #5b4fcf);
-        color: white;
-        border: 1px solid rgba(124, 106, 255, 0.4);
-    }
-    .user-avatar {
-        background: linear-gradient(135deg, var(--accent-blue), #2563eb);
-        color: white;
-        border: 1px solid rgba(255, 255, 255, 0.15);
-        object-fit: cover;
-    }
-    .chat-msg-wrapper {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-        max-width: calc(100% - 38px);
-    }
-    .chat-msg {
-        padding: 10px 14px;
-        font-size: 13px;
-        line-height: 1.45;
-        word-break: break-word;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.15);
-    }
-    .ai-msg {
-        background: rgba(255, 255, 255, 0.04);
-        color: var(--text-primary);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 14px 14px 14px 4px;
-    }
-    .user-msg {
-        background: linear-gradient(135deg, var(--accent-purple), #6352e0);
-        color: white;
-        border: 1px solid rgba(124, 106, 255, 0.4);
-        border-radius: 14px 14px 4px 14px;
-    }
-    .chatbox-footer {
-        padding: 12px 16px;
-        border-top: 1px solid rgba(124, 106, 255, 0.15);
-        background: rgba(22, 24, 36, 0.95);
-        display: flex;
-        gap: 8px;
-        align-items: center;
-    }
-    #chatbox-input {
-        flex: 1;
-        padding: 8px 14px;
-        border: 1px solid rgba(124, 106, 255, 0.18);
-        border-radius: 20px;
-        background: rgba(15, 17, 23, 0.65);
-        color: var(--text-primary);
-        font-size: 13px;
-        outline: none;
-        transition: all 0.25s ease;
-    }
-    #chatbox-input:focus {
-        background: rgba(15, 17, 23, 0.85);
-        border-color: rgba(124, 106, 255, 0.6);
-        box-shadow: 0 0 10px rgba(124, 106, 255, 0.25);
-    }
-    .chatbox-footer button {
-        width: 32px;
-        height: 32px;
-        border-radius: 50%;
-        border: none;
-        background: linear-gradient(135deg, var(--accent-purple), #6352e0);
-        color: white;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        padding: 0;
-        transition: var(--transition);
-        box-shadow: 0 2px 6px rgba(124, 106, 255, 0.3);
-    }
-    .chatbox-footer button:hover {
-        transform: scale(1.08);
-        box-shadow: 0 4px 12px rgba(124, 106, 255, 0.5);
-    }
-    .chatbox-fab {
-        position: fixed;
-        bottom: 20px;
-        right: 24px;
-        width: 50px;
-        height: 50px;
-        border-radius: 50%;
-        background: linear-gradient(135deg, var(--accent-purple), var(--accent-blue));
-        color: white;
-        border: none;
-        font-size: 20px;
-        box-shadow: 0 5px 15px rgba(124, 106, 255, 0.4);
-        cursor: pointer;
-        z-index: 9998;
-        transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-    .chatbox-fab:hover {
-        transform: scale(1.08);
-        box-shadow: 0 8px 20px rgba(124,106,255,0.5);
-    }
-    .chatbox-container.active + .chatbox-fab {
-        transform: scale(0.8) rotate(45deg);
-        background: #ef4444;
-        box-shadow: 0 5px 15px rgba(239, 68, 68, 0.4);
-    }
-    .typing-indicator {
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-        padding: 8px 12px;
-        background: rgba(255, 255, 255, 0.04);
-        border-radius: 12px;
-        align-self: flex-start;
-        border: 1px solid rgba(255, 255, 255, 0.08);
-    }
-    .typing-dot {
-        width: 6px;
-        height: 6px;
-        background: var(--text-muted);
-        border-radius: 50%;
-        animation: typing 1.4s infinite ease-in-out both;
-    }
-    .typing-dot:nth-child(1) { animation-delay: -0.32s; }
-    .typing-dot:nth-child(2) { animation-delay: -0.16s; }
-    @keyframes typing { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
-    .book-suggestion {
-        margin-top: 4px;
-        padding: 8px 12px;
-        border-radius: 8px;
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(124, 106, 255, 0.15);
-        font-size: 11.5px;
-        cursor: pointer;
-        transition: all 0.2s ease;
-    }
-    .book-suggestion:hover {
-        background: rgba(124, 106, 255, 0.08);
-        border-color: rgba(124, 106, 255, 0.45);
-        transform: translateY(-1px);
-    }
-    .book-suggestion .suggestion-title {
-        font-weight: 600;
-        color: var(--accent-purple);
-        margin-bottom: 2px;
-    }
-    .book-suggestion .suggestion-author {
-        color: var(--text-muted);
-    }
-    </style>
 
     <script>
     const userInitials = <?= json_encode($userInitials) ?>;
@@ -664,7 +386,7 @@ setTimeout(() => {
             if (data.suggestions && data.suggestions.length > 0) {
                 data.suggestions.forEach(book => {
                     suggestionsHtml += `
-                    <div class="book-suggestion" onclick="window.location.href='<?= $this->url('catalog') ?>?q=' + encodeURIComponent('${book.title}')">
+                    <div class="book-suggestion" onclick="window.location.href='<?= $this->url('catalog') ?>?search=' + encodeURIComponent('${book.title}')">
                         <div class="suggestion-title"><i class="bi bi-book"></i> ${escapeHtml(book.title)}</div>
                         <div class="suggestion-author">${escapeHtml(book.author)}</div>
                     </div>`;
@@ -690,7 +412,7 @@ setTimeout(() => {
                 <div class="chat-msg-row ai">
                     <div class="chat-avatar ai-avatar"><i class="bi bi-robot"></i></div>
                     <div class="chat-msg-wrapper">
-                        <div class="chat-msg ai-msg" style="color:#ef4444">Lỗi kết nối. Vui lòng thử lại sau.</div>
+                        <div class="chat-msg ai-msg chat-msg-error">Lỗi kết nối. Vui lòng thử lại sau.</div>
                     </div>
                 </div>`;
             body.scrollTop = body.scrollHeight;
@@ -780,8 +502,8 @@ setTimeout(() => {
                 badge.style.display = 'none';
                 countBadge.textContent = '0 mới';
                 list.innerHTML = `
-                    <div class="notification-empty" style="padding:30px;text-align:center;color:var(--text-muted);font-size:12px">
-                        <i class="bi bi-bell-slash" style="font-size:24px;display:block;margin-bottom:6px"></i>
+                    <div class="notification-empty noti-empty">
+                        <i class="bi bi-bell-slash"></i>
                         Không có thông báo nào mới.
                     </div>
                 `;

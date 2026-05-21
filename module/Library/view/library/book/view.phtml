@@ -29,74 +29,106 @@ $statusMap = [
 </div>
 
 <?php if ($canManage && $hasActiveBorrow) : ?>
-    <div class="alert alert-danger" style="margin-bottom:20px">
+    <div class="alert alert-danger book-view-alert-danger">
         <i class="bi bi-exclamation-triangle"></i>
         Sách này đang có lượt mượn chưa trả, hệ thống tạm khóa tính năng xóa.
     </div>
 <?php endif; ?>
 
-<div style="max-width:800px">
+<div class="book-view-container">
     <div class="card">
         <div class="card-body">
-            <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:20px">
-                <div>
-                    <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Mã sách</div>
-                    <div style="font-weight:600;font-size:15px;color:var(--accent-purple)">#<?= (int) $book->id ?></div>
+            <div class="book-view-flex-wrap">
+                <!-- Cover Image Column -->
+                <div class="book-view-cover-col">
+                    <?php
+                    $coverGradients = [
+                        'linear-gradient(135deg,#7c6aff,#5b4fcf)',
+                        'linear-gradient(135deg,#f97316,#ea580c)',
+                        'linear-gradient(135deg,#14b8a6,#0d9488)',
+                        'linear-gradient(135deg,#3b82f6,#2563eb)',
+                        'linear-gradient(135deg,#ec4899,#db2777)',
+                        'linear-gradient(135deg,#22c55e,#16a34a)',
+                    ];
+                    $grad = $coverGradients[(int)$book->id % count($coverGradients)];
+                    $hasCover = !empty($book->coverImageUrl);
+                    $coverStyle = $hasCover
+                        ? 'background: url(' . htmlspecialchars($book->coverImageUrl) . ') center/cover no-repeat;'
+                        : 'background: ' . $grad . ';';
+                    ?>
+                    <div class="book-view-cover-static" style="<?= $coverStyle ?>">
+                        <?php if (!$hasCover): ?>
+                            <i class="bi bi-book-open"></i>
+                        <?php endif; ?>
+                    </div>
                 </div>
-                <div>
-                    <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Trạng thái</div>
-                    <div><span class="badge <?= $statusClass ?>"><?= $statusLabel ?></span></div>
+
+                <!-- Info Grid Column -->
+                <div class="book-view-info-col">
+                    <div class="book-view-info-grid">
+                        <div>
+                            <div class="book-view-label">Mã sách</div>
+                            <div class="book-view-val-purple">#<?= (int) $book->id ?></div>
+                        </div>
+                        <div>
+                            <div class="book-view-label">Trạng thái</div>
+                            <div><span class="badge <?= $statusClass ?>"><?= $statusLabel ?></span></div>
+                        </div>
+                        <div>
+                            <div class="book-view-label">Tên sách</div>
+                            <div class="book-view-val-primary"><?= htmlspecialchars($book->title) ?></div>
+                        </div>
+                        <div>
+                            <div class="book-view-label">Tác giả</div>
+                            <div class="book-view-val-secondary"><?= htmlspecialchars($book->author) ?></div>
+                        </div>
+                        <div>
+                            <div class="book-view-label">ISBN</div>
+                            <div><code class="book-view-isbn-code"><?= htmlspecialchars($book->isbn !== '' ? $book->isbn : '—') ?></code></div>
+                        </div>
+                        <div>
+                            <div class="book-view-label">Thể loại</div>
+                            <div><span class="badge badge-purple"><?= htmlspecialchars($book->category) ?></span></div>
+                        </div>
+                        <div>
+                            <div class="book-view-label">Nhà xuất bản</div>
+                            <div class="book-view-val-secondary"><?= htmlspecialchars($book->publisher ?: '—') ?></div>
+                        </div>
+                        <div>
+                            <div class="book-view-label">Năm xuất bản</div>
+                            <div class="book-view-val-secondary"><?= htmlspecialchars($book->publishedYear ?: '—') ?></div>
+                        </div>
+                        <div>
+                            <div class="book-view-label">Số bản khả dụng</div>
+                            <div class="book-view-val-primary"><?= (int) $book->quantity ?></div>
+                        </div>
+                        <div>
+                            <div class="book-view-label">Tổng số lượt mượn</div>
+                            <div class="book-view-val-purple"><?= (int) $book->borrowCount ?> lượt</div>
+                        </div>
+                        <div>
+                            <div class="book-view-label">Ngày tạo</div>
+                            <div class="book-view-val-secondary"><?= htmlspecialchars($book->createdAt !== '' ? $book->createdAt : '—') ?></div>
+                        </div>
+                        <?php if ($book->description): ?>
+                        <div class="book-view-col-span-2">
+                            <div class="book-view-label">Mô tả sách</div>
+                            <div class="book-view-description"><?= nl2br(htmlspecialchars($book->description)) ?></div>
+                        </div>
+                        <?php endif; ?>
+                    </div>
                 </div>
-                <div>
-                    <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Tên sách</div>
-                    <div style="font-weight:600;font-size:15px;color:var(--text-primary)"><?= htmlspecialchars($book->title) ?></div>
-                </div>
-                <div>
-                    <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Tác giả</div>
-                    <div style="color:var(--text-secondary)"><?= htmlspecialchars($book->author) ?></div>
-                </div>
-                <div>
-                    <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">ISBN</div>
-                    <div><code style="color:var(--accent-orange);background:var(--bg-secondary);padding:2px 6px;border-radius:4px"><?= htmlspecialchars($book->isbn !== '' ? $book->isbn : '—') ?></code></div>
-                </div>
-                <div>
-                    <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Thể loại</div>
-                    <div><span class="badge badge-purple"><?= htmlspecialchars($book->category) ?></span></div>
-                </div>
-                <div>
-                    <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Nhà xuất bản</div>
-                    <div style="color:var(--text-secondary)"><?= htmlspecialchars($book->publisher ?: '—') ?></div>
-                </div>
-                <div>
-                    <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Năm xuất bản</div>
-                    <div style="color:var(--text-secondary)"><?= htmlspecialchars($book->publishedYear ?: '—') ?></div>
-                </div>
-                <div>
-                    <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Số bản khả dụng</div>
-                    <div style="font-weight:600;font-size:15px;color:var(--text-primary)"><?= (int) $book->quantity ?></div>
-                </div>
-                <div>
-                    <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Ngày tạo</div>
-                    <div style="color:var(--text-secondary)"><?= htmlspecialchars($book->createdAt !== '' ? $book->createdAt : '—') ?></div>
-                </div>
-                <?php if ($book->description): ?>
-                <div style="grid-column: span 2;">
-                    <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Mô tả sách</div>
-                    <div style="color:var(--text-secondary);line-height:1.6"><?= nl2br(htmlspecialchars($book->description)) ?></div>
-                </div>
-                <?php endif; ?>
             </div>
 
-            <div style="height:1px;background:var(--border-color);margin:24px 0 18px"></div>
+            <div class="book-view-divider"></div>
 
             <?php if ($canManage): ?>
             <div class="d-flex gap-2">
                 <form method="POST"
                       action="<?= $this->url($routePrefix . '/book', ['action' => 'delete', 'id' => $book->id]) ?>"
                       data-confirm="Bạn có chắc muốn xóa sách '<?= htmlspecialchars($book->title) ?>'?"
-                      style="margin:0">
-                    <button type="submit" class="btn btn-sm"
-                            style="background:rgba(239,68,68,.12);color:#ef4444;border:1px solid rgba(239,68,68,.2)"
+                      class="book-view-delete-form">
+                    <button type="submit" class="btn btn-sm book-view-btn-delete"
                             <?= $hasActiveBorrow ? 'disabled' : '' ?>>
                         <i class="bi bi-trash"></i>Xóa sách
                     </button>
@@ -113,17 +145,17 @@ $statusMap = [
     </div>
 
     <!-- REVIEWS SECTION -->
-    <div class="card" style="margin-top:24px">
-        <div class="card-header" style="border-bottom:1px solid var(--border);padding-bottom:12px;margin-bottom:16px;">
-            <h3 style="margin:0;font-size:18px;"><i class="bi bi-star-fill" style="color:#f59e0b;margin-right:8px;"></i>Đánh giá & Nhận xét</h3>
+    <div class="card book-reviews-card">
+        <div class="card-header book-reviews-header">
+            <h3 class="book-reviews-title"><i class="bi bi-star-fill book-reviews-title-icon"></i>Đánh giá & Nhận xét</h3>
         </div>
         <div class="card-body">
             <?php if (isset($currentUser) && $currentUser['role'] === 'student'): ?>
-            <form method="POST" action="<?= $this->url($routePrefix . '/book', ['action' => 'review', 'id' => $book->id]) ?>" style="margin-bottom:24px;background:var(--bg-body);padding:16px;border-radius:8px;border:1px solid var(--border);">
-                <div style="font-weight:600;margin-bottom:8px;">Viết nhận xét của bạn</div>
-                <div style="margin-bottom:12px;">
-                    <label style="margin-right:12px;">Đánh giá:</label>
-                    <select name="rating" class="form-select" style="display:inline-block;width:auto;" required>
+            <form method="POST" action="<?= $this->url($routePrefix . '/book', ['action' => 'review', 'id' => $book->id]) ?>" class="book-reviews-form">
+                <div class="book-reviews-form-title">Viết nhận xét của bạn</div>
+                <div class="book-reviews-form-rating-row">
+                    <label class="book-reviews-form-rating-label">Đánh giá:</label>
+                    <select name="rating" class="form-select book-reviews-form-rating-select" required>
                         <option value="5">5 Sao - Rất hay</option>
                         <option value="4">4 Sao - Hay</option>
                         <option value="3">3 Sao - Tạm được</option>
@@ -132,35 +164,35 @@ $statusMap = [
                     </select>
                 </div>
                 <textarea name="comment" class="form-control" rows="3" placeholder="Chia sẻ cảm nghĩ của bạn về cuốn sách này..." required></textarea>
-                <div style="margin-top:12px;text-align:right;">
+                <div class="book-reviews-form-submit-row">
                     <button type="submit" class="btn btn-primary">Gửi nhận xét</button>
                 </div>
             </form>
             <?php endif; ?>
 
             <?php if (empty($reviews)): ?>
-                <div style="text-align:center;padding:24px;color:var(--text-muted);">
-                    <i class="bi bi-chat-square-text" style="font-size:32px;display:block;margin-bottom:8px;opacity:0.5;"></i>
+                <div class="book-reviews-empty">
+                    <i class="bi bi-chat-square-text book-reviews-empty-icon"></i>
                     Chưa có nhận xét nào.
                 </div>
             <?php else: ?>
-                <div style="display:flex;flex-direction:column;gap:16px;">
+                <div class="book-reviews-list">
                 <?php foreach ($reviews as $rev): ?>
-                    <div style="padding-bottom:16px;border-bottom:1px solid var(--border);">
-                        <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
-                            <div style="font-weight:600;">
+                    <div class="book-reviews-item">
+                        <div class="book-reviews-item-header">
+                            <div class="book-reviews-item-author">
                                 <?= htmlspecialchars($rev['full_name']) ?>
                                 <?php if ($rev['role'] === 'admin'): ?>
-                                    <span class="badge badge-orange" style="margin-left:6px;font-size:10px;">Admin</span>
+                                    <span class="badge badge-orange book-reviews-item-author-admin-badge">Admin</span>
                                 <?php endif; ?>
                             </div>
-                            <div style="font-size:12px;color:var(--text-muted);"><?= date('d/m/Y H:i', strtotime($rev['created_at'])) ?></div>
+                            <div class="book-reviews-item-date"><?= date('d/m/Y H:i', strtotime($rev['created_at'])) ?></div>
                         </div>
-                        <div style="color:#f59e0b;font-size:12px;margin-bottom:8px;">
+                        <div class="book-reviews-item-rating">
                             <?= str_repeat('<i class="bi bi-star-fill"></i>', (int)$rev['rating']) ?>
                             <?= str_repeat('<i class="bi bi-star"></i>', 5 - (int)$rev['rating']) ?>
                         </div>
-                        <div style="color:var(--text-secondary);font-size:14px;line-height:1.5;">
+                        <div class="book-reviews-item-comment">
                             <?= nl2br(htmlspecialchars($rev['comment'])) ?>
                         </div>
                     </div>

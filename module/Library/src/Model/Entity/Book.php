@@ -18,6 +18,7 @@ class Book
     public string $status   = 'available';
     public string $createdAt = '';
     public string $lastReturnedAt = '';
+    public int $borrowCount = 0;
 
     // Phase 3.2
     public string $description   = '';
@@ -37,6 +38,7 @@ class Book
         $this->status    = (string) ($data['status'] ?? 'available');
         $this->createdAt = (string) ($data['created_at'] ?? '');
         $this->lastReturnedAt = (string) ($data['last_returned_at'] ?? '');
+        $this->borrowCount = (int) ($data['borrow_count'] ?? 0);
 
         // Phase 3.2
         $this->description   = (string) ($data['description'] ?? '');

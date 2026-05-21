@@ -172,6 +172,8 @@ class BookApiController extends AbstractRestfulController
                 foreach ($books as $b) {
                     $suggestions[] = ['title' => $b['title'], 'author' => $b['author'], 'id' => $b['id']];
                 }
+            } else {
+                $responseMsg = "Hiện tại các sách Công nghệ thông tin đã hết, bạn vui lòng quay lại sau nhé.";
             }
         } elseif (strpos($lowerMsg, 'kinh tế') !== false || strpos($lowerMsg, 'kinh doanh') !== false) {
             $books = $this->table->searchAvailable('Kinh tế', true, 3);
@@ -180,6 +182,48 @@ class BookApiController extends AbstractRestfulController
                 foreach ($books as $b) {
                     $suggestions[] = ['title' => $b['title'], 'author' => $b['author'], 'id' => $b['id']];
                 }
+            } else {
+                $responseMsg = "Hiện tại các sách Kinh tế - Kinh doanh đã hết, bạn vui lòng quay lại sau nhé.";
+            }
+        } elseif (strpos($lowerMsg, 'kỹ năng') !== false || strpos($lowerMsg, 'kĩ năng') !== false) {
+            $books = $this->table->searchAvailable('Kỹ năng', true, 3);
+            if ($books) {
+                $responseMsg = "Chào bạn! Đây là một số cuốn sách Kỹ năng sống cực kỳ bổ ích và hay đang có sẵn:";
+                foreach ($books as $b) {
+                    $suggestions[] = ['title' => $b['title'], 'author' => $b['author'], 'id' => $b['id']];
+                }
+            } else {
+                $responseMsg = "Hiện tại các sách Kỹ năng sống đã hết, bạn vui lòng quay lại sau nhé.";
+            }
+        } elseif (strpos($lowerMsg, 'thiếu nhi') !== false || strpos($lowerMsg, 'trẻ em') !== false) {
+            $books = $this->table->searchAvailable('Thiếu nhi', true, 3);
+            if ($books) {
+                $responseMsg = "Thư viện có những tựa sách Thiếu nhi rất thú vị dành cho bạn đây:";
+                foreach ($books as $b) {
+                    $suggestions[] = ['title' => $b['title'], 'author' => $b['author'], 'id' => $b['id']];
+                }
+            } else {
+                $responseMsg = "Hiện tại các sách Thiếu nhi đã hết, bạn vui lòng quay lại sau nhé.";
+            }
+        } elseif (strpos($lowerMsg, 'khoa học') !== false) {
+            $books = $this->table->searchAvailable('Khoa học', true, 3);
+            if ($books) {
+                $responseMsg = "Bạn đam mê khám phá? Thư viện đang sẵn có các sách Khoa học sau:";
+                foreach ($books as $b) {
+                    $suggestions[] = ['title' => $b['title'], 'author' => $b['author'], 'id' => $b['id']];
+                }
+            } else {
+                $responseMsg = "Hiện tại các sách Khoa học đã hết, bạn vui lòng quay lại sau nhé.";
+            }
+        } elseif (strpos($lowerMsg, 'lịch sử') !== false) {
+            $books = $this->table->searchAvailable('Lịch sử', true, 3);
+            if ($books) {
+                $responseMsg = "Tìm hiểu lịch sử cùng những cuốn sách nổi bật này nhé:";
+                foreach ($books as $b) {
+                    $suggestions[] = ['title' => $b['title'], 'author' => $b['author'], 'id' => $b['id']];
+                }
+            } else {
+                $responseMsg = "Hiện tại các sách Lịch sử đã hết, bạn vui lòng quay lại sau nhé.";
             }
         } else {
             // General search
@@ -190,7 +234,7 @@ class BookApiController extends AbstractRestfulController
                     $suggestions[] = ['title' => $b['title'], 'author' => $b['author'], 'id' => $b['id']];
                 }
             } else {
-                $responseMsg = "Hiện tại tôi chưa tìm thấy sách nào khớp với yêu cầu của bạn. Bạn có thể tìm thể loại khác nhé (VD: Công nghệ, Văn học, Khoa học...).";
+                $responseMsg = "Hiện tại tôi chưa tìm thấy sách nào khớp với yêu cầu của bạn. Bạn có thể tìm thể loại khác nhé (VD: Công nghệ, Văn học, Kinh tế, Kỹ năng, Thiếu nhi, Khoa học, Lịch sử...).";
             }
         }
 

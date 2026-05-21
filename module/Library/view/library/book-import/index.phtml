@@ -2,37 +2,37 @@
 $this->headTitle('Nhập sách Online & Thống kê chi tiêu');
 ?>
 
-<div class="page-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
+<div class="page-header book-import-header">
     <div>
-        <h1 class="page-title"><i class="bi bi-box-seam" style="color:var(--accent-purple);margin-right:12px"></i>Nhập sách trực tiếp</h1>
-        <p class="text-muted" style="font-size:13px;margin:4px 0 0 0">Quản lý quy trình nhập kho sách và theo dõi chi tiêu ngân sách thư viện.</p>
+        <h1 class="page-title"><i class="bi bi-box-seam book-import-title-icon"></i>Nhập sách trực tiếp</h1>
+        <p class="text-muted book-import-subtitle">Quản lý quy trình nhập kho sách và theo dõi chi tiêu ngân sách thư viện.</p>
     </div>
-    <div style="display:flex;gap:12px">
-        <a href="<?= $this->url('library/books-import', ['action' => 'export'], ['query' => ['year' => $selectedYear]]) ?>" class="btn btn-outline"><i class="bi bi-file-earmark-spreadsheet" style="margin-right:6px;color:#10b981"></i>Xuất báo cáo</a>
-        <button class="btn btn-primary" onclick="toggleAddModal()"><i class="bi bi-plus-circle" style="margin-right:6px"></i>Nhập kho mới</button>
+    <div class="book-import-actions-row">
+        <a href="<?= $this->url('library/books-import', ['action' => 'export'], ['query' => ['year' => $selectedYear]]) ?>" class="btn btn-outline"><i class="bi bi-file-earmark-spreadsheet book-import-btn-report-icon"></i>Xuất báo cáo</a>
+        <button class="btn btn-primary" onclick="toggleAddModal()"><i class="bi bi-plus-circle book-import-btn-new-icon"></i>Nhập kho mới</button>
     </div>
 </div>
 
 <!-- STATS REPORT PANEL -->
-<div class="card" style="margin-bottom:24px">
-    <div class="card-header" style="display:flex;justify-content:space-between;align-items:center">
-        <div class="card-title"><i class="bi bi-bar-chart" style="color:#22c55e;margin-right:8px"></i>Thống kê chi tiêu theo Quý</div>
-        <form method="get" id="year-filter-form" style="display:flex;align-items:center;gap:8px">
-            <label for="year-select" style="font-size:12px;color:var(--text-muted)">Năm thống kê:</label>
-            <select id="year-select" name="year" class="form-control" onchange="this.form.submit()" style="font-size:12px;padding:4px 8px;width:100px;height:auto">
+<div class="card book-import-card-margin">
+    <div class="card-header book-import-card-header">
+        <div class="card-title"><i class="bi bi-bar-chart book-import-card-title-icon"></i>Thống kê chi tiêu theo Quý</div>
+        <form method="get" id="year-filter-form" class="book-import-filter-form">
+            <label for="year-select" class="book-import-filter-label">Năm thống kê:</label>
+            <select id="year-select" name="year" class="form-control book-import-filter-select" onchange="this.form.submit()">
                 <?php for($y = date('Y') - 5; $y <= date('Y'); $y++): ?>
                     <option value="<?= $y ?>" <?= $y === $selectedYear ? 'selected' : '' ?>><?= $y ?></option>
                 <?php endfor; ?>
             </select>
         </form>
     </div>
-    <div class="card-body" style="padding:20px">
-        <div style="display:grid;grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));gap:16px;margin-bottom:12px">
+    <div class="card-body book-import-card-body">
+        <div class="book-import-stats-grid">
             <!-- Year Summary -->
-            <div style="background:rgba(255,255,255,0.02);border:1px solid var(--border-color);border-radius:12px;padding:16px;text-align:center">
-                <div style="font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px">Tổng chi tiêu năm <?= $selectedYear ?></div>
-                <div style="font-size:24px;font-weight:700;color:var(--accent-purple);margin:8px 0"><?= number_format($totalSpendYear, 0, ',', '.') ?> đ</div>
-                <div style="font-size:11px;color:var(--text-muted)"><i class="bi bi-journal-plus"></i> Đã nhập <?= $totalImportsYear ?> đầu sách</div>
+            <div class="book-import-stat-card-main">
+                <div class="book-import-stat-label">Tổng chi tiêu năm <?= $selectedYear ?></div>
+                <div class="book-import-stat-value-main"><?= number_format($totalSpendYear, 0, ',', '.') ?> đ</div>
+                <div class="book-import-stat-sub-main"><i class="bi bi-journal-plus"></i> Đã nhập <?= $totalImportsYear ?> đầu sách</div>
             </div>
             
             <?php 
@@ -41,20 +41,20 @@ $this->headTitle('Nhập sách Online & Thống kê chi tiêu');
             foreach($quarterlyStats as $qtr => $data): 
                 $color = $quartersColors[$qtr];
             ?>
-            <div style="background:rgba(255,255,255,0.02);border:1px solid var(--border-color);border-radius:12px;padding:16px">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-                    <span style="font-weight:600;font-size:13px;color:var(--text-primary)"><?= $quartersNames[$qtr] ?></span>
-                    <span class="badge" style="background:<?= $color ?>15;color:<?= $color ?>;font-size:10px"><?= $data['count'] ?> yêu cầu</span>
+            <div class="book-import-stat-card-quarter">
+                <div class="book-import-stat-quarter-header">
+                    <span class="book-import-stat-quarter-name"><?= $quartersNames[$qtr] ?></span>
+                    <span class="badge book-import-stat-quarter-badge" style="background:<?= $color ?>15;color:<?= $color ?>"><?= $data['count'] ?> yêu cầu</span>
                 </div>
-                <div style="font-size:18px;font-weight:700;color:var(--text-primary);margin-bottom:8px"><?= number_format($data['spend'], 0, ',', '.') ?> đ</div>
+                <div class="book-import-stat-quarter-spend"><?= number_format($data['spend'], 0, ',', '.') ?> đ</div>
                 <!-- Mini Progress Bar -->
                 <?php 
                     $percent = $totalSpendYear > 0 ? ($data['spend'] / $totalSpendYear) * 100 : 0;
                 ?>
-                <div style="height:6px;background:var(--border-color);border-radius:3px;overflow:hidden">
-                    <div style="height:100%;width:<?= $percent ?>%;background:<?= $color ?>;border-radius:3px"></div>
+                <div class="book-import-progress-bar-wrap">
+                    <div class="book-import-progress-bar-fill" style="width:<?= $percent ?>%;background:<?= $color ?>"></div>
                 </div>
-                <div style="font-size:10px;color:var(--text-muted);text-align:right;margin-top:4px"><?= number_format($percent, 1) ?>% của năm</div>
+                <div class="book-import-stat-quarter-pct"><?= number_format($percent, 1) ?>% của năm</div>
             </div>
             <?php endforeach; ?>
         </div>
@@ -64,9 +64,9 @@ $this->headTitle('Nhập sách Online & Thống kê chi tiêu');
 <!-- DATA LIST -->
 <div class="card">
     <div class="card-header">
-        <div class="card-title"><i class="bi bi-list-task" style="color:var(--accent-purple);margin-right:8px"></i>Lịch sử phiếu nhập kho sách</div>
+        <div class="card-title"><i class="bi bi-list-task book-import-list-title-icon"></i>Lịch sử phiếu nhập kho sách</div>
     </div>
-    <div style="overflow-x:auto">
+    <div class="book-import-table-container">
         <table class="data-table">
             <thead>
                 <tr>
@@ -85,8 +85,8 @@ $this->headTitle('Nhập sách Online & Thống kê chi tiêu');
             <tbody>
                 <?php if (empty($imports)): ?>
                     <tr>
-                        <td colspan="10" style="text-align:center;padding:48px;color:var(--text-muted)">
-                            <i class="bi bi-box-seam" style="font-size:32px;display:block;margin-bottom:12px"></i>
+                        <td colspan="10" class="book-import-table-empty">
+                            <i class="bi bi-box-seam book-import-table-empty-icon"></i>
                             Chưa có yêu cầu nhập sách nào được ghi nhận.
                         </td>
                     </tr>
@@ -94,27 +94,27 @@ $this->headTitle('Nhập sách Online & Thống kê chi tiêu');
                     <?php foreach ($imports as $import): ?>
                         <tr>
                             <td class="text-muted">#<?= $import['import_id'] ?></td>
-                            <td><span style="font-family:monospace;font-size:12px;color:var(--text-secondary)"><?= htmlspecialchars($import['invoice_code']) ?></span></td>
+                            <td><span class="book-import-code"><?= htmlspecialchars($import['invoice_code']) ?></span></td>
                             <td>
-                                <div style="font-weight:600;color:var(--text-primary)"><?= htmlspecialchars($import['title']) ?></div>
-                                <div style="font-size:11px;color:var(--text-muted);margin-top:2px">
+                                <div class="book-import-item-title"><?= htmlspecialchars($import['title']) ?></div>
+                                <div class="book-import-item-meta">
                                     <span>Tác giả: <?= htmlspecialchars($import['author']) ?></span>
                                     <?php if(!empty($import['isbn'])): ?>
-                                        <span style="margin-left:8px">• ISBN: <?= htmlspecialchars($import['isbn']) ?></span>
+                                        <span class="book-import-item-meta-isbn">• ISBN: <?= htmlspecialchars($import['isbn']) ?></span>
                                     <?php endif; ?>
                                 </div>
                             </td>
-                            <td><span style="font-size:12px" class="badge badge-purple"><?= htmlspecialchars($import['category']) ?></span></td>
+                            <td><span class="badge badge-purple book-import-badge-cat"><?= htmlspecialchars($import['category']) ?></span></td>
                             <td class="fw-medium"><?= number_format((float)$import['price'], 0, ',', '.') ?> đ</td>
                             <td class="text-center"><?= $import['quantity'] ?></td>
-                            <td class="fw-bold" style="color:var(--text-primary)"><?= number_format((float)$import['price'] * $import['quantity'], 0, ',', '.') ?> đ</td>
+                            <td class="fw-bold book-import-item-price"><?= number_format((float)$import['price'] * $import['quantity'], 0, ',', '.') ?> đ</td>
                             <td>
                                 <?php if($import['import_type'] === 'purchase'): ?>
-                                    <span style="font-size:11px;color:#3b82f6"><i class="bi bi-credit-card" style="margin-right:4px"></i>Mua sắm</span>
+                                    <span class="book-import-type-badge" style="color:#3b82f6"><i class="bi bi-credit-card book-import-type-badge-icon"></i>Mua sắm</span>
                                 <?php elseif($import['import_type'] === 'donation'): ?>
-                                    <span style="font-size:11px;color:#10b981"><i class="bi bi-gift" style="margin-right:4px"></i>Tặng/Biếu</span>
+                                    <span class="book-import-type-badge" style="color:#10b981"><i class="bi bi-gift book-import-type-badge-icon"></i>Tặng/Biếu</span>
                                 <?php else: ?>
-                                    <span style="font-size:11px;color:var(--text-muted)"><i class="bi bi-circle" style="margin-right:4px"></i>Khác</span>
+                                    <span class="book-import-type-badge" style="color:var(--text-muted)"><i class="bi bi-circle book-import-type-badge-icon"></i>Khác</span>
                                 <?php endif; ?>
                             </td>
                             <td>
@@ -127,15 +127,15 @@ $this->headTitle('Nhập sách Online & Thống kê chi tiêu');
                                 <?php endif; ?>
                             </td>
                             <td>
-                                <div style="display:flex;gap:6px">
+                                <div class="book-import-row-actions">
                                     <?php if ($import['status'] === 'pending'): ?>
-                                        <a href="<?= $this->url('library/books-import', ['action' => 'update', 'id' => $import['import_id']], ['query' => ['status' => 'approved']]) ?>" class="btn btn-success btn-sm" style="padding:4px 8px;font-size:11px"><i class="bi bi-check-lg" style="margin-right:4px"></i>Nhập kho</a>
-                                        <a href="<?= $this->url('library/books-import', ['action' => 'update', 'id' => $import['import_id']], ['query' => ['status' => 'rejected']]) ?>" class="btn btn-danger btn-sm" style="padding:4px 8px;font-size:11px" onclick="return confirm('Bạn có chắc chắn muốn từ chối yêu cầu này?')"><i class="bi bi-x-circle" style="margin-right:4px"></i>Từ chối</a>
+                                        <a href="<?= $this->url('library/books-import', ['action' => 'update', 'id' => $import['import_id']], ['query' => ['status' => 'approved']]) ?>" class="btn btn-success btn-sm book-import-row-btn"><i class="bi bi-check-lg book-import-row-btn-icon"></i>Nhập kho</a>
+                                        <a href="<?= $this->url('library/books-import', ['action' => 'update', 'id' => $import['import_id']], ['query' => ['status' => 'rejected']]) ?>" class="btn btn-danger btn-sm book-import-row-btn" onclick="return confirm('Bạn có chắc chắn muốn từ chối yêu cầu này?')"><i class="bi bi-x-circle book-import-row-btn-icon"></i>Từ chối</a>
                                     <?php else: ?>
                                         <?php if ($import['status'] === 'approved'): ?>
-                                            <span style="font-size:11px;color:var(--text-muted)"><i class="bi bi-check2-circle" style="color:#10b981;margin-right:4px"></i>Đã vào kho (ID: <?= $import['book_id'] ?>)</span>
+                                            <span class="book-import-status-text"><i class="bi bi-check2-circle book-import-status-icon-approved"></i>Đã vào kho (ID: <?= $import['book_id'] ?>)</span>
                                         <?php else: ?>
-                                            <span style="font-size:11px;color:var(--text-muted)"><i class="bi bi-slash-circle" style="color:#ef4444;margin-right:4px"></i>Không xử lý</span>
+                                            <span class="book-import-status-text"><i class="bi bi-slash-circle book-import-status-icon-rejected"></i>Không xử lý</span>
                                         <?php endif; ?>
                                     <?php endif; ?>
                                 </div>
@@ -149,15 +149,15 @@ $this->headTitle('Nhập sách Online & Thống kê chi tiêu');
 </div>
 
 <?php if ($totalPages > 1): ?>
-<div style="display:flex;justify-content:space-between;align-items:center;margin-top:20px;flex-wrap:wrap;gap:12px">
-    <div style="font-size:12px;color:var(--text-muted)">
-        Hiển thị trang <strong style="color:var(--text-primary)"><?= $page ?></strong> / <?= $totalPages ?>
-        &nbsp;•&nbsp; Tổng <strong style="color:var(--text-primary)"><?= $totalCount ?></strong> phiếu nhập
+<div class="book-import-pagination-row">
+    <div class="book-import-pagination-info">
+        Hiển thị trang <strong class="book-import-pagination-bold"><?= $page ?></strong> / <?= $totalPages ?>
+        &nbsp;•&nbsp; Tổng <strong class="book-import-pagination-bold"><?= $totalCount ?></strong> phiếu nhập
     </div>
-    <div style="display:flex;gap:6px;flex-wrap:wrap">
+    <div class="book-import-pagination-btns">
         <?php if ($page > 1): ?>
-            <a href="<?= $this->url('library/books-import', [], ['query' => ['year' => $selectedYear, 'page' => 1]]) ?>" class="btn btn-outline btn-sm" style="padding:4px 10px;font-size:12px" title="Trang đầu"><i class="bi bi-chevron-double-left"></i></a>
-            <a href="<?= $this->url('library/books-import', [], ['query' => ['year' => $selectedYear, 'page' => $page - 1]]) ?>" class="btn btn-outline btn-sm" style="padding:4px 10px;font-size:12px"><i class="bi bi-chevron-left"></i> Trước</a>
+            <a href="<?= $this->url('library/books-import', [], ['query' => ['year' => $selectedYear, 'page' => 1]]) ?>" class="btn btn-outline btn-sm book-import-pagination-btn" title="Trang đầu"><i class="bi bi-chevron-double-left"></i></a>
+            <a href="<?= $this->url('library/books-import', [], ['query' => ['year' => $selectedYear, 'page' => $page - 1]]) ?>" class="btn btn-outline btn-sm book-import-pagination-btn"><i class="bi bi-chevron-left"></i> Trước</a>
         <?php endif; ?>
 
         <?php
@@ -166,65 +166,65 @@ $this->headTitle('Nhập sách Online & Thống kê chi tiêu');
         for ($p = $startPage; $p <= $endPage; $p++):
         ?>
             <a href="<?= $this->url('library/books-import', [], ['query' => ['year' => $selectedYear, 'page' => $p]]) ?>"
-               class="btn btn-sm <?= $p === $page ? 'btn-primary' : 'btn-outline' ?>"
-               style="padding:4px 10px;font-size:12px;min-width:32px;text-align:center"><?= $p ?></a>
+               class="btn btn-sm book-import-pagination-btn <?= $p === $page ? 'btn-primary' : 'btn-outline' ?>"
+               style="min-width:32px;text-align:center"><?= $p ?></a>
         <?php endfor; ?>
 
         <?php if ($page < $totalPages): ?>
-            <a href="<?= $this->url('library/books-import', [], ['query' => ['year' => $selectedYear, 'page' => $page + 1]]) ?>" class="btn btn-outline btn-sm" style="padding:4px 10px;font-size:12px">Sau <i class="bi bi-chevron-right"></i></a>
-            <a href="<?= $this->url('library/books-import', [], ['query' => ['year' => $selectedYear, 'page' => $totalPages]]) ?>" class="btn btn-outline btn-sm" style="padding:4px 10px;font-size:12px" title="Trang cuối"><i class="bi bi-chevron-double-right"></i></a>
+            <a href="<?= $this->url('library/books-import', [], ['query' => ['year' => $selectedYear, 'page' => $page + 1]]) ?>" class="btn btn-outline btn-sm book-import-pagination-btn">Sau <i class="bi bi-chevron-right"></i></a>
+            <a href="<?= $this->url('library/books-import', [], ['query' => ['year' => $selectedYear, 'page' => $totalPages]]) ?>" class="btn btn-outline btn-sm book-import-pagination-btn" title="Trang cuối"><i class="bi bi-chevron-double-right"></i></a>
         <?php endif; ?>
     </div>
 </div>
 <?php endif; ?>
 
 <!-- ADD MODAL -->
-<div id="addImportModal" class="modal-backdrop" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:9999;backdrop-filter:blur(4px);justify-content:center;align-items:center">
-    <div class="card" style="width:100%;max-width:550px;background:var(--bg-card);border:1px solid var(--border-color);border-radius:16px;box-shadow:0 20px 40px rgba(0,0,0,0.3);overflow:hidden">
-        <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;padding:16px 24px">
-            <div class="card-title" style="margin:0"><i class="bi bi-plus-circle-fill" style="color:var(--accent-purple);margin-right:8px"></i>Tạo phiếu nhập kho sách trực tiếp</div>
-            <button class="btn btn-outline btn-sm" onclick="toggleAddModal()" style="border:none;padding:4px 8px;font-size:18px"><i class="bi bi-x-lg"></i></button>
+<div id="addImportModal" class="modal-backdrop book-import-modal-backdrop">
+    <div class="card book-import-modal-card">
+        <div class="card-header book-import-modal-header">
+            <div class="card-title book-import-modal-title"><i class="bi bi-plus-circle-fill book-import-title-icon"></i>Tạo phiếu nhập kho sách trực tiếp</div>
+            <button class="btn btn-outline btn-sm book-import-modal-close-btn" onclick="toggleAddModal()"><i class="bi bi-x-lg"></i></button>
         </div>
         <form method="post" action="<?= $this->url('library/books-import') ?>" style="margin:0">
-            <div class="card-body" style="padding:24px;max-height:75vh;overflow-y:auto">
-                <div style="display:grid;grid-template-columns:1fr;gap:16px">
-                    <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:12px">
+            <div class="card-body book-import-modal-body">
+                <div class="book-import-modal-grid-1">
+                    <div class="book-import-modal-grid-15-1">
                         <div>
-                            <label class="form-label" style="font-size:12px;font-weight:600">Tên sách *</label>
+                            <label class="form-label book-import-modal-label">Tên sách *</label>
                             <input type="text" name="title" class="form-control" placeholder="Ví dụ: Lập trình PHP Laminas" required>
                         </div>
                         <div>
-                            <label class="form-label" style="font-size:12px;font-weight:600">Mã hóa đơn <span style="color:var(--text-muted);font-weight:400">(tự sinh nếu để trống)</span></label>
+                            <label class="form-label book-import-modal-label">Mã hóa đơn <span style="color:var(--text-muted);font-weight:400">(tự sinh nếu để trống)</span></label>
                             <input type="text" name="invoice_code" class="form-control" placeholder="Ví dụ: HD-2024-001">
                         </div>
                     </div>
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                    <div class="book-import-modal-grid-1-1">
                         <div>
-                            <label class="form-label" style="font-size:12px;font-weight:600">Tác giả</label>
+                            <label class="form-label book-import-modal-label">Tác giả</label>
                             <input type="text" name="author" class="form-control" placeholder="Tên tác giả">
                         </div>
                         <div>
-                            <label class="form-label" style="font-size:12px;font-weight:600">Mã ISBN</label>
+                            <label class="form-label book-import-modal-label">Mã ISBN</label>
                             <input type="text" name="isbn" class="form-control" placeholder="Mã ISBN">
                         </div>
                     </div>
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                    <div class="book-import-modal-grid-1-1">
                         <div>
-                            <label class="form-label" style="font-size:12px;font-weight:600">Thể loại</label>
+                            <label class="form-label book-import-modal-label">Thể loại</label>
                             <input type="text" name="category" class="form-control" placeholder="Ví dụ: Công nghệ thông tin">
                         </div>
                         <div>
-                            <label class="form-label" style="font-size:12px;font-weight:600">Nhà xuất bản</label>
+                            <label class="form-label book-import-modal-label">Nhà xuất bản</label>
                             <input type="text" name="publisher" class="form-control" placeholder="Tên nhà xuất bản">
                         </div>
                     </div>
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                    <div class="book-import-modal-grid-1-1">
                         <div>
-                            <label class="form-label" style="font-size:12px;font-weight:600">Năm xuất bản</label>
+                            <label class="form-label book-import-modal-label">Năm xuất bản</label>
                             <input type="number" name="published_year" class="form-control" min="1900" max="<?= date('Y') ?>" placeholder="YYYY">
                         </div>
                         <div>
-                            <label class="form-label" style="font-size:12px;font-weight:600">Phân loại nhập</label>
+                            <label class="form-label book-import-modal-label">Phân loại nhập</label>
                             <select name="import_type" class="form-control">
                                 <option value="purchase">Mua sắm (Purchase)</option>
                                 <option value="donation">Tặng/Biếu (Donation)</option>
@@ -232,27 +232,27 @@ $this->headTitle('Nhập sách Online & Thống kê chi tiêu');
                             </select>
                         </div>
                     </div>
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                    <div class="book-import-modal-grid-1-1">
                         <div>
-                            <label class="form-label" style="font-size:12px;font-weight:600">Số lượng nhập <span style="color:var(--text-muted);font-weight:400">(tối đa 1000)</span></label>
+                            <label class="form-label book-import-modal-label">Số lượng nhập <span style="color:var(--text-muted);font-weight:400">(tối đa 1000)</span></label>
                             <input type="number" name="quantity" class="form-control" min="1" max="1000" value="1" required>
                         </div>
                         <div>
-                            <label class="form-label" style="font-size:12px;font-weight:600">Đơn giá chi phí (đ)</label>
+                            <label class="form-label book-import-modal-label">Đơn giá chi phí (đ)</label>
                             <input type="number" name="price" class="form-control" min="0" value="0" step="1000">
                         </div>
                     </div>
                     <div>
-                        <label class="form-label" style="font-size:12px;font-weight:600">Đường dẫn Hóa đơn / Chứng từ (Invoice URL)</label>
+                        <label class="form-label book-import-modal-label">Đường dẫn Hóa đơn / Chứng từ (Invoice URL)</label>
                         <input type="text" name="invoice_url" class="form-control" placeholder="http://example.com/invoice.pdf">
                     </div>
                     <div>
-                        <label class="form-label" style="font-size:12px;font-weight:600">Ghi chú</label>
+                        <label class="form-label book-import-modal-label">Ghi chú</label>
                         <textarea name="note" class="form-control" placeholder="Ghi chú thêm về lô sách..." rows="3"></textarea>
                     </div>
                 </div>
             </div>
-            <div class="card-footer" style="padding:16px 24px;display:flex;justify-content:flex-end;gap:12px;background:rgba(255,255,255,0.01);border-top:1px solid var(--border-color)">
+            <div class="card-footer book-import-modal-footer">
                 <button type="button" class="btn btn-outline" onclick="toggleAddModal()">Hủy bỏ</button>
                 <button type="submit" class="btn btn-primary">Xác nhận nhập kho</button>
             </div>

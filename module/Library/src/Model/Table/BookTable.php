@@ -39,6 +39,10 @@ class BookTable
                     . 'WHERE br.book_id = books.book_id '
                     . 'AND br.returned_at IS NOT NULL)'
                 ),
+                'borrow_count' => new Expression(
+                    '(SELECT COUNT(*) FROM borrow_records br '
+                    . 'WHERE br.book_id = books.book_id)'
+                ),
             ]);
             $this->applyFilters($select, $filters);
             $select->order(self::PK . ' ASC');
@@ -66,6 +70,10 @@ class BookTable
                     . 'WHERE br.book_id = books.book_id '
                     . 'AND br.returned_at IS NOT NULL)'
                 ),
+                'borrow_count' => new Expression(
+                    '(SELECT COUNT(*) FROM borrow_records br '
+                    . 'WHERE br.book_id = books.book_id)'
+                ),
             ]);
             $this->applyFilters($select, $filters);
             $select->order(self::PK . ' ASC');
@@ -89,7 +97,33 @@ class BookTable
 
     public function getBook(int $id): Book
     {
-        $rowset = $this->tableGateway->select([self::PK => $id]);
+        $rowset = $this->tableGateway->select(function (Select $select) use ($id): void {
+            $select->columns([
+                'book_id',
+                'title',
+                'author',
+                'isbn',
+                'category',
+                'description',
+                'publisher',
+                'published_year',
+                'import_date',
+                'cover_image_url',
+                'quantity',
+                'status',
+                'created_at',
+                'last_returned_at' => new Expression(
+                    '(SELECT MAX(br.returned_at) FROM borrow_records br '
+                    . 'WHERE br.book_id = books.book_id '
+                    . 'AND br.returned_at IS NOT NULL)'
+                ),
+                'borrow_count' => new Expression(
+                    '(SELECT COUNT(*) FROM borrow_records br '
+                    . 'WHERE br.book_id = books.book_id)'
+                ),
+            ]);
+            $select->where([self::PK => $id]);
+        });
         $row    = $rowset instanceof \Iterator ? $rowset->current() : null;
         if (! $row instanceof Book) {
             throw new RuntimeException(sprintf('Không tìm thấy sách có ID %d.', $id));
@@ -292,7 +326,7 @@ class BookTable
             'status',
         ]);
 
-        // Tìm kiếm full-text theo title, author, isbn
+        // Tìm kiếm full-text theo title, author, isbn, category
         if ($query !== '') {
             $likeQuery = '%' . $query . '%';
             $select->where(function (Where $where) use ($likeQuery): void {
@@ -302,6 +336,8 @@ class BookTable
                     ->like('author', $likeQuery)
                     ->or
                     ->like('isbn',   $likeQuery)
+                    ->or
+                    ->like('category', $likeQuery)
                     ->unnest();
             });
         }

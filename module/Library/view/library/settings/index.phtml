@@ -1,0 +1,285 @@
+<?php
+$this->headTitle('Cài đặt hệ thống thư viện');
+$currentLogoUrl = $logoFile ? '/img/uploads/' . $logoFile : null;
+
+$typeMeta = [
+    'general' => ['📢', 'Chung',    'linear-gradient(135deg,#6366f1,#8b5cf6)', '#6366f1'],
+    'event'   => ['🎉', 'Sự kiện', 'linear-gradient(135deg,#ec4899,#f43f5e)', '#ec4899'],
+    'contest' => ['🏆', 'Cuộc thi','linear-gradient(135deg,#f59e0b,#f97316)', '#f59e0b'],
+    'holiday' => ['🌴', 'Nghỉ lễ', 'linear-gradient(135deg,#10b981,#06b6d4)', '#10b981'],
+];
+?>
+
+<div class="page-header align-items-center">
+    <div>
+        <h1 class="page-title"><i class="bi bi-gear-fill settings-header-icon"></i>Cài đặt hệ thống</h1>
+        <p class="text-muted settings-header-desc">Quản lý logo thư viện và bảng tin thông báo tới sinh viên.</p>
+    </div>
+    <div class="settings-header-badges">
+        <?php
+        $active = count(array_filter($announcements, fn($a) => $a['is_active']));
+        $hidden = count($announcements) - $active;
+        ?>
+        <span class="settings-badge-active">
+            <i class="bi bi-eye"></i> <?= $active ?> đang hiện
+        </span>
+        <?php if ($hidden > 0): ?>
+        <span class="settings-badge-hidden">
+            <i class="bi bi-eye-slash"></i> <?= $hidden ?> đã ẩn
+        </span>
+        <?php endif; ?>
+    </div>
+</div>
+
+<div class="settings-grid">
+
+    <!-- ══ CỘT TRÁI ══════════════════════════════════════════ -->
+    <div class="settings-col-left">
+
+        <!-- LOGO CARD -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title"><i class="bi bi-image settings-title-icon"></i>Logo thư viện</div>
+            </div>
+            <div class="card-body settings-logo-body">
+                <div id="logo-preview-wrap">
+                    <?php if ($currentLogoUrl): ?>
+                        <img id="logo-preview-img" src="<?= $currentLogoUrl ?>?t=<?= time() ?>"
+                             class="settings-logo-img" alt="Logo">
+                    <?php else: ?>
+                        <div id="logo-placeholder">
+                            <i class="bi bi-book-half settings-logo-placeholder-icon"></i>
+                            <div class="settings-logo-placeholder-subtext">Chưa có logo</div>
+                        </div>
+                        <img id="logo-preview-img" src="" class="settings-logo-img" style="display:none" alt="Preview">
+                    <?php endif; ?>
+                </div>
+
+                <form method="post" enctype="multipart/form-data"
+                      action="<?= $this->url('library/settings', ['action' => 'logo']) ?>" id="logo-form">
+                    <label for="logo-input" id="logo-drop-zone">
+                        <i class="bi bi-cloud-arrow-up settings-drop-zone-icon"></i>
+                        Kéo thả hoặc <span class="settings-drop-zone-highlight">chọn ảnh</span><br>
+                        <span class="settings-drop-zone-subtext">PNG · JPG · SVG · WEBP · Tối đa 2MB</span>
+                    </label>
+                    <input type="file" id="logo-input" name="logo" accept=".png,.jpg,.jpeg,.svg,.webp"
+                           class="d-none" onchange="previewLogo(this)">
+                    <button type="submit" id="logo-submit-btn" class="btn btn-primary" style="display:none">
+                        <i class="bi bi-check2-circle settings-submit-btn-icon"></i>Lưu logo mới
+                    </button>
+                    <?php if ($currentLogoUrl): ?>
+                    <div class="settings-logo-active-info">
+                        <i class="bi bi-check-circle settings-logo-active-icon"></i>
+                        Đang dùng: <code class="settings-logo-active-code"><?= htmlspecialchars($logoFile) ?></code>
+                    </div>
+                    <?php endif; ?>
+                </form>
+            </div>
+        </div>
+
+        <!-- THÊM BẢN TIN -->
+        <div class="card">
+            <div class="card-header settings-ann-card-header">
+                <div class="card-title">
+                    <i class="bi bi-megaphone-fill settings-ann-title-icon"></i>Đăng bản tin mới
+                </div>
+            </div>
+            <div class="card-body settings-ann-body">
+                <form method="post" action="<?= $this->url('library/settings', ['action' => 'announcement']) ?>">
+                    <div class="settings-ann-form-fields">
+
+                        <div>
+                            <label class="form-label settings-label-required">Tiêu đề *</label>
+                            <input type="text" name="title" class="form-control"
+                                   placeholder="Ví dụ: Thư viện mở cửa Tết Nguyên Đán" required>
+                        </div>
+
+                        <div>
+                            <label class="form-label settings-label-required">Nội dung *</label>
+                            <textarea name="content" class="form-control" rows="4"
+                                      placeholder="Nhập nội dung thông báo..." required></textarea>
+                        </div>
+
+                        <!-- Type selector -->
+                        <div>
+                            <label class="form-label settings-label-required">Loại bản tin</label>
+                            <div class="settings-ann-type-grid">
+                                <?php foreach ($typeMeta as $typeKey => [$emoji, $label, $grad, $clr]): ?>
+                                <label class="ann-type-option" style="--tc:<?= $clr ?>">
+                                    <input type="radio" name="type" value="<?= $typeKey ?>"
+                                           <?= $typeKey === 'general' ? 'checked' : '' ?>>
+                                    <span class="ann-type-label">
+                                        <span class="ann-type-swatch" style="background:<?= $grad ?>"></span>
+                                        <?= $emoji ?> <?= $label ?>
+                                    </span>
+                                </label>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+
+                        <!-- Dates -->
+                        <div class="settings-ann-date-grid">
+                            <div>
+                                <label class="form-label settings-label-required">
+                                    <i class="bi bi-calendar-event settings-ann-date-icon-start"></i>Từ ngày
+                                </label>
+                                <input type="date" name="start_date" class="form-control">
+                            </div>
+                            <div>
+                                <label class="form-label settings-label-required">
+                                    <i class="bi bi-calendar-x settings-ann-date-icon-end"></i>Đến ngày
+                                </label>
+                                <input type="date" name="end_date" class="form-control">
+                            </div>
+                        </div>
+
+                        <!-- Active toggle -->
+                        <div class="settings-toggle-row">
+                            <span class="settings-toggle-label">Hiển thị ngay sau khi đăng</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" name="is_active" value="1" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary settings-submit-btn">
+                            <i class="bi bi-send-fill settings-submit-btn-icon"></i>Đăng bản tin
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══ CỘT PHẢI: Card list ════════════════════════════════ -->
+    <div>
+        <div class="settings-list-header">
+            <div class="settings-list-title">
+                <i class="bi bi-newspaper settings-list-title-icon"></i>Quản lý bản tin
+            </div>
+            <span class="settings-list-count">
+                <?= count($announcements) ?> bản tin
+            </span>
+        </div>
+
+        <?php if (empty($announcements)): ?>
+            <div class="card settings-empty-card">
+                <i class="bi bi-inbox settings-empty-icon"></i>
+                <div class="settings-empty-title">Chưa có bản tin nào</div>
+                <div class="settings-empty-desc">Hãy tạo bản tin đầu tiên ở cột bên trái.</div>
+            </div>
+        <?php else: ?>
+        <div class="settings-ann-list">
+            <?php foreach ($announcements as $ann):
+                [$emoji, $tLabel, $grad, $clr] = $typeMeta[$ann['type']] ?? $typeMeta['general'];
+                $isExpired = $ann['end_date'] && strtotime($ann['end_date']) < strtotime('today');
+                $isActive  = (bool)$ann['is_active'];
+
+                $dateStr = '';
+                if ($ann['start_date'] && $ann['end_date'])
+                    $dateStr = date('d/m/Y', strtotime($ann['start_date'])) . ' → ' . date('d/m/Y', strtotime($ann['end_date']));
+                elseif ($ann['start_date'])
+                    $dateStr = 'Từ ' . date('d/m/Y', strtotime($ann['start_date']));
+                elseif ($ann['end_date'])
+                    $dateStr = 'Đến ' . date('d/m/Y', strtotime($ann['end_date']));
+            ?>
+            <div class="ann-admin-card <?= !$isActive ? 'ann-admin-card--hidden' : '' ?> <?= $isExpired ? 'ann-admin-card--expired' : '' ?>"
+                 style="--card-clr:<?= $clr ?>;--card-grad:<?= $grad ?>">
+
+                <!-- Left gradient strip -->
+                <div class="ann-admin-strip" style="background:<?= $grad ?>">
+                    <span class="ann-admin-emoji"><?= $emoji ?></span>
+                </div>
+
+                <!-- Content -->
+                <div class="ann-admin-body">
+                    <div class="ann-admin-top">
+                        <div class="ann-admin-content-main">
+                            <div class="settings-ann-card-title"><?= htmlspecialchars($ann['title']) ?></div>
+                            <div class="settings-ann-card-excerpt"><?= htmlspecialchars(mb_substr($ann['content'], 0, 130)) ?><?= mb_strlen($ann['content']) > 130 ? '…' : '' ?></div>
+                        </div>
+                        <div class="settings-ann-card-badges">
+                            <span class="settings-ann-card-badge-type"
+                                  style="background:<?= $clr ?>1a;color:<?= $clr ?>;border:1px solid <?= $clr ?>33">
+                                <?= $tLabel ?>
+                            </span>
+                            <?php if ($isExpired): ?>
+                                <span class="settings-ann-card-status-expired">
+                                    <i class="bi bi-archive"></i> Hết hạn
+                                </span>
+                            <?php elseif ($isActive): ?>
+                                <span class="settings-ann-card-status-active">
+                                    <i class="bi bi-broadcast"></i> Đang hiện
+                                </span>
+                            <?php else: ?>
+                                <span class="settings-ann-card-status-hidden">
+                                    <i class="bi bi-eye-slash"></i> Đã ẩn
+                                </span>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+
+                    <!-- Footer -->
+                    <div class="ann-admin-footer">
+                        <div class="ann-admin-meta">
+                            <?php if ($dateStr): ?>
+                            <span><i class="bi bi-calendar-range" style="color:<?= $clr ?>"></i> <?= $dateStr ?></span>
+                            <?php endif; ?>
+                            <span><i class="bi bi-clock"></i> <?= date('d/m/Y H:i', strtotime($ann['created_at'])) ?></span>
+                            <?php if ($ann['creator_name']): ?>
+                            <span><i class="bi bi-person"></i> <?= htmlspecialchars($ann['creator_name']) ?></span>
+                            <?php endif; ?>
+                        </div>
+                        <div class="ann-admin-actions">
+                            <a href="<?= $this->url('library/settings', ['action' => 'toggle', 'id' => $ann['id']]) ?>"
+                               class="btn btn-outline btn-sm settings-ann-card-action-btn-toggle"
+                               title="<?= $isActive ? 'Ẩn bản tin' : 'Hiện bản tin' ?>">
+                                <i class="bi bi-<?= $isActive ? 'eye-slash' : 'eye' ?>"></i>
+                                <?= $isActive ? 'Ẩn' : 'Hiện' ?>
+                            </a>
+                            <a href="<?= $this->url('library/settings', ['action' => 'delete-announcement', 'id' => $ann['id']]) ?>"
+                               class="btn btn-sm settings-ann-card-action-btn-delete"
+                               onclick="return confirm('Xóa bản tin này?')">
+                                <i class="bi bi-trash3"></i> Xóa
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
+    </div>
+</div>
+
+<script>
+function previewLogo(input) {
+    const file = input.files[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) { alert('File quá lớn. Tối đa 2MB.'); input.value = ''; return; }
+    const allowed = ['image/png','image/jpeg','image/svg+xml','image/webp'];
+    if (!allowed.includes(file.type)) { alert('Định dạng không hỗ trợ. Chỉ chấp nhận PNG, JPG, SVG, WEBP.'); input.value = ''; return; }
+    const reader = new FileReader();
+    reader.onload = e => {
+        const img = document.getElementById('logo-preview-img');
+        const ph  = document.getElementById('logo-placeholder');
+        img.src = e.target.result;
+        img.style.display = 'block';
+        if (ph) ph.style.display = 'none';
+        document.getElementById('logo-drop-zone').style.borderColor = 'var(--accent-purple)';
+        document.getElementById('logo-submit-btn').style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+}
+const dropZone = document.getElementById('logo-drop-zone');
+['dragenter','dragover'].forEach(e => dropZone.addEventListener(e, ev => {
+    ev.preventDefault(); dropZone.style.background = 'rgba(139,92,246,.08)'; dropZone.style.borderColor = 'var(--accent-purple)';
+}));
+['dragleave','drop'].forEach(e => dropZone.addEventListener(e, ev => {
+    ev.preventDefault(); dropZone.style.background = '';
+}));
+dropZone.addEventListener('drop', e => {
+    document.getElementById('logo-input').files = e.dataTransfer.files;
+    previewLogo(document.getElementById('logo-input'));
+});
+</script>

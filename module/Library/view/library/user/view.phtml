@@ -26,31 +26,31 @@ $statusMap = [
 </div>
 
 <?php if (! $canDelete && $deleteBlockedReason !== null) : ?>
-    <div class="alert alert-danger" style="margin-bottom:20px">
+    <div class="alert alert-danger user-view-alert">
         <i class="bi bi-exclamation-triangle"></i>
         <?= htmlspecialchars($deleteBlockedReason) ?>
     </div>
 <?php endif; ?>
 
-<div class="stat-cards" style="grid-template-columns:repeat(4,1fr);gap:12px">
+<div class="stat-cards user-stat-grid">
     <!-- Card 1: Active Loans -->
-    <div class="stat-card purple" style="padding:16px">
-        <div class="stat-label" style="font-size:11px">Đang hoạt động</div>
-        <div class="stat-value" style="margin-top:8px;font-size:20px;font-weight:700"><?= (int) $activeLoans ?> <span style="font-size:12px;font-weight:400;opacity:0.8">cuốn</span></div>
+    <div class="stat-card purple user-stat-card-padding">
+        <div class="stat-label user-stat-label-small">Đang hoạt động</div>
+        <div class="stat-value user-stat-val-med"><?= (int) $activeLoans ?> <span class="user-stat-val-unit">cuốn</span></div>
     </div>
 
     <!-- Card 2: Remaining Limit -->
-    <div class="stat-card blue" style="padding:16px">
-        <div class="stat-label" style="font-size:11px">Hạn mức còn lại</div>
-        <div class="stat-value" style="margin-top:8px;font-size:20px;font-weight:700;color:<?= $remainingLimit === 0 ? '#ef4444' : 'var(--accent-blue)' ?>">
-            <?= $remainingLimit ?> <span style="font-size:12px;font-weight:400;opacity:0.8">/ 5 cuốn</span>
+    <div class="stat-card blue user-stat-card-padding">
+        <div class="stat-label user-stat-label-small">Hạn mức còn lại</div>
+        <div class="stat-value user-stat-val-med" style="color:<?= $remainingLimit === 0 ? '#ef4444' : 'var(--accent-blue)' ?>">
+            <?= $remainingLimit ?> <span class="user-stat-val-unit">/ 5 cuốn</span>
         </div>
     </div>
 
     <!-- Card 3: Overdue Status (Counting overdue times) -->
-    <div class="stat-card <?= $overdueCount > 0 ? 'pink' : 'green' ?>" style="padding:16px">
-        <div class="stat-label" style="font-size:11px">Tình trạng quá hạn</div>
-        <div class="stat-value" style="margin-top:8px;font-size:20px;font-weight:700;color:<?= $overdueCount > 0 ? '#ef4444' : 'var(--accent-green)' ?>">
+    <div class="stat-card <?= $overdueCount > 0 ? 'pink' : 'green' ?>" user-stat-card-padding>
+        <div class="stat-label user-stat-label-small">Tình trạng quá hạn</div>
+        <div class="stat-value user-stat-val-med" style="color:<?= $overdueCount > 0 ? '#ef4444' : 'var(--accent-green)' ?>">
             <?= $overdueCount > 0 ? 'Trễ ' . $overdueCount . ' lần' : '0 lần trễ' ?>
         </div>
     </div>
@@ -68,74 +68,73 @@ $statusMap = [
         $rateClass = 'pink';
     }
     ?>
-    <div class="stat-card <?= $rateClass ?>" style="padding:16px">
-        <div class="stat-label" style="font-size:11px">Tỷ lệ trả đúng hạn</div>
-        <div class="stat-value" style="margin-top:8px;font-size:20px;font-weight:700;color:<?= $rateColor ?>">
+    <div class="stat-card <?= $rateClass ?> user-stat-card-padding">
+        <div class="stat-label user-stat-label-small">Tỷ lệ trả đúng hạn</div>
+        <div class="stat-value user-stat-val-med" style="color:<?= $rateColor ?>">
             <?= $onTimeRate ?>%
         </div>
     </div>
 </div>
 
-<div class="card" style="margin-bottom:24px">
+<div class="card user-view-card">
     <div class="card-body">
         <?php if ($user->isLocked()): ?>
-        <div style="background:rgba(239,68,68,0.08);border:1px dashed rgba(239,68,68,0.3);color:#ef4444;padding:12px 16px;border-radius:8px;font-size:13px;margin-bottom:20px;display:flex;align-items:flex-start;gap:10px">
-            <i class="bi bi-shield-slash" style="font-size:20px;line-height:1"></i>
+        <div class="user-view-lock-banner">
+            <i class="bi bi-shield-slash user-view-lock-icon"></i>
             <div>
-                <strong style="font-size:14px">Tài khoản sinh viên đã bị khóa mượn sách</strong>
-                <div style="margin-top:4px"><strong>Lý do:</strong> <?= htmlspecialchars($user->lockReason !== '' ? $user->lockReason : 'Vi phạm nội quy thư viện') ?></div>
+                <strong class="user-view-lock-title">Tài khoản sinh viên đã bị khóa mượn sách</strong>
+                <div class="user-view-lock-detail"><strong>Lý do:</strong> <?= htmlspecialchars($user->lockReason !== '' ? $user->lockReason : 'Vi phạm nội quy thư viện') ?></div>
                 <?php if ($user->lockedAt !== ''): ?>
-                    <div style="margin-top:2px;font-size:11px;opacity:0.85"><strong>Thời điểm khóa:</strong> <?= htmlspecialchars(date('d/m/Y H:i:s', strtotime($user->lockedAt))) ?></div>
+                    <div class="user-view-lock-time"><strong>Thời điểm khóa:</strong> <?= htmlspecialchars(date('d/m/Y H:i:s', strtotime($user->lockedAt))) ?></div>
                 <?php endif; ?>
             </div>
         </div>
         <?php endif; ?>
-        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:20px">
+        <div class="user-info-grid-2">
             <div>
-                <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Mã tài khoản</div>
-                <div style="font-weight:600;font-size:15px;color:var(--accent-purple)">#<?= (int) $user->id ?></div>
+                <div class="user-info-label">Mã tài khoản</div>
+                <div class="user-info-value-highlight">#<?= (int) $user->id ?></div>
             </div>
             <div>
-                <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Vai trò</div>
+                <div class="user-info-label">Vai trò</div>
                 <div>
                     <span class="badge <?= $user->role === 'admin' ? 'badge-orange' : 'badge-purple' ?>">
                         <?= $user->role === 'admin' ? 'Quản trị viên' : 'Độc giả' ?>
                     </span>
                     <?php if ((int) $user->id === (int) $currentId) : ?>
-                        <span class="badge badge-gray" style="margin-left:4px">Bạn</span>
+                        <span class="badge badge-gray user-info-badge-margin">Bạn</span>
                     <?php endif; ?>
                     <?php if ($user->isLocked()) : ?>
-                        <span class="badge badge-red" style="margin-left:4px">Bị khóa</span>
+                        <span class="badge badge-red user-info-badge-margin">Bị khóa</span>
                     <?php endif; ?>
                 </div>
             </div>
             <div>
-                <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Họ và tên</div>
-                <div style="font-weight:600;font-size:15px;color:var(--text-primary)"><?= htmlspecialchars($user->fullName) ?></div>
+                <div class="user-info-label">Họ và tên</div>
+                <div class="user-info-value-text"><?= htmlspecialchars($user->fullName) ?></div>
             </div>
             <div>
-                <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Tên đăng nhập</div>
-                <div><code style="color:var(--accent-blue);background:var(--bg-secondary);padding:2px 6px;border-radius:4px">@<?= htmlspecialchars($user->username) ?></code></div>
+                <div class="user-info-label">Tên đăng nhập</div>
+                <div><code class="user-info-code">@<?= htmlspecialchars($user->username) ?></code></div>
             </div>
             <div>
-                <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Email</div>
-                <div style="color:var(--text-secondary)"><?= htmlspecialchars($user->email) ?></div>
+                <div class="user-info-label">Email</div>
+                <div class="user-info-text-muted"><?= htmlspecialchars($user->email) ?></div>
             </div>
             <div>
-                <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Ngày tạo</div>
-                <div style="color:var(--text-secondary)"><?= htmlspecialchars($user->createdAt !== '' ? $user->createdAt : '—') ?></div>
+                <div class="user-info-label">Ngày tạo</div>
+                <div class="user-info-text-muted"><?= htmlspecialchars($user->createdAt !== '' ? $user->createdAt : '—') ?></div>
             </div>
         </div>
 
-        <div style="height:1px;background:var(--border-color);margin:24px 0 18px"></div>
+        <div class="user-view-divider"></div>
 
         <div class="d-flex gap-2">
             <form method="POST"
                   action="<?= $this->url('library/user', ['action' => 'delete', 'id' => $user->id]) ?>"
                   data-confirm="Bạn có chắc muốn xóa tài khoản '<?= htmlspecialchars($user->fullName) ?>'?"
-                  style="margin:0">
-                <button type="submit" class="btn btn-sm"
-                        style="background:rgba(239,68,68,.12);color:#ef4444;border:1px solid rgba(239,68,68,.2)"
+                  class="user-action-btn-form">
+                <button type="submit" class="btn btn-sm user-view-btn-delete"
                         <?= $canDelete ? '' : 'disabled' ?>>
                     <i class="bi bi-trash"></i>Xóa tài khoản
                 </button>
@@ -143,15 +142,15 @@ $statusMap = [
 
             <?php if ($user->role === 'student'): ?>
                 <?php if ($user->isLocked()): ?>
-                <form method="POST" action="<?= $this->url('library/user', ['action' => 'unlock', 'id' => $user->id]) ?>" style="margin:0">
-                    <button type="submit" class="btn btn-sm btn-outline" style="color:#22c55e;border-color:#22c55e">
+                <form method="POST" action="<?= $this->url('library/user', ['action' => 'unlock', 'id' => $user->id]) ?>" class="user-action-btn-form">
+                    <button type="submit" class="btn btn-sm btn-outline btn-outline--success">
                         <i class="bi bi-unlock"></i>Mở khóa tài khoản
                     </button>
                 </form>
                 <?php else: ?>
-                <form method="POST" action="<?= $this->url('library/user', ['action' => 'lock', 'id' => $user->id]) ?>" style="margin:0">
+                <form method="POST" action="<?= $this->url('library/user', ['action' => 'lock', 'id' => $user->id]) ?>" class="user-action-btn-form">
                     <input type="hidden" name="reason" value="Khóa từ trang chi tiết">
-                    <button type="submit" class="btn btn-sm btn-outline" style="color:#ef4444;border-color:#ef4444" onclick="const reason = prompt('Nhập lý do khóa thẻ:', 'Khóa từ trang chi tiết'); if (reason === null) return false; this.form.reason.value = reason; return true;">
+                    <button type="submit" class="btn btn-sm btn-outline btn-outline--danger" onclick="const reason = prompt('Nhập lý do khóa thẻ:', 'Khóa từ trang chi tiết'); if (reason === null) return false; this.form.reason.value = reason; return true;">
                         <i class="bi bi-lock"></i>Khóa tài khoản
                     </button>
                 </form>
@@ -163,8 +162,8 @@ $statusMap = [
 
 <div class="card">
     <div class="card-header">
-        <div class="card-title" style="display:flex;align-items:center;gap:8px">
-            <i class="bi bi-clock-history" style="color:var(--accent-purple)"></i>Lịch sử mượn / trả
+        <div class="card-title user-view-card-title">
+            <i class="bi bi-clock-history user-view-title-icon"></i>Lịch sử mượn / trả
         </div>
         <a href="<?= $this->url($routePrefix . '/transaction', [], ['query' => ['user_id' => (int) $user->id]]) ?>"
            class="btn btn-outline btn-sm">
@@ -186,7 +185,7 @@ $statusMap = [
         <tbody>
         <?php if ($borrowRecords === []) : ?>
             <tr>
-                <td colspan="7" style="text-align:center;padding:32px 16px;color:var(--text-muted)">
+                <td colspan="7" class="user-history-empty">
                     Tài khoản này chưa có lịch sử phát sinh mượn/trả.
                 </td>
             </tr>
@@ -194,11 +193,11 @@ $statusMap = [
             <?php foreach ($borrowRecords as $record) : ?>
                 <?php [$statusLabel, $statusClass] = $statusMap[$record->status] ?? [$record->status, 'badge-gray']; ?>
                 <tr>
-                    <td style="color:var(--text-muted)">#<?= (int) $record->id ?></td>
-                    <td style="font-weight:600"><?= htmlspecialchars($record->bookTitle) ?></td>
-                    <td><code style="color:var(--accent-orange);background:var(--bg-secondary);padding:2px 6px;border-radius:4px"><?= htmlspecialchars($record->bookIsbn !== '' ? $record->bookIsbn : '—') ?></code></td>
+                    <td class="user-history-invoice">#<?= (int) $record->id ?></td>
+                    <td class="user-history-title"><?= htmlspecialchars($record->bookTitle) ?></td>
+                    <td><code class="user-history-code"><?= htmlspecialchars($record->bookIsbn !== '' ? $record->bookIsbn : '—') ?></code></td>
                     <td><?= htmlspecialchars($record->borrowDate) ?></td>
-                    <td style="<?= in_array($record->status, ['borrowed', 'overdue'], true) && $record->returnDate < date('Y-m-d') ? 'color:#ef4444;font-weight:700' : '' ?>">
+                    <td class="<?= in_array($record->status, ['borrowed', 'overdue'], true) && $record->returnDate < date('Y-m-d') ? 'user-history-overdue-cell' : '' ?>">
                         <?= htmlspecialchars($record->returnDate) ?>
                     </td>
                     <td><?= htmlspecialchars($record->returnedAt !== '' ? $record->returnedAt : '—') ?></td>
