@@ -1,6 +1,8 @@
 <?php
 $this->headTitle('Tổng quan');
 $this->layout('layout/library-layout');
+$authUser    = $this->currentUser();
+$routePrefix = ($authUser['role'] ?? '') === 'admin' ? 'library' : 'student';
 $statusLabels = [
     'borrowed' => ['label' => 'Đang mượn', 'class' => 'badge-purple'],
     'returned' => ['label' => 'Đã trả',    'class' => 'badge-green'],
@@ -16,7 +18,7 @@ $statusLabels = [
         <div class="page-subtitle"><?= $isAdmin ? 'Bảng điều hành vận hành thư viện dành cho quản trị viên.' : 'Không gian theo dõi hoạt động mượn đọc của bạn.' ?></div>
     </div>
     <div class="d-flex gap-2">
-        <a href="<?= $this->url('library/book') ?>" class="btn btn-outline"><i class="bi bi-book"></i><?= $isAdmin ? 'Mở kho sách' : 'Xem danh mục' ?></a>
+        <a href="<?= $this->url($routePrefix . '/book') ?>" class="btn btn-outline"><i class="bi bi-book"></i><?= $isAdmin ? 'Mở kho sách' : 'Xem danh mục' ?></a>
         <?php if ($isAdmin): ?>
         <a href="<?= $this->url('library/transaction', ['action' => 'borrow']) ?>" class="btn btn-primary"><i class="bi bi-plus-circle"></i>Lập phiếu mượn</a>
         <?php endif; ?>
@@ -50,28 +52,28 @@ $statusLabels = [
 <!-- STAT CARDS -->
 <div class="stat-cards">
     <!-- Card 1: Books/History -->
-    <div class="stat-card purple">
+    <a href="<?= $isAdmin ? $this->url('library/book') : $this->url('student/transaction') ?>" class="stat-card purple" style="text-decoration:none;color:inherit;display:block">
         <div class="stat-icon purple"><i class="bi bi-book-half"></i></div>
         <div class="stat-value"><?= number_format((int)($isAdmin ? $totalBooks : ($loanSummary['total'] ?? 0))) ?></div>
         <div class="stat-label"><?= $isAdmin ? 'Tổng số sách' : 'Lịch sử mượn' ?></div>
         <div class="stat-bar"><div class="stat-bar-fill" style="width:<?= min(100, (int)($isAdmin ? $totalBooks : ($loanSummary['total'] ?? 0)) * 5) ?>%;background:#7c6aff"></div></div>
-    </div>
+    </a>
     <!-- Card 2: Members/Returned -->
-    <div class="stat-card green">
+    <a href="<?= $isAdmin ? $this->url('library/user') : $this->url('student/transaction', [], ['query' => ['status' => 'returned']]) ?>" class="stat-card green" style="text-decoration:none;color:inherit;display:block">
         <div class="stat-icon green"><i class="bi bi-bookmark-check-fill"></i></div>
         <div class="stat-value"><?= number_format((int)($isAdmin ? ($totalMembers ?? 0) : ($loanSummary['returned'] ?? 0))) ?></div>
         <div class="stat-label"><?= $isAdmin ? 'Thành viên' : 'Đã hoàn trả' ?></div>
         <div class="stat-bar"><div class="stat-bar-fill" style="width:<?= min(100, (int)($isAdmin ? ($totalMembers ?? 0) : ($loanSummary['returned'] ?? 0)) * 10) ?>%;background:#22c55e"></div></div>
-    </div>
+    </a>
     <!-- Card 3: Borrowing -->
-    <a href="<?= $this->url('library/transaction') ?>" class="stat-card orange" style="text-decoration:none;color:inherit;display:block">
+    <a href="<?= $this->url($routePrefix . '/transaction', [], ['query' => ['status' => 'borrowed']]) ?>" class="stat-card orange" style="text-decoration:none;color:inherit;display:block">
         <div class="stat-icon orange"><i class="bi bi-bookmark-check"></i></div>
         <div class="stat-value"><?= number_format((int)$totalBorrowed) ?></div>
         <div class="stat-label"><?= $isAdmin ? 'Đang mượn' : 'Sách đang mượn' ?></div>
         <div class="stat-bar"><div class="stat-bar-fill" style="width:<?= min(100, (int)$totalBorrowed * 5) ?>%;background:#f97316"></div></div>
     </a>
     <!-- Card 4: Overdue -->
-    <a href="<?= $this->url('library/transaction') ?>" class="stat-card pink" style="text-decoration:none;color:inherit;display:block">
+    <a href="<?= $this->url($routePrefix . '/transaction', [], ['query' => ['status' => 'overdue']]) ?>" class="stat-card pink" style="text-decoration:none;color:inherit;display:block">
         <div class="stat-icon pink"><i class="bi bi-exclamation-triangle"></i></div>
         <div class="stat-value"><?= number_format((int)$totalOverdue) ?></div>
         <div class="stat-label"><?= $isAdmin ? 'Quá hạn' : 'Sách quá hạn' ?></div>
@@ -157,7 +159,7 @@ $statusLabels = [
             <div>
                 <div class="card-title"><i class="bi bi-clock-history" style="color:#7c6aff;margin-right:8px"></i><?= $isAdmin ? 'Phiếu mượn gần đây' : 'Hoạt động mượn gần đây' ?></div>
             </div>
-            <a href="<?= $this->url('library/transaction') ?>" class="btn btn-outline btn-sm">Xem tất cả</a>
+            <a href="<?= $this->url($routePrefix . '/transaction') ?>" class="btn btn-outline btn-sm">Xem tất cả</a>
         </div>
         <div style="overflow-x:auto">
             <table class="data-table">
@@ -197,7 +199,9 @@ $statusLabels = [
 
 <script>
 <?php
-$monthlyStats  = $monthlyStats ?? ['borrow' => array_fill(0, 12, 0), 'return' => array_fill(0, 12, 0)];
+$monthlyStats  = (!empty($monthlyStats) && isset($monthlyStats['borrow'], $monthlyStats['return']))
+    ? $monthlyStats
+    : ['borrow' => array_fill(0, 12, 0), 'return' => array_fill(0, 12, 0)];
 $borrowData    = json_encode(array_values($monthlyStats['borrow']));
 $returnData    = json_encode(array_values($monthlyStats['return']));
 

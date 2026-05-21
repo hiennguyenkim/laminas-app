@@ -1,6 +1,8 @@
 <?php
 $this->headTitle('Hỗ trợ / Hỏi đáp');
 $this->layout('layout/library-layout');
+$authUser    = $this->currentUser();
+$routePrefix = ($authUser['role'] ?? '') === 'admin' ? 'library' : 'student';
 
 $statusMap = [
     'open' => ['Chưa phản hồi', 'badge-orange'],
@@ -16,7 +18,7 @@ $statusMap = [
         <div class="page-subtitle">Quản lý các yêu cầu hỗ trợ và trao đổi giữa Thư viện và Độc giả.</div>
     </div>
     <?php if (!$isAdmin): ?>
-    <a href="<?= $this->url('library/ticket', ['action' => 'create']) ?>" class="btn btn-primary">
+    <a href="<?= $this->url($routePrefix . '/ticket', ['action' => 'create']) ?>" class="btn btn-primary">
         <i class="bi bi-plus-lg"></i>Gửi yêu cầu mới
     </a>
     <?php endif; ?>
@@ -57,7 +59,7 @@ $statusMap = [
                     <td style="padding:16px;color:var(--text-secondary)"><?= date('d/m/Y H:i', strtotime($t['updated_at'])) ?></td>
                     <td style="padding:16px;"><span class="badge <?= $statusClass ?>"><?= $statusLabel ?></span></td>
                     <td style="padding:16px;text-align:right;">
-                        <a href="<?= $this->url('library/ticket', ['action' => 'view', 'id' => $t['id']]) ?>" class="btn btn-sm btn-outline">
+                        <a href="<?= $this->url($routePrefix . '/ticket', ['action' => 'view', 'id' => $t['id']]) ?>" class="btn btn-sm btn-outline">
                             Chi tiết
                         </a>
                     </td>

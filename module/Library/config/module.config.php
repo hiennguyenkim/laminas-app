@@ -12,6 +12,7 @@ use Library\Controller\ProfileController;
 use Library\Controller\TransactionController;
 use Library\Controller\UserController;
 use Library\Controller\BookImportController;
+use Library\Controller\HomeController;
 use Library\Factory\Controller\BookImportControllerFactory;
 use Library\Factory\Controller\AuthControllerFactory;
 use Library\Factory\Controller\BookControllerFactory;
@@ -137,6 +138,72 @@ return [
                             'route'       => '/users[/:action[/:id]]',
                             'constraints' => ['action' => '[a-zA-Z][a-zA-Z0-9_-]*', 'id' => '[0-9]+'],
                             'defaults'    => ['controller' => UserController::class, 'action' => 'index'],
+                        ],
+                    ],
+                    'transaction' => [
+                        'type'    => Segment::class,
+                        'options' => [
+                            'route'       => '/borrow[/:action[/:id]]',
+                            'constraints' => ['action' => '[a-zA-Z][a-zA-Z0-9_-]*', 'id' => '[0-9]+'],
+                            'defaults'    => ['controller' => TransactionController::class, 'action' => 'index'],
+                        ],
+                    ],
+                    'profile' => [
+                        'type'    => Segment::class,
+                        'options' => [
+                            'route'       => '/profile[/:action]',
+                            'constraints' => ['action' => '[a-zA-Z][a-zA-Z0-9_-]*'],
+                            'defaults'    => ['controller' => ProfileController::class, 'action' => 'index'],
+                        ],
+                    ],
+                ],
+            ],
+            'student' => [
+                'type'    => Literal::class,
+                'options' => [
+                    'route'    => '/student',
+                    'defaults' => ['controller' => HomeController::class, 'action' => 'index'],
+                ],
+                'may_terminate' => true,
+                'child_routes'  => [
+                    'dashboard' => [
+                        'type'    => Segment::class,
+                        'options' => [
+                            'route'    => '/dashboard[/:action]',
+                            'constraints' => [
+                                'action' => '[a-zA-Z][a-zA-Z0-9_-]*',
+                            ],
+                            'defaults' => ['controller' => DashboardController::class, 'action' => 'index'],
+                        ],
+                    ],
+                    'auth' => [
+                        'type'    => Segment::class,
+                        'options' => [
+                            'route'       => '/auth[/:action]',
+                            'constraints' => ['action' => '[a-zA-Z][a-zA-Z0-9_-]*'],
+                            'defaults'    => ['controller' => AuthController::class, 'action' => 'login'],
+                        ],
+                    ],
+                    'book' => [
+                        'type'    => Segment::class,
+                        'options' => [
+                            'route'    => '/book[/:action[/:id]]',
+                            'constraints' => ['action' => '[a-zA-Z][a-zA-Z0-9_-]*', 'id' => '[0-9]+'],
+                            'defaults' => [
+                                'controller' => Controller\BookController::class,
+                                'action'     => 'index',
+                            ],
+                        ],
+                    ],
+                    'ticket' => [
+                        'type'    => Segment::class,
+                        'options' => [
+                            'route'    => '/ticket[/:action[/:id]]',
+                            'constraints' => ['action' => '[a-zA-Z][a-zA-Z0-9_-]*', 'id' => '[0-9]+'],
+                            'defaults' => [
+                                'controller' => Controller\TicketController::class,
+                                'action'     => 'index',
+                            ],
                         ],
                     ],
                     'transaction' => [

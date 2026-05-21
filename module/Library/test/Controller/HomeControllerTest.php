@@ -35,24 +35,24 @@ class HomeControllerTest extends AbstractHttpControllerTestCase
         $this->assertRedirectTo('/books');
     }
 
-    public function testRootRedirectsAuthenticatedAdminToAdminBooks(): void
+    public function testRootRedirectsAuthenticatedAdminToAdminDashboard(): void
     {
         $this->mockLoginAsRole('admin');
 
         $this->dispatch('/', 'GET');
 
         $this->assertResponseStatusCode(302);
-        $this->assertRedirectTo('/admin/books');
+        $this->assertRedirectTo('/admin/dashboard');
     }
 
-    public function testRootRedirectsAuthenticatedStudentToCatalog(): void
+    public function testRootRedirectsAuthenticatedStudentToStudentDashboard(): void
     {
         $this->mockLoginAsRole('student');
 
         $this->dispatch('/', 'GET');
 
         $this->assertResponseStatusCode(302);
-        $this->assertRedirectTo('/books');
+        $this->assertRedirectTo('/student/dashboard');
     }
 
     public function testAdminEntryRedirectsToLogin(): void
@@ -65,9 +65,9 @@ class HomeControllerTest extends AbstractHttpControllerTestCase
         $this->assertRedirectTo('/admin/auth');
     }
 
-    public function testBooksIndexRequiresLogin(): void
+    public function testAdminDashboardRequiresLogin(): void
     {
-        $this->dispatch('/admin/books', 'GET');
+        $this->dispatch('/admin/dashboard', 'GET');
 
         $this->assertResponseStatusCode(302);
         $this->assertRedirectTo('/admin/auth');

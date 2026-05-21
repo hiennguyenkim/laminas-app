@@ -2,7 +2,10 @@
 $canManage  = (bool) ($canManage ?? false);
 $canBorrow  = (bool) ($canBorrow ?? false);
 $isGuest    = (bool) ($isGuest ?? false);
+$authUser    = $this->currentUser();
+$routePrefix = ($authUser['role'] ?? '') === 'admin' ? 'library' : 'student';
 $indexRoute = (string) ($indexRoute ?? 'library/book');
+$indexRoute  = $indexRoute === 'catalog' ? 'catalog' : $routePrefix . '/book';
 $this->headTitle($canManage ? 'Quản lý sách' : 'Danh mục sách');
 $this->layout('layout/library-layout');
 
@@ -51,14 +54,71 @@ $catBadgeColors = ['Văn học'=>'badge-purple','Khoa học'=>'badge-blue','Lị
         <div class="page-subtitle"><?= number_format((int)($summary['total_titles'] ?? 0)) ?> đầu sách trong thư viện</div>
     </div>
     <?php if ($canManage): ?>
-    <a href="<?= $this->url('library/book', ['action' => 'add']) ?>" class="btn btn-orange">
+    <a href="<?= $this->url($routePrefix . '/book', ['action' => 'add']) ?>" class="btn btn-orange">
         <i class="bi bi-plus-lg"></i>Thêm sách mới
     </a>
     <?php elseif ($canBorrow): ?>
-    <a href="<?= $this->url('library/transaction', ['action' => 'borrow']) ?>" class="btn btn-success">
+    <a href="<?= $this->url($routePrefix . '/transaction', ['action' => 'borrow']) ?>" class="btn btn-success">
         <i class="bi bi-bookmark-plus"></i>Mượn sách
     </a>
     <?php endif; ?>
+</div>
+
+<!-- KÊNH THẢO LUẬN -->
+<div style="margin-top:36px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+        <i class="bi bi-chat-quote-fill" style="color:#7c6aff;font-size:20px"></i>
+        <h2 style="margin:0;font-size:18px;font-weight:700">Kênh Thảo Luận</h2>
+        <span style="display:flex;align-items:center;gap:5px;font-size:12px;
+                     color:#22c55e;background:rgba(34,197,94,.12);
+                     padding:2px 10px;border-radius:20px;font-weight:600">
+            <span style="width:7px;height:7px;border-radius:50%;
+                         background:#22c55e;display:inline-block"></span>
+            Trực tuyến
+        </span>
+    </div>
+
+    <div style="background:#1e1e2e;border:1px solid rgba(255,255,255,.08);
+                border-radius:12px;overflow:hidden">
+        <!-- Message area -->
+        <div class="catalog-chat-messages" id="catalog-chat-body"
+             style="height:280px;overflow-y:auto;padding:14px 16px;
+                    display:flex;flex-direction:column;gap:10px">
+            <div style="text-align:center;padding:40px;color:#888;font-size:12px">
+                Đang tải thảo luận...
+            </div>
+        </div>
+
+        <!-- Input area -->
+        <div style="padding:10px 14px;border-top:1px solid rgba(255,255,255,.07);
+                    background:#16162a">
+            <?php if ($isGuest): ?>
+                <div style="text-align:center;font-size:13px;color:#888;padding:4px 0">
+                    Vui lòng
+                    <a href="<?= $this->url('library/auth', ['action' => 'login']) ?>"
+                       style="color:#7c6aff;font-weight:600">Đăng nhập</a>
+                    để tham gia thảo luận.
+                </div>
+            <?php else: ?>
+                <div style="display:flex;gap:8px;align-items:center">
+                    <input type="text" id="catalog-chat-input"
+                           placeholder="Viết thảo luận..."
+                           onkeypress="if(event.key==='Enter') sendCatalogMessage()"
+                           style="flex:1;background:#2a2a3e;
+                                  border:1px solid rgba(255,255,255,.1);
+                                  color:#fff;border-radius:8px;
+                                  padding:9px 14px;font-size:13px;outline:none">
+                    <button onclick="sendCatalogMessage()"
+                            style="background:#7c6aff;border:none;color:#fff;
+                                   padding:9px 18px;border-radius:8px;
+                                   font-size:13px;font-weight:600;cursor:pointer;
+                                   display:flex;align-items:center;gap:6px;white-space:nowrap">
+                        <i class="bi bi-send-fill"></i> Gửi
+                    </button>
+                </div>
+            <?php endif; ?>
+        </div>
+    </div>
 </div>
 
 <!-- FILTER TABS -->
@@ -94,8 +154,9 @@ $activeCat = (string) ($filters['category'] ?? '');
     </form>
 </div>
 
-<div class="catalog-layout">
-    <div class="catalog-main">
+
+<div class="catalog-layout" style="display:block;">
+    <div class="catalog-main" style="width:100%;">
         <div id="book-list-container" style="transition: opacity 0.2s ease;">
     <!-- BOOK GRID -->
     <div class="book-grid">
@@ -140,15 +201,15 @@ $activeCat = (string) ($filters['category'] ?? '');
                 </div>
                 <?php if ($canManage): ?>
                 <div style="display:flex;gap:6px;margin-top:12px">
-                    <a href="<?= $this->url('library/book', ['action' => 'view', 'id' => $book->id]) ?>" class="btn btn-outline btn-sm btn-icon" title="Xem"><i class="bi bi-eye"></i></a>
-                    <a href="<?= $this->url('library/book', ['action' => 'edit', 'id' => $book->id]) ?>" class="btn btn-outline btn-sm btn-icon" title="Sửa"><i class="bi bi-pencil"></i></a>
-                    <form method="POST" action="<?= $this->url('library/book', ['action' => 'delete', 'id' => $book->id]) ?>"
+                    <a href="<?= $this->url($routePrefix . '/book', ['action' => 'view', 'id' => $book->id]) ?>" class="btn btn-outline btn-sm btn-icon" title="Xem"><i class="bi bi-eye"></i></a>
+                    <a href="<?= $this->url($routePrefix . '/book', ['action' => 'edit', 'id' => $book->id]) ?>" class="btn btn-outline btn-sm btn-icon" title="Sửa"><i class="bi bi-pencil"></i></a>
+                    <form method="POST" action="<?= $this->url($routePrefix . '/book', ['action' => 'delete', 'id' => $book->id]) ?>"
                           data-confirm="Xóa sách '<?= htmlspecialchars($book->title) ?>'?" style="display:inline">
                         <button type="submit" class="btn btn-sm btn-icon" style="background:rgba(239,68,68,.12);color:#ef4444;border:1px solid rgba(239,68,68,.2)" title="Xóa"><i class="bi bi-trash"></i></button>
                     </form>
                 </div>
                 <?php elseif ($canBorrow && $available): ?>
-                <a href="<?= $this->url('library/transaction', ['action' => 'borrow'], ['query' => ['book_id' => (int)$book->id]]) ?>"
+                <a href="<?= $this->url($routePrefix . '/transaction', ['action' => 'borrow'], ['query' => ['book_id' => (int)$book->id]]) ?>"
                    class="btn btn-success w-100 btn-sm" style="margin-top:12px;justify-content:center">
                     <i class="bi bi-bookmark-plus"></i>Mượn sách
                 </a>
@@ -176,34 +237,8 @@ $activeCat = (string) ($filters['category'] ?? '');
     <?php endif; ?>
         </div>
     </div>
-    
-    <div class="catalog-sidebar">
-        <div class="catalog-chat-container">
-            <div class="catalog-chat-header">
-                <i class="bi bi-chat-quote-fill" style="color:var(--accent-purple);font-size:18px"></i>
-                <div>
-                    <div style="font-size:14px;font-weight:600">Kênh Thảo Luận</div>
-                    <div style="font-size:10px;color:var(--text-muted);font-weight:normal">Giao lưu bạn đọc</div>
-                </div>
-            </div>
-            <div class="catalog-chat-messages" id="catalog-chat-body">
-                <div style="text-align:center;padding:40px;color:var(--text-muted);font-size:12px">Đang tải thảo luận...</div>
-            </div>
-            <div class="catalog-chat-footer">
-                <?php if ($isGuest): ?>
-                    <div class="catalog-chat-guest">
-                        Vui lòng <a href="<?= $this->url('library/auth', ['action' => 'login']) ?>" style="color:var(--accent-purple);font-weight:600">Đăng nhập</a> để chat.
-                    </div>
-                <?php else: ?>
-                    <div class="catalog-chat-input-wrapper">
-                        <input type="text" id="catalog-chat-input" placeholder="Viết thảo luận..." onkeypress="if(event.key === 'Enter') sendCatalogMessage()">
-                        <button onclick="sendCatalogMessage()" class="btn btn-primary" style="padding:6px 12px;background:var(--accent-purple);border-color:var(--accent-purple)"><i class="bi bi-send"></i></button>
-                    </div>
-                <?php endif; ?>
-            </div>
-        </div>
-    </div>
 </div>
+
 
 <!-- DASHBOARD / NEWS BOARD (Bảng tin) -->
 <?php if (!empty($announcements)): ?>
@@ -388,7 +423,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Catalog Chat Room Functionality
     let catalogChatInterval = null;
-    const currentUserId = <?= json_encode($currentUser['id'] ?? 0) ?>;
+    const currentUserId = <?= json_encode($authUser['id'] ?? 0) ?>;
+    const currentUserRole = <?= json_encode($authUser['role'] ?? '') ?>;
+    const basePath = <?= json_encode($this->basePath()) ?>;
+    let lastMessagesJson = '';
 
     function escapeHtml(unsafe) {
         return (unsafe || '').replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
@@ -396,39 +434,77 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function loadCatalogMessages() {
         try {
-            const response = await fetch('<?= $this->url("library/dashboard", ["action" => "chat"]) ?>');
+            const response = await fetch('<?= $this->url($routePrefix . "/dashboard", ["action" => "chat"]) ?>');
             if (!response.ok) return;
             const messages = await response.json();
+            
+            const messagesJson = JSON.stringify(messages);
+            if (messagesJson === lastMessagesJson) {
+                return;
+            }
+            lastMessagesJson = messagesJson;
+
             const container = document.getElementById('catalog-chat-body');
             if (!container) return;
             
+            // Mark last message as seen
+            if (messages.length > 0) {
+                const lastMsg = messages[messages.length - 1];
+                localStorage.setItem('catalog_chat_last_seen_id', lastMsg.id);
+            }
+            
             let html = '';
             messages.forEach(msg => {
-                const isMe = parseInt(msg.user_id) === currentUserId;
-                const alignment = isMe ? 'self' : 'other';
+                const colors = ['#7c6aff','#f97316','#22c55e','#3b82f6','#ec4899','#14b8a6'];
+                let hash = 0;
+                const usernameStr = msg.nickname || '';
+                for (let i = 0; i < usernameStr.length; i++) {
+                    hash = usernameStr.charCodeAt(i) + ((hash << 5) - hash);
+                }
+                const avatarColor = colors[Math.abs(hash) % colors.length];
+                const initial = usernameStr.substring(0, 1).toUpperCase() || '?';
                 const roleBadge = msg.role === 'admin' ? '<span class="badge badge-purple" style="font-size:9px;padding:2px 4px;margin-left:4px;vertical-align:middle">Thủ thư</span>' : '';
-                
-                html += `
-                    <div class="catalog-chat-msg ${alignment}">
-                        <div class="catalog-chat-meta">
-                            <span style="font-weight:700; color: ${msg.role === 'admin' ? 'var(--accent-purple)' : 'var(--text-primary)'};">${escapeHtml(msg.nickname)}</span>${roleBadge}
-                            <span>${msg.created_at}</span>
+                const username = escapeHtml(msg.nickname) + roleBadge;
+                const time = msg.created_at;
+                const deleteBtn = (parseInt(msg.user_id) === currentUserId || currentUserRole === 'admin')
+                    ? `<span onclick="deleteCatalogMessage(${msg.id})" style="cursor:pointer;color:#ef4444;font-size:11px;margin-left:6px" title="Xóa"><i class="bi bi-trash"></i></span>`
+                    : '';
+                const message = escapeHtml(msg.message);
+
+                html += `<div style="display:flex;align-items:flex-start;gap:10px;padding:6px 0;
+                             border-bottom:1px solid rgba(255,255,255,.04)">
+                    <div style="width:32px;height:32px;border-radius:50%;
+                                background:${avatarColor};flex-shrink:0;
+                                display:flex;align-items:center;justify-content:center;
+                                font-size:12px;font-weight:700;color:#fff">
+                        ${initial}
+                    </div>
+                    <div style="flex:1;min-width:0">
+                        <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:3px">
+                            <span style="font-size:13px;font-weight:600;color:#e2e8f0">${username}</span>
+                            <span style="font-size:10px;color:#888">${time}</span>
+                            ${deleteBtn}
                         </div>
-                        <div class="catalog-chat-bubble">
-                            ${escapeHtml(msg.message)}
+                        <div style="font-size:13px;color:#cbd5e1;line-height:1.5;word-break:break-word">
+                            ${message}
                         </div>
                     </div>
-                `;
+                </div>`;
             });
             
             if (html === '') {
-                html = '<div style="text-align:center;padding:40px;color:var(--text-muted);font-size:12px">Không có tin nhắn nào. Hãy gửi tin nhắn đầu tiên!</div>';
+                html = `
+                    <div style="text-align:center;padding:40px;color:#888;font-size:12px;display:flex;flex-direction:column;align-items:center;gap:8px">
+                        <i class="bi bi-chat-dots" style="font-size:28px;color:#888;opacity:0.6"></i>
+                        <span>Chưa có tin nhắn nào. Hãy gửi tin nhắn đầu tiên để bắt đầu thảo luận!</span>
+                    </div>
+                `;
             }
             
-            const isAtBottom = container.scrollHeight - container.clientHeight <= container.scrollTop + 60;
             container.innerHTML = html;
-            if (isAtBottom || container.scrollTop === 0) {
-                container.scrollTop = container.scrollHeight;
+            const body = document.getElementById('catalog-chat-body');
+            if (body) {
+                body.scrollTop = body.scrollHeight;
             }
         } catch (e) {
             console.error('Failed to load catalog chat messages:', e);
@@ -443,7 +519,7 @@ document.addEventListener('DOMContentLoaded', () => {
         input.value = '';
         
         try {
-            const response = await fetch('<?= $this->url("library/dashboard", ["action" => "chat"]) ?>', {
+            const response = await fetch('<?= $this->url($routePrefix . "/dashboard", ["action" => "chat"]) ?>', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
@@ -454,6 +530,85 @@ document.addEventListener('DOMContentLoaded', () => {
                 loadCatalogMessages();
             } else {
                 console.error('Failed to send catalog chat message.');
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
+    window.deleteCatalogMessage = async function(id) {
+        if (!confirm('Bạn có chắc chắn muốn xóa tin nhắn này?')) return;
+        try {
+            const response = await fetch('<?= $this->url($routePrefix . "/dashboard", ["action" => "chat"]) ?>', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `action=delete&id=${id}`
+            });
+            if (response.ok) {
+                loadCatalogMessages();
+            } else {
+                alert('Không thể xóa tin nhắn.');
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
+    window.pinCatalogMessage = async function(id) {
+        if (!confirm('Bạn có chắc chắn muốn ghim tin nhắn này?')) return;
+        try {
+            const response = await fetch('<?= $this->url($routePrefix . "/dashboard", ["action" => "chat"]) ?>', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `action=pin&id=${id}`
+            });
+            if (response.ok) {
+                loadCatalogMessages();
+            } else {
+                alert('Không thể ghim tin nhắn.');
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
+    window.unpinCatalogMessage = async function() {
+        if (!confirm('Bạn có chắc chắn muốn gỡ ghim tin nhắn này?')) return;
+        try {
+            const response = await fetch('<?= $this->url($routePrefix . "/dashboard", ["action" => "chat"]) ?>', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `action=unpin`
+            });
+            if (response.ok) {
+                loadCatalogMessages();
+            } else {
+                alert('Không thể gỡ ghim tin nhắn.');
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
+    window.reactCatalogMessage = async function(id, emoji) {
+        try {
+            const response = await fetch('<?= $this->url($routePrefix . "/dashboard", ["action" => "chat"]) ?>', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `action=react&id=${id}&emoji=${encodeURIComponent(emoji)}`
+            });
+            if (response.ok) {
+                loadCatalogMessages();
+            } else {
+                console.error('Failed to react.');
             }
         } catch (e) {
             console.error(e);

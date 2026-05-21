@@ -23,13 +23,15 @@ class HomeController extends BaseController
         $currentUser = $this->currentUser();
         if ($currentUser !== null) {
             if (($currentUser['role'] ?? '') === 'admin') {
-                return $this->redirect()->toRoute('library/book');
+                return $this->redirect()->toRoute('library/dashboard');
             }
-
-            return $this->redirect()->toRoute('catalog');
+            if (($currentUser['role'] ?? '') === 'student') {
+                return $this->redirect()->toRoute('student/dashboard');
+            }
         }
 
-        if ($this->httpRequest()->getUri()->getPath() === '/admin') {
+        $path = $this->httpRequest()->getUri()->getPath();
+        if ($path === '/admin' || $path === '/admin/' || $path === '/student' || $path === '/student/') {
             return $this->redirect()->toRoute('library/auth', ['action' => 'login']);
         }
 

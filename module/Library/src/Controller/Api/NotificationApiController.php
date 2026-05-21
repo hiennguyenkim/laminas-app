@@ -19,7 +19,7 @@ class NotificationApiController extends AbstractActionController
 
     public function indexAction(): Response
     {
-        $currentUser = $this->authSessionContainer->getCurrentUser();
+        $currentUser = $this->authSessionContainer->user ?? null;
         if (!$currentUser) {
             return $this->jsonResponse(['error' => 'Unauthorized'], 401);
         }
@@ -88,8 +88,8 @@ class NotificationApiController extends AbstractActionController
                 'title'       => $row['title'],
                 'description' => $row['message'],
                 'url'         => $row['type'] === 'ticket' || $row['type'] === 'ticket_answered' 
-                                 ? $this->url()->fromRoute('library/ticket', ['action' => 'view', 'id' => $row['related_id']])
-                                 : $this->url()->fromRoute('library/transaction'),
+                                 ? $this->url()->fromRoute($isAdmin ? 'library/ticket' : 'student/ticket', ['action' => 'view', 'id' => $row['related_id']])
+                                 : $this->url()->fromRoute($isAdmin ? 'library/transaction' : 'student/transaction'),
                 'time'        => $this->formatTimeElapsed($row['created_at']),
                 'type'        => $row['type']
             ];
@@ -147,7 +147,7 @@ class NotificationApiController extends AbstractActionController
                     'id'          => 'borrow_app_' . $row['borrow_id'],
                     'title'       => 'Phiếu mượn đã được duyệt',
                     'description' => "Cuốn sách <strong>" . htmlspecialchars($row['book_title']) . "</strong> của bạn đã được thủ thư phê duyệt thành công!",
-                    'url'         => $this->url()->fromRoute('library/transaction'),
+                    'url'         => $this->url()->fromRoute('student/transaction'),
                     'time'        => $this->formatTimeElapsed($row['created_at']),
                     'type'        => 'borrow_approved'
                 ];
@@ -164,7 +164,7 @@ class NotificationApiController extends AbstractActionController
                     'id'          => 'ticket_ans_' . $row['id'],
                     'title'       => 'Có phản hồi hỗ trợ',
                     'description' => "Thủ thư đã trả lời yêu cầu hỗ trợ của bạn: <em>" . htmlspecialchars($row['title']) . "</em>.",
-                    'url'         => $this->url()->fromRoute('library/ticket', ['action' => 'view', 'id' => $row['id']]),
+                    'url'         => $this->url()->fromRoute('student/ticket', ['action' => 'view', 'id' => $row['id']]),
                     'time'        => $this->formatTimeElapsed($row['updated_at']),
                     'type'        => 'ticket_answered'
                 ];

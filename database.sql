@@ -178,7 +178,7 @@ CREATE TABLE IF NOT EXISTS notifications (
     sender_id  INT UNSIGNED DEFAULT NULL,
     title      VARCHAR(255) NOT NULL,
     message    TEXT NOT NULL,
-    type       ENUM('system','ticket','borrow_alert','general') NOT NULL DEFAULT 'system',
+    type       ENUM('system','ticket','borrow_alert','general','ticket_answered') NOT NULL DEFAULT 'system',
     is_read    TINYINT(1) NOT NULL DEFAULT 0,
     related_id INT UNSIGNED DEFAULT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,

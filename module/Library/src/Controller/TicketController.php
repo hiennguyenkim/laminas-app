@@ -73,7 +73,7 @@ class TicketController extends BaseController
                                 VALUES (NULL, ?, 'Yêu cầu hỗ trợ mới', ?, 'ticket', ?)";
                     $this->dbAdapter->query($notiSql, [
                         $currentUser['id'],
-                        "Độc giả <strong>" . htmlspecialchars($currentUser['fullName'] ?? $currentUser['username']) . "</strong> gửi ticket mới: <em>" . htmlspecialchars($title) . "</em>.",
+                        "Độc giả <strong>" . htmlspecialchars($currentUser['full_name'] ?? $currentUser['username']) . "</strong> gửi ticket mới: <em>" . htmlspecialchars($title) . "</em>.",
                         $ticketId
                     ]);
                 } catch (\Throwable $e) {}
@@ -144,7 +144,7 @@ class TicketController extends BaseController
                                     VALUES (NULL, ?, 'Phản hồi hỗ trợ mới', ?, 'ticket', ?)";
                         $this->dbAdapter->query($notiSql, [
                             $currentUser['id'],
-                            "Độc giả <strong>" . htmlspecialchars($currentUser['fullName'] ?? $currentUser['username']) . "</strong> đã phản hồi ticket: <em>" . htmlspecialchars($ticket['title']) . "</em>.",
+                            "Độc giả <strong>" . htmlspecialchars($currentUser['full_name'] ?? $currentUser['username']) . "</strong> đã phản hồi ticket: <em>" . htmlspecialchars($ticket['title']) . "</em>.",
                             $id
                         ]);
                     }

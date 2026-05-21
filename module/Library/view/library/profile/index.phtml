@@ -1,6 +1,8 @@
 <?php
 $this->headTitle('Hồ sơ cá nhân');
 $this->layout('layout/library-layout');
+$authUser    = $this->currentUser();
+$routePrefix = ($authUser['role'] ?? '') === 'admin' ? 'library' : 'student';
 ?>
 
 <div class="page-header">
@@ -31,7 +33,7 @@ $this->layout('layout/library-layout');
     <div style="flex: 1; min-width: 320px;">
         <div class="card">
             <div class="card-body">
-                <form method="POST" action="<?= $this->url('library/profile', ['action' => 'update']) ?>" enctype="multipart/form-data">
+                <form method="POST" action="<?= $this->url($routePrefix . '/profile', ['action' => 'update']) ?>" enctype="multipart/form-data">
                     <div style="display: flex; gap: 20px; align-items: flex-start; margin-bottom: 20px;">
                         <div class="avatar-preview" style="width: 80px; height: 80px; border-radius: 50%; overflow: hidden; background: var(--bg-card); border: 2px solid var(--border);">
                             <?php if ($user->avatarUrl): ?>
@@ -146,27 +148,61 @@ $this->layout('layout/library-layout');
                             <p style="margin-top: 10px;">Bạn chưa mượn cuốn sách nào.</p>
                         </div>
                     <?php else: ?>
-                        <table class="table" style="margin: 0;">
+                        <table class="data-table" style="margin: 0;">
                             <thead>
                                 <tr>
                                     <th>Sách</th>
                                     <th>Ngày mượn</th>
+                                    <th>Hạn trả / Ngày trả</th>
                                     <th>Trạng thái</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <?php foreach ($history as $record): ?>
+                                <?php
+                                $borrowedDateFormatted = ($record->borrowDate && $record->borrowDate !== '0000-00-00')
+                                    ? date('d/m/Y', strtotime($record->borrowDate))
+                                    : '—';
+                                $returnDateFormatted = ($record->returnDate && $record->returnDate !== '0000-00-00')
+                                    ? date('d/m/Y', strtotime($record->returnDate))
+                                    : '—';
+                                $returnedAtFormatted = ($record->returnedAt && $record->returnedAt !== '0000-00-00 00:00:00' && $record->returnedAt !== '0000-00-00')
+                                    ? date('d/m/Y', strtotime($record->returnedAt))
+                                    : '';
+                                $isRecordOverdue = $record->status === 'overdue' || ($record->status === 'borrowed' && $record->returnDate < date('Y-m-d'));
+                                ?>
                                 <tr>
                                     <td>
                                         <div style="font-weight: 600; color: var(--text-primary); font-size: 13px;">
                                             <?= htmlspecialchars($record->bookTitle) ?>
                                         </div>
+                                        <?php if ($record->bookIsbn): ?>
+                                            <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">ISBN: <?= htmlspecialchars($record->bookIsbn) ?></div>
+                                        <?php endif; ?>
                                     </td>
-                                    <td><?= htmlspecialchars($record->borrowDate) ?></td>
+                                    <td style="white-space: nowrap;">
+                                        <div class="d-flex align-center gap-2">
+                                            <i class="bi bi-calendar3" style="color:var(--text-muted); font-size: 12px;"></i>
+                                            <?= htmlspecialchars($borrowedDateFormatted) ?>
+                                        </div>
+                                    </td>
+                                    <td style="white-space: nowrap;">
+                                        <?php if ($record->status === 'returned'): ?>
+                                            <div class="d-flex align-center gap-2" style="color:var(--accent-green)">
+                                                <i class="bi bi-calendar-check" style="font-size: 12px;"></i>
+                                                <span>Trả: <?= htmlspecialchars($returnedAtFormatted ?: $returnDateFormatted) ?></span>
+                                            </div>
+                                        <?php else: ?>
+                                            <div class="d-flex align-center gap-2" style="<?= $isRecordOverdue ? 'color:#ef4444;font-weight:600' : 'color:var(--text-secondary)' ?>">
+                                                <i class="bi bi-clock" style="font-size: 12px; color: <?= $isRecordOverdue ? '#ef4444' : 'var(--text-muted)' ?>"></i>
+                                                <span>Hạn: <?= htmlspecialchars($returnDateFormatted) ?></span>
+                                            </div>
+                                        <?php endif; ?>
+                                    </td>
                                     <td>
                                         <?php if ($record->status === 'returned'): ?>
                                             <span class="badge badge-green">Đã trả</span>
-                                        <?php elseif ($record->status === 'overdue'): ?>
+                                        <?php elseif ($isRecordOverdue): ?>
                                             <span class="badge badge-red">Quá hạn</span>
                                         <?php else: ?>
                                             <span class="badge badge-blue">Đang mượn</span>

@@ -120,6 +120,44 @@ abstract class BaseController extends AbstractActionController
         return $this->redirect()->toRoute('library/auth', ['action' => 'login']);
     }
 
+    public function onDispatch(\Laminas\Mvc\MvcEvent $e)
+    {
+        $routeMatch = $e->getRouteMatch();
+        $routeName = $routeMatch ? $routeMatch->getMatchedRouteName() : '';
+        $currentUser = $this->currentUser();
+        $role = $currentUser['role'] ?? '';
+
+        // If matched route is under admin / library
+        if (str_starts_with($routeName, 'library')) {
+            if (str_starts_with($routeName, 'library/auth')) {
+                $action = $routeMatch->getParam('action', 'login');
+                if ($role === 'student' && $action !== 'logout') {
+                    return $this->redirect()->toRoute('student/dashboard');
+                }
+            } else {
+                if ($role === 'student') {
+                    $this->flash()->addErrorMessage('Chỉ quản trị viên mới có quyền truy cập.');
+                    return $this->redirect()->toRoute('student/dashboard');
+                }
+            }
+        }
+
+        // If matched route is under student
+        if (str_starts_with($routeName, 'student')) {
+            if ($role === 'admin') {
+                $this->flash()->addErrorMessage('Học sinh mới có quyền truy cập trang này.');
+                return $this->redirect()->toRoute('library/dashboard');
+            }
+        }
+
+        return parent::onDispatch($e);
+    }
+
+    protected function routeForRole(string $suffix): string
+    {
+        return $this->isAdmin() ? 'library/' . $suffix : 'student/' . $suffix;
+    }
+
     protected function requireAdmin(): ?Response
     {
         $user = $this->currentUser();
@@ -136,6 +174,6 @@ abstract class BaseController extends AbstractActionController
 
         $this->flash()->addErrorMessage('Chỉ quản trị viên mới có quyền truy cập.');
 
-        return $this->redirect()->toRoute('library/dashboard');
+        return $this->redirect()->toRoute('student/dashboard');
     }
 }

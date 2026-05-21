@@ -1,6 +1,8 @@
 <?php
 $this->headTitle($isAdmin ? 'Lập phiếu mượn' : 'Mượn sách');
 $this->layout('layout/library-layout');
+$authUser    = $this->currentUser();
+$routePrefix = ($authUser['role'] ?? '') === 'admin' ? 'library' : 'student';
 
 // Lấy thông tin user hiện tại
 $currentUserLabel = htmlspecialchars((string)(
@@ -181,7 +183,7 @@ $due14d   = date('Y-m-d', strtotime('+14 days'));
 <!-- PAGE HEADER -->
 <div class="page-header">
     <div class="d-flex align-center gap-3">
-        <a href="<?= $this->url('library/transaction') ?>" class="btn btn-outline btn-icon">
+        <a href="<?= $this->url($routePrefix . '/transaction') ?>" class="btn btn-outline btn-icon">
             <i class="bi bi-arrow-left"></i>
         </a>
         <div>
@@ -203,7 +205,7 @@ $due14d   = date('Y-m-d', strtotime('+14 days'));
         <?php endif; ?>
 
         <form method="POST" id="borrow-form"
-              action="<?= $this->url('library/transaction', ['action' => 'borrow']) ?>">
+              action="<?= $this->url($routePrefix . '/transaction', ['action' => 'borrow']) ?>">
 
             <!-- ── CHỌN SÁCH ─── -->
             <div class="form-group">
@@ -346,7 +348,7 @@ $due14d   = date('Y-m-d', strtotime('+14 days'));
                         <?= !$hasBooks ? 'disabled' : '' ?>>
                     <i class="bi bi-check-circle"></i>Xác nhận mượn
                 </button>
-                <a href="<?= $this->url('library/transaction') ?>" class="btn btn-outline">Hủy</a>
+                <a href="<?= $this->url($routePrefix . '/transaction') ?>" class="btn btn-outline">Hủy</a>
             </div>
 
         </form>

@@ -76,7 +76,7 @@ class DashboardController extends BaseController
             'totalMembers'   => $isAdmin ? $this->userTable->countByRole('student') : 0,
             'recentBorrows'  => $this->borrowTable->fetchAllWithDetails([], $isAdmin ? null : $userId, 10),
             'monthlyStats'   => $this->borrowTable->getMonthlyStats((int) date('Y'), $isAdmin ? null : $userId),
-            'categoryStats'  => $this->bookTable->getCategoryStats(),
+            'categoryStats'  => $this->bookTable->getCategoryStats($isAdmin ? null : $userId),
             'isLocked'       => $isLocked,
             'lockReason'     => $lockReason,
             'lockedAt'       => $lockedAt,
@@ -86,12 +86,111 @@ class DashboardController extends BaseController
     public function chatAction(): Response
     {
         $currentUser = $this->currentUser();
-        if (!$currentUser) {
-            return $this->jsonResponse(['error' => 'Unauthorized'], 401);
-        }
 
         if ($this->getRequest()->isPost()) {
+            if (!$currentUser) {
+                return $this->jsonResponse(['error' => 'Unauthorized'], 401);
+            }
             $data = $this->postData();
+            $action = trim((string)($data['action'] ?? ''));
+
+            if ($action === 'delete') {
+                $messageId = (int)($data['id'] ?? 0);
+                if ($messageId <= 0) {
+                    return $this->jsonResponse(['error' => 'Invalid message ID'], 400);
+                }
+                $isAdmin = ($currentUser['role'] ?? '') === 'admin';
+                $userId = (int)$currentUser['id'];
+
+                if ($isAdmin) {
+                    $sql = "DELETE FROM public_chats WHERE id = ?";
+                    $this->dbAdapter->query($sql, [$messageId]);
+                } else {
+                    $sql = "DELETE FROM public_chats WHERE id = ? AND user_id = ?";
+                    $this->dbAdapter->query($sql, [$messageId, $userId]);
+                }
+                return $this->jsonResponse(['success' => true]);
+            }
+
+            if ($action === 'pin') {
+                $messageId = (int)($data['id'] ?? 0);
+                if ($messageId <= 0) {
+                    return $this->jsonResponse(['error' => 'Invalid message ID'], 400);
+                }
+                $isAdmin = ($currentUser['role'] ?? '') === 'admin';
+                if (!$isAdmin) {
+                    return $this->jsonResponse(['error' => 'Forbidden'], 403);
+                }
+
+                // Unpin everything first
+                $this->dbAdapter->query("UPDATE public_chats SET is_pinned = 0", []);
+                // Pin the target message
+                $this->dbAdapter->query("UPDATE public_chats SET is_pinned = 1 WHERE id = ?", [$messageId]);
+
+                return $this->jsonResponse(['success' => true]);
+            }
+
+            if ($action === 'unpin') {
+                $isAdmin = ($currentUser['role'] ?? '') === 'admin';
+                if (!$isAdmin) {
+                    return $this->jsonResponse(['error' => 'Forbidden'], 403);
+                }
+
+                // Unpin everything
+                $this->dbAdapter->query("UPDATE public_chats SET is_pinned = 0", []);
+
+                return $this->jsonResponse(['success' => true]);
+            }
+
+            if ($action === 'react') {
+                $messageId = (int)($data['id'] ?? 0);
+                $emoji = trim((string)($data['emoji'] ?? ''));
+                if ($messageId <= 0 || $emoji === '') {
+                    return $this->jsonResponse(['error' => 'Invalid parameters'], 400);
+                }
+
+                // Fetch message
+                $sql = "SELECT reactions FROM public_chats WHERE id = ?";
+                $stmt = $this->dbAdapter->query($sql);
+                $row = $stmt->execute([$messageId])->current();
+                if (!$row) {
+                    return $this->jsonResponse(['error' => 'Message not found'], 404);
+                }
+
+                $reactionsStr = $row['reactions'] ?? '';
+                $reactions = [];
+                if ($reactionsStr !== '') {
+                    $reactions = json_decode($reactionsStr, true) ?? [];
+                }
+
+                $userId = (int)$currentUser['id'];
+
+                // Toggle logic
+                if (!isset($reactions[$emoji])) {
+                    $reactions[$emoji] = [];
+                }
+
+                $userIndex = array_search($userId, $reactions[$emoji]);
+                if ($userIndex !== false) {
+                    // User already reacted with this emoji, remove it
+                    unset($reactions[$emoji][$userIndex]);
+                    $reactions[$emoji] = array_values($reactions[$emoji]); // reindex
+                    if (empty($reactions[$emoji])) {
+                        unset($reactions[$emoji]);
+                    }
+                } else {
+                    // Add user reaction
+                    $reactions[$emoji][] = $userId;
+                }
+
+                $newReactionsStr = json_encode($reactions, JSON_UNESCAPED_UNICODE);
+                $sql = "UPDATE public_chats SET reactions = ? WHERE id = ?";
+                $this->dbAdapter->query($sql, [$newReactionsStr, $messageId]);
+
+                return $this->jsonResponse(['success' => true]);
+            }
+
+            // Normal chat insert action
             $message = trim((string)($data['message'] ?? ''));
             if ($message === '') {
                 return $this->jsonResponse(['error' => 'Message cannot be empty'], 400);
@@ -108,14 +207,14 @@ class DashboardController extends BaseController
         }
 
         // Fetch last 50 messages joining with users to get nickname securely
-        $sql = "SELECT c.*, COALESCE(NULLIF(u.nickname, ''), u.full_name, CONCAT('Độc giả #', u.user_id)) AS nickname, u.role 
+        $sql = "SELECT c.*, COALESCE(NULLIF(u.nickname, ''), u.full_name, CONCAT('Độc giả #', u.user_id)) AS nickname, u.role, u.avatar_url 
                 FROM public_chats c 
                 JOIN users u ON c.user_id = u.user_id 
                 ORDER BY c.created_at ASC 
                 LIMIT 50";
         $results = iterator_to_array($this->dbAdapter->query($sql)->execute());
 
-        // Format timestamps for display
+        // Format for display
         $formattedResults = array_map(function($row) {
             return [
                 'id'         => $row['id'],
@@ -123,6 +222,9 @@ class DashboardController extends BaseController
                 'nickname'   => $row['nickname'],
                 'message'    => $row['message'],
                 'role'       => $row['role'] ?? 'student',
+                'avatar_url' => $row['avatar_url'] ?? '',
+                'is_pinned'  => (int)($row['is_pinned'] ?? 0),
+                'reactions'  => $row['reactions'] ?? '',
                 'created_at' => date('H:i', strtotime($row['created_at']))
             ];
         }, $results);

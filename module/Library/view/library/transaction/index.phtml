@@ -1,6 +1,8 @@
 <?php
 $this->headTitle($isAdmin ? 'Mượn / Trả sách' : 'Phiếu mượn của tôi');
 $this->layout('layout/library-layout');
+$authUser    = $this->currentUser();
+$routePrefix = ($authUser['role'] ?? '') === 'admin' ? 'library' : 'student';
 $statusMap = [
     'pending'  => ['Chờ duyệt',  'badge-orange'],
     'borrowed' => ['Đang mượn',  'badge-purple'],
@@ -26,11 +28,11 @@ $filterStatus = (string)($filters['status']??'');
     <div class="d-flex gap-2">
         <span class="btn btn-outline" style="opacity:0.45;cursor:not-allowed" title="Chức năng này đang được phát triển"><i class="bi bi-file-earmark-excel"></i>Xuất Excel</span>
         <?php if ($isAdmin): ?>
-        <a href="<?= $this->url('library/transaction', ['action' => 'borrow']) ?>" class="btn btn-primary">
+        <a href="<?= $this->url($routePrefix . '/transaction', ['action' => 'borrow']) ?>" class="btn btn-primary">
             <i class="bi bi-plus-lg"></i>Tạo phiếu mượn
         </a>
         <?php else: ?>
-        <a href="<?= $this->url('library/transaction', ['action' => 'borrow']) ?>" class="btn btn-success">
+        <a href="<?= $this->url($routePrefix . '/transaction', ['action' => 'borrow']) ?>" class="btn btn-success">
             <i class="bi bi-bookmark-plus"></i>Mượn sách
         </a>
         <?php endif; ?>
@@ -39,7 +41,7 @@ $filterStatus = (string)($filters['status']??'');
 
 <!-- MINI STAT CARDS -->
 <div class="stat-cards" style="grid-template-columns:repeat(5,1fr);margin-bottom:22px">
-    <div class="stat-card purple" style="padding:18px">
+    <a href="<?= $this->url($routePrefix . '/transaction', [], ['query' => ['status' => 'borrowed']]) ?>" class="stat-card purple" style="padding:18px;text-decoration:none;color:inherit;display:block">
         <div class="d-flex align-center gap-3">
             <div class="stat-icon purple" style="width:36px;height:36px;font-size:16px;margin-bottom:0"><i class="bi bi-bookmark-check"></i></div>
             <div>
@@ -47,8 +49,8 @@ $filterStatus = (string)($filters['status']??'');
                 <div class="stat-label">Đang mượn</div>
             </div>
         </div>
-    </div>
-    <div class="stat-card warning" style="padding:18px">
+    </a>
+    <a href="<?= $this->url($routePrefix . '/transaction', [], ['query' => ['status' => 'pending']]) ?>" class="stat-card warning" style="padding:18px;text-decoration:none;color:inherit;display:block">
         <div class="d-flex align-center gap-3">
             <div class="stat-icon warning" style="width:36px;height:36px;font-size:16px;margin-bottom:0;background:rgba(245, 158, 11, 0.1);color:#f59e0b"><i class="bi bi-hourglass-split"></i></div>
             <div>
@@ -56,8 +58,8 @@ $filterStatus = (string)($filters['status']??'');
                 <div class="stat-label">Chờ duyệt</div>
             </div>
         </div>
-    </div>
-    <div class="stat-card green" style="padding:18px">
+    </a>
+    <a href="<?= $this->url($routePrefix . '/transaction', [], ['query' => ['status' => 'returned']]) ?>" class="stat-card green" style="padding:18px;text-decoration:none;color:inherit;display:block">
         <div class="d-flex align-center gap-3">
             <div class="stat-icon green" style="width:36px;height:36px;font-size:16px;margin-bottom:0"><i class="bi bi-check-circle"></i></div>
             <div>
@@ -65,8 +67,8 @@ $filterStatus = (string)($filters['status']??'');
                 <div class="stat-label">Đã trả</div>
             </div>
         </div>
-    </div>
-    <div class="stat-card pink" style="padding:18px">
+    </a>
+    <a href="<?= $this->url($routePrefix . '/transaction', [], ['query' => ['status' => 'overdue']]) ?>" class="stat-card pink" style="padding:18px;text-decoration:none;color:inherit;display:block">
         <div class="d-flex align-center gap-3">
             <div class="stat-icon pink" style="width:36px;height:36px;font-size:16px;margin-bottom:0"><i class="bi bi-exclamation-triangle"></i></div>
             <div>
@@ -74,8 +76,8 @@ $filterStatus = (string)($filters['status']??'');
                 <div class="stat-label">Quá hạn</div>
             </div>
         </div>
-    </div>
-    <div class="stat-card orange" style="padding:18px">
+    </a>
+    <a href="<?= $this->url($routePrefix . '/transaction') ?>" class="stat-card orange" style="padding:18px;text-decoration:none;color:inherit;display:block">
         <div class="d-flex align-center gap-3">
             <div class="stat-icon orange" style="width:36px;height:36px;font-size:16px;margin-bottom:0"><i class="bi bi-lightning-charge"></i></div>
             <div>
@@ -83,25 +85,25 @@ $filterStatus = (string)($filters['status']??'');
                 <div class="stat-label">Tổng</div>
             </div>
         </div>
-    </div>
+    </a>
 </div>
 
 <!-- FILTER TABS + SEARCH -->
 <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:22px">
     <div class="filter-tabs" style="margin-bottom:0">
-        <a href="<?= $this->url('library/transaction') ?>" class="filter-tab <?= $filterStatus===''?'active':'' ?>">
+        <a href="<?= $this->url($routePrefix . '/transaction') ?>" class="filter-tab <?= $filterStatus===''?'active':'' ?>">
             Tất cả <span class="count"><?= (int)($summary['borrowed']??0)+(int)($summary['returned']??0)+(int)($summary['overdue']??0)+(int)($summary['pending']??0) ?></span>
         </a>
-        <a href="<?= $this->url('library/transaction',[],['query'=>['status'=>'borrowed']]) ?>" class="filter-tab <?= $filterStatus==='borrowed'?'active':'' ?>">
+        <a href="<?= $this->url($routePrefix . '/transaction',[],['query'=>['status'=>'borrowed']]) ?>" class="filter-tab <?= $filterStatus==='borrowed'?'active':'' ?>">
             Đang mượn <span class="count"><?= (int)($summary['borrowed']??0) ?></span>
         </a>
-        <a href="<?= $this->url('library/transaction',[],['query'=>['status'=>'pending']]) ?>" class="filter-tab <?= $filterStatus==='pending'?'active':'' ?>">
+        <a href="<?= $this->url($routePrefix . '/transaction',[],['query'=>['status'=>'pending']]) ?>" class="filter-tab <?= $filterStatus==='pending'?'active':'' ?>">
             Chờ duyệt <span class="count"><?= (int)($summary['pending']??0) ?></span>
         </a>
-        <a href="<?= $this->url('library/transaction',[],['query'=>['status'=>'returned']]) ?>" class="filter-tab <?= $filterStatus==='returned'?'active':'' ?>">
+        <a href="<?= $this->url($routePrefix . '/transaction',[],['query'=>['status'=>'returned']]) ?>" class="filter-tab <?= $filterStatus==='returned'?'active':'' ?>">
             Đã trả <span class="count"><?= (int)($summary['returned']??0) ?></span>
         </a>
-        <a href="<?= $this->url('library/transaction',[],['query'=>['status'=>'overdue']]) ?>" class="filter-tab <?= $filterStatus==='overdue'?'active':'' ?>">
+        <a href="<?= $this->url($routePrefix . '/transaction',[],['query'=>['status'=>'overdue']]) ?>" class="filter-tab <?= $filterStatus==='overdue'?'active':'' ?>">
             Quá hạn <span class="count"><?= (int)($summary['overdue']??0) ?></span>
         </a>
     </div>
@@ -180,13 +182,13 @@ $filterStatus = (string)($filters['status']??'');
                     <td>
                         <div class="d-flex align-center gap-2">
                             <i class="bi bi-calendar3" style="color:var(--text-muted)"></i>
-                            <?= htmlspecialchars($record->borrowDate) ?>
+                            <?= htmlspecialchars(($record->borrowDate && $record->borrowDate !== '0000-00-00') ? date('d/m/Y', strtotime($record->borrowDate)) : '—') ?>
                         </div>
                     </td>
                     <td>
                         <div class="d-flex align-center gap-2" style="<?= $isOverdue ? 'color:#ef4444;font-weight:600' : '' ?>">
                             <i class="bi bi-clock" style="color:<?= $isOverdue ? '#ef4444' : 'var(--text-muted)' ?>"></i>
-                            <?= htmlspecialchars($record->returnDate) ?>
+                            <?= htmlspecialchars(($record->returnDate && $record->returnDate !== '0000-00-00') ? date('d/m/Y', strtotime($record->returnDate)) : '—') ?>
                         </div>
                     </td>
                     <td><span class="badge <?= $statusClass ?>"><?= $statusLabel ?></span></td>
@@ -195,7 +197,7 @@ $filterStatus = (string)($filters['status']??'');
                         <div style="display:flex;gap:6px">
                             <button type="button" class="btn btn-primary btn-sm" style="padding:4px 8px;font-size:11px"
                                     onclick="openApproveModal(
-                                        '<?= $this->url('library/transaction', ['action' => 'approve', 'id' => $record->id]) ?>',
+                                        '<?= $this->url($routePrefix . '/transaction', ['action' => 'approve', 'id' => $record->id]) ?>',
                                         '<?= addslashes(htmlspecialchars($record->userFullName ?? '')) ?>',
                                         '<?= addslashes(htmlspecialchars($record->bookTitle)) ?>',
                                         '<?= htmlspecialchars($record->borrowDate) ?>',
@@ -203,7 +205,7 @@ $filterStatus = (string)($filters['status']??'');
                                     )">
                                 <i class="bi bi-patch-check"></i>Duyệt
                             </button>
-                            <form method="POST" action="<?= $this->url('library/transaction', ['action' => 'reject', 'id' => $record->id]) ?>"
+                            <form method="POST" action="<?= $this->url($routePrefix . '/transaction', ['action' => 'reject', 'id' => $record->id]) ?>"
                                   data-confirm="Từ chối duyệt yêu cầu mượn sách '<?= htmlspecialchars($record->bookTitle) ?>' của '<?= htmlspecialchars($record->userFullName ?? '') ?>'?" style="margin:0">
                                 <button type="submit" class="btn btn-sm btn-outline" style="color:#ef4444;border-color:#ef4444;padding:4px 8px;font-size:11px">
                                     <i class="bi bi-x-circle"></i>Từ chối
@@ -211,7 +213,7 @@ $filterStatus = (string)($filters['status']??'');
                             </form>
                         </div>
                         <?php elseif ($isAdmin && in_array($record->status, ['borrowed','overdue'], true)): ?>
-                        <form method="POST" action="<?= $this->url('library/transaction', ['action' => 'return', 'id' => $record->id]) ?>"
+                        <form method="POST" action="<?= $this->url($routePrefix . '/transaction', ['action' => 'return', 'id' => $record->id]) ?>"
                               data-confirm="Xác nhận '<?= htmlspecialchars($record->userFullName ?? '') ?>' đã trả sách '<?= htmlspecialchars($record->bookTitle) ?>'?">
                             <button type="submit" class="btn btn-success btn-sm">
                                 <i class="bi bi-check-circle"></i>Xác nhận trả

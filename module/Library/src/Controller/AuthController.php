@@ -127,7 +127,10 @@ class AuthController extends BaseController
     private function redirectToRoleHome(string $role): Response
     {
         if ($role === 'admin') {
-            return $this->redirect()->toRoute('library/book');
+            return $this->redirect()->toRoute('library/dashboard');
+        }
+        if ($role === 'student') {
+            return $this->redirect()->toRoute('student/dashboard');
         }
 
         return $this->redirect()->toRoute('catalog');

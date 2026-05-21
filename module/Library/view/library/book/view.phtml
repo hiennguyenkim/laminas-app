@@ -1,6 +1,8 @@
 <?php
 $this->headTitle('Chi tiết sách');
 $this->layout('layout/library-layout');
+$authUser    = $this->currentUser();
+$routePrefix = ($authUser['role'] ?? '') === 'admin' ? 'library' : 'student';
 
 $statusMap = [
     'available' => ['Sẵn sàng', 'badge-green'],
@@ -11,7 +13,7 @@ $statusMap = [
 ?>
 <div class="page-header">
     <div class="d-flex align-center gap-3">
-        <a href="<?= $this->url('library/book') ?>" class="btn btn-outline btn-icon"><i class="bi bi-arrow-left"></i></a>
+        <a href="<?= $this->url($routePrefix . '/book') ?>" class="btn btn-outline btn-icon"><i class="bi bi-arrow-left"></i></a>
         <div>
             <div class="page-title">Chi tiết sách</div>
             <div class="page-subtitle">Xem thông tin đầy đủ và trạng thái vận hành của đầu sách trong hệ thống.</div>
@@ -19,7 +21,7 @@ $statusMap = [
     </div>
     <?php if ($canManage): ?>
     <div class="d-flex gap-2">
-        <a href="<?= $this->url('library/book', ['action' => 'edit', 'id' => $book->id]) ?>" class="btn btn-primary">
+        <a href="<?= $this->url($routePrefix . '/book', ['action' => 'edit', 'id' => $book->id]) ?>" class="btn btn-primary">
             <i class="bi bi-pencil-square"></i>Chỉnh sửa
         </a>
     </div>
@@ -90,7 +92,7 @@ $statusMap = [
             <?php if ($canManage): ?>
             <div class="d-flex gap-2">
                 <form method="POST"
-                      action="<?= $this->url('library/book', ['action' => 'delete', 'id' => $book->id]) ?>"
+                      action="<?= $this->url($routePrefix . '/book', ['action' => 'delete', 'id' => $book->id]) ?>"
                       data-confirm="Bạn có chắc muốn xóa sách '<?= htmlspecialchars($book->title) ?>'?"
                       style="margin:0">
                     <button type="submit" class="btn btn-sm"
@@ -102,7 +104,7 @@ $statusMap = [
             </div>
             <?php elseif (isset($currentUser) && $currentUser['role'] === 'student' && $book->status === 'available' && $book->quantity >= 1): ?>
             <div class="d-flex gap-2">
-                <a href="<?= $this->url('library/transaction', ['action' => 'borrow'], ['query' => ['book_id' => $book->id]]) ?>" class="btn btn-success">
+                <a href="<?= $this->url($routePrefix . '/transaction', ['action' => 'borrow'], ['query' => ['book_id' => $book->id]]) ?>" class="btn btn-success">
                     <i class="bi bi-bookmark-plus"></i> Mượn ngay cuốn này
                 </a>
             </div>
@@ -117,7 +119,7 @@ $statusMap = [
         </div>
         <div class="card-body">
             <?php if (isset($currentUser) && $currentUser['role'] === 'student'): ?>
-            <form method="POST" action="<?= $this->url('library/book', ['action' => 'review', 'id' => $book->id]) ?>" style="margin-bottom:24px;background:var(--bg-body);padding:16px;border-radius:8px;border:1px solid var(--border);">
+            <form method="POST" action="<?= $this->url($routePrefix . '/book', ['action' => 'review', 'id' => $book->id]) ?>" style="margin-bottom:24px;background:var(--bg-body);padding:16px;border-radius:8px;border:1px solid var(--border);">
                 <div style="font-weight:600;margin-bottom:8px;">Viết nhận xét của bạn</div>
                 <div style="margin-bottom:12px;">
                     <label style="margin-right:12px;">Đánh giá:</label>

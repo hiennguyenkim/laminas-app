@@ -49,6 +49,7 @@ class BookController extends BaseController
 
         $currentUser = $this->currentUser();
         $isGuest = $currentUser === null;
+        $isStudent = $currentUser !== null && ($currentUser['role'] ?? '') === 'student';
         if ($isGuest) {
             $layout = $this->layout();
             if (method_exists($layout, 'setVariable')) {
@@ -57,7 +58,7 @@ class BookController extends BaseController
         }
 
         $statusFilter = $this->queryString('status');
-        if ($isGuest && $statusFilter === '') {
+        if ($isGuest || $isStudent) {
             $statusFilter = 'available';
         }
 
@@ -94,7 +95,7 @@ class BookController extends BaseController
             'canManage'  => $this->isAdmin(),
             'canBorrow'  => ($currentUser['role'] ?? '') === 'student',
             'isGuest'    => $isGuest,
-            'indexRoute' => $isPublicCatalog ? 'catalog' : 'library/book',
+            'indexRoute' => $isPublicCatalog ? 'catalog' : ($this->isAdmin() ? 'library/book' : 'student/book'),
             'pagination' => [
                 'page'       => $page,
                 'perPage'    => self::PER_PAGE,

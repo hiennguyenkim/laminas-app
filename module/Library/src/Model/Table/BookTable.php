@@ -230,23 +230,36 @@ class BookTable
     /**
      * Get book counts grouped by category.
      * Returns ['Văn học' => 5, 'Khoa học' => 3, ...]
+     * If $userId is provided, returns statistics based on the books borrowed by the student.
      */
-    public function getCategoryStats(): array
+    public function getCategoryStats(?int $userId = null): array
     {
         $sql = $this->tableGateway->getSql();
-        $select = $sql->select()->columns([
-            'category',
-            'cnt' => new Expression('COUNT(*)'),
-        ])
-        ->where->isNotNull('category');
-
-        $select = $sql->select()->columns([
-            'category',
-            'cnt' => new Expression('COUNT(*)'),
-        ]);
-        $select->where->isNotNull('category');
-        $select->group('category');
-        $select->order(new Expression('COUNT(*) DESC'));
+        if ($userId === null) {
+            $select = $sql->select()->columns([
+                'category',
+                'cnt' => new Expression('COUNT(*)'),
+            ]);
+            $select->where->isNotNull('category');
+            $select->group('category');
+            $select->order(new Expression('COUNT(*) DESC'));
+        } else {
+            $select = $sql->select()
+                ->columns([
+                    'category',
+                    'cnt' => new Expression('COUNT(*)'),
+                ])
+                ->join(
+                    'borrow_records',
+                    'books.book_id = borrow_records.book_id',
+                    []
+                );
+            $select->where->equalTo('borrow_records.user_id', $userId);
+            $select->where->in('borrow_records.status', ['borrowed', 'returned', 'overdue']);
+            $select->where->isNotNull('books.category');
+            $select->group('books.category');
+            $select->order(new Expression('COUNT(*) DESC'));
+        }
 
         $result = $sql->prepareStatementForSqlObject($select)->execute();
         $stats = [];
