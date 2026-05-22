@@ -82,17 +82,36 @@ $statusLabels = [
 </div>
 
 <!-- CHARTS ROW -->
-<div class="charts-row">
-    <!-- Line Chart: Borrow/Return Stats -->
-    <div class="card">
-        <div class="card-header">
+<?php if ($isAdmin): ?>
+    <!-- ADMIN CHARTS ROW 1: Full-width Line Chart -->
+    <div class="card" style="margin-bottom: 24px;">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
             <div>
                 <div class="card-title">Thống kê mượn / trả sách</div>
-                <div class="card-subtitle">Theo tháng trong năm <?= date('Y') ?></div>
+                <div class="card-subtitle" id="borrowChartSubtitle">Theo tháng trong năm <?= date('Y') ?></div>
             </div>
-            <div class="d-flex gap-2 align-center dashboard-legend-container">
-                <span class="dashboard-legend-item"><span class="dashboard-legend-box dashboard-legend-box--purple"></span>Mượn</span>
-                <span class="dashboard-legend-item"><span class="dashboard-legend-box dashboard-legend-box--green"></span>Trả</span>
+            <div class="d-flex gap-3 align-center flex-wrap">
+                <div class="d-flex gap-2 align-center dashboard-legend-container">
+                    <span class="dashboard-legend-item"><span class="dashboard-legend-box dashboard-legend-box--purple"></span>Mượn</span>
+                    <span class="dashboard-legend-item"><span class="dashboard-legend-box dashboard-legend-box--green"></span>Trả</span>
+                </div>
+                <div class="d-flex gap-2">
+                    <select id="borrowChartQuarterFilter" style="background: #1e1e2d; color: #a2a5b9; border: 1px solid #2f3049; border-radius: 6px; padding: 6px 12px; outline: none; cursor: pointer; font-size: 13px;">
+                        <option value="all">Cả năm</option>
+                        <option value="1">Quý 1</option>
+                        <option value="2">Quý 2</option>
+                        <option value="3">Quý 3</option>
+                        <option value="4">Quý 4</option>
+                    </select>
+                    <select id="borrowChartYearFilter" style="background: #1e1e2d; color: #a2a5b9; border: 1px solid #2f3049; border-radius: 6px; padding: 6px 12px; outline: none; cursor: pointer; font-size: 13px;">
+                        <?php
+                        $currentYear = (int)date('Y');
+                        for ($y = $currentYear; $y >= $currentYear - 4; $y--):
+                        ?>
+                            <option value="<?= $y ?>"><?= $y ?></option>
+                        <?php endfor; ?>
+                    </select>
+                </div>
             </div>
         </div>
         <div class="card-body">
@@ -102,40 +121,154 @@ $statusLabels = [
         </div>
     </div>
 
-    <!-- Donut Chart: Book Categories -->
-    <div class="card">
-        <div class="card-header">
-            <div>
-                <div class="card-title">Thể loại sách</div>
-                <div class="card-subtitle">Phân bố danh mục</div>
+    <!-- ADMIN CHARTS ROW 2: Two Donut Charts Side-by-Side -->
+    <div class="dashboard-double-donuts">
+        <!-- Donut Chart 1: Thể loại sách được mượn -->
+        <div class="card" style="margin-bottom: 0;">
+            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+                <div>
+                    <div class="card-title">Thể loại sách được mượn</div>
+                    <div class="card-subtitle" id="categoryMonthlySubtitle">Chi tiết số lượt mượn của từng thể loại theo thời gian trong năm <?= date('Y') ?></div>
+                </div>
+                <div class="d-flex gap-2">
+                    <select id="categoryMonthlyFilter" style="background: #1e1e2d; color: #a2a5b9; border: 1px solid #2f3049; border-radius: 6px; padding: 6px 12px; outline: none; cursor: pointer; font-size: 13px;">
+                        <option value="year">Cả năm</option>
+                        <?php $currentMonth = (int)date('n'); ?>
+                        <?php for ($m = 1; $m <= 12; $m++): ?>
+                            <option value="<?= $m ?>" <?= $m === $currentMonth ? 'selected' : '' ?>>Tháng <?= $m ?></option>
+                        <?php endfor; ?>
+                    </select>
+                    <select id="categoryMonthlyYearFilter" style="background: #1e1e2d; color: #a2a5b9; border: 1px solid #2f3049; border-radius: 6px; padding: 6px 12px; outline: none; cursor: pointer; font-size: 13px;">
+                        <?php
+                        $currentYear = (int)date('Y');
+                        for ($y = $currentYear; $y >= $currentYear - 4; $y--):
+                        ?>
+                            <option value="<?= $y ?>"><?= $y ?></option>
+                        <?php endfor; ?>
+                    </select>
+                </div>
+            </div>
+            <div class="card-body" style="display: flex; flex-direction: row; align-items: center; gap: 40px; flex-wrap: wrap; justify-content: center; min-height: 320px; padding: 24px;">
+                <div style="flex: 1; min-width: 250px; max-width: 320px; height: 260px; position: relative; display: flex; align-items: center; justify-content: center;">
+                    <canvas id="categoryMonthlyChart"></canvas>
+                    <div id="noDataMessage" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #5a6282; font-size: 14px; text-align: center; width: 100%;">Không có dữ liệu mượn trong thời gian này</div>
+                </div>
+                <div id="categoryMonthlyLegend" class="donut-legend" style="flex: 1.5; min-width: 280px; margin-top: 0; display: flex; flex-direction: column; gap: 10px; width: 100%;">
+                    <!-- Legend dynamically populated by JS -->
+                </div>
             </div>
         </div>
-        <div class="card-body">
-            <div class="dashboard-donut-container">
-                <canvas id="categoryChart" class="dashboard-donut-chart"></canvas>
-            </div>
-            <?php
-            $catPalette = ['#7c6aff','#22c55e','#f97316','#ec4899','#3b82f6','#14b8a6','#fbbf24','#ef4444'];
-            $catStatsView = $categoryStats ?? [];
-            $catTotal = array_sum($catStatsView) ?: 1;
-            $ci = 0;
-            ?>
-            <div class="donut-legend">
-                <?php foreach ($catStatsView as $catName => $catCount): ?>
-                <?php $catPct = round($catCount / $catTotal * 100); $catClr = $catPalette[$ci % count($catPalette)]; $ci++; ?>
-                <div class="donut-legend-item">
-                    <div class="donut-legend-label"><div class="donut-legend-dot" style="background:<?= $catClr ?>"></div><?= htmlspecialchars($catName) ?></div>
-                    <div class="donut-legend-bar"><div class="donut-legend-bar-fill" style="width:<?= $catPct ?>%;background:<?= $catClr ?>"></div></div>
-                    <div class="donut-legend-pct"><?= $catPct ?>%</div>
+
+        <!-- Donut Chart 2: Thể loại sách -->
+        <div class="card" style="margin-bottom: 0;">
+            <div class="card-header">
+                <div>
+                    <div class="card-title">Thể loại sách</div>
+                    <div class="card-subtitle">Phân bố danh mục</div>
                 </div>
-                <?php endforeach; ?>
-                <?php if (!$catStatsView): ?>
-                <div class="dashboard-empty-data">Chưa có dữ liệu</div>
-                <?php endif; ?>
+            </div>
+            <div class="card-body" style="display: flex; flex-direction: row; align-items: center; gap: 40px; flex-wrap: wrap; justify-content: center; min-height: 320px; padding: 24px;">
+                <div style="flex: 1; min-width: 250px; max-width: 320px; height: 260px; position: relative; display: flex; align-items: center; justify-content: center;">
+                    <canvas id="categoryChart"></canvas>
+                </div>
+                <?php
+                $catPalette = ['#7c6aff','#22c55e','#f97316','#ec4899','#3b82f6','#14b8a6','#fbbf24','#ef4444'];
+                $catStatsView = $categoryStats ?? [];
+                $catTotal = array_sum($catStatsView) ?: 1;
+                $ci = 0;
+                ?>
+                <div class="donut-legend" style="flex: 1.5; min-width: 280px; margin-top: 0; display: flex; flex-direction: column; gap: 10px; width: 100%;">
+                    <?php foreach ($catStatsView as $catName => $catCount): ?>
+                    <?php $catPct = round($catCount / $catTotal * 100); $catClr = $catPalette[$ci % count($catPalette)]; $ci++; ?>
+                    <div class="donut-legend-item">
+                        <div class="donut-legend-label"><div class="donut-legend-dot" style="background:<?= $catClr ?>"></div><?= htmlspecialchars($catName) ?></div>
+                        <div class="donut-legend-bar"><div class="donut-legend-bar-fill" style="width:<?= $catPct ?>%;background:<?= $catClr ?>"></div></div>
+                        <div class="donut-legend-pct"><?= $catPct ?>%</div>
+                    </div>
+                    <?php endforeach; ?>
+                    <?php if (!$catStatsView): ?>
+                    <div class="dashboard-empty-data">Chưa có dữ liệu</div>
+                    <?php endif; ?>
+                </div>
             </div>
         </div>
     </div>
-</div>
+<?php else: ?>
+    <!-- STUDENT CHARTS ROW (Original side-by-side layout) -->
+    <div class="charts-row">
+        <!-- Line Chart: Borrow/Return Stats -->
+        <div class="card">
+            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+                <div>
+                    <div class="card-title">Thống kê mượn / trả sách</div>
+                    <div class="card-subtitle" id="borrowChartSubtitle">Theo tháng trong năm <?= date('Y') ?></div>
+                </div>
+                <div class="d-flex gap-3 align-center flex-wrap">
+                    <div class="d-flex gap-2 align-center dashboard-legend-container">
+                        <span class="dashboard-legend-item"><span class="dashboard-legend-box dashboard-legend-box--purple"></span>Mượn</span>
+                        <span class="dashboard-legend-item"><span class="dashboard-legend-box dashboard-legend-box--green"></span>Trả</span>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <select id="borrowChartQuarterFilter" style="background: #1e1e2d; color: #a2a5b9; border: 1px solid #2f3049; border-radius: 6px; padding: 6px 12px; outline: none; cursor: pointer; font-size: 13px;">
+                            <option value="all">Cả năm</option>
+                            <option value="1">Quý 1</option>
+                            <option value="2">Quý 2</option>
+                            <option value="3">Quý 3</option>
+                            <option value="4">Quý 4</option>
+                        </select>
+                        <select id="borrowChartYearFilter" style="background: #1e1e2d; color: #a2a5b9; border: 1px solid #2f3049; border-radius: 6px; padding: 6px 12px; outline: none; cursor: pointer; font-size: 13px;">
+                            <?php
+                            $currentYear = (int)date('Y');
+                            for ($y = $currentYear; $y >= $currentYear - 4; $y--):
+                            ?>
+                                <option value="<?= $y ?>"><?= $y ?></option>
+                            <?php endfor; ?>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="chart-area dashboard-chart-area">
+                    <canvas id="borrowChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Donut Chart: Book Categories -->
+        <div class="card">
+            <div class="card-header">
+                <div>
+                    <div class="card-title">Thể loại sách</div>
+                    <div class="card-subtitle">Phân bố danh mục</div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="dashboard-donut-container">
+                    <canvas id="categoryChart" class="dashboard-donut-chart"></canvas>
+                </div>
+                <?php
+                $catPalette = ['#7c6aff','#22c55e','#f97316','#ec4899','#3b82f6','#14b8a6','#fbbf24','#ef4444'];
+                $catStatsView = $categoryStats ?? [];
+                $catTotal = array_sum($catStatsView) ?: 1;
+                $ci = 0;
+                ?>
+                <div class="donut-legend">
+                    <?php foreach ($catStatsView as $catName => $catCount): ?>
+                    <?php $catPct = round($catCount / $catTotal * 100); $catClr = $catPalette[$ci % count($catPalette)]; $ci++; ?>
+                    <div class="donut-legend-item">
+                        <div class="donut-legend-label"><div class="donut-legend-dot" style="background:<?= $catClr ?>"></div><?= htmlspecialchars($catName) ?></div>
+                        <div class="donut-legend-bar"><div class="donut-legend-bar-fill" style="width:<?= $catPct ?>%;background:<?= $catClr ?>"></div></div>
+                        <div class="donut-legend-pct"><?= $catPct ?>%</div>
+                    </div>
+                    <?php endforeach; ?>
+                    <?php if (!$catStatsView): ?>
+                    <div class="dashboard-empty-data">Chưa có dữ liệu</div>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+    </div>
+<?php endif; ?>
 
 <div class="dashboard-grid-2">
     <!-- RECENT TRANSACTIONS -->
@@ -196,21 +329,39 @@ $categoryStats = $categoryStats ?? [];
 $catLabels = json_encode(array_keys($categoryStats));
 $catData   = json_encode(array_values($categoryStats));
 $catColorsUsed = json_encode(array_slice($catColors, 0, count($categoryStats)));
+
+// Category monthly stats JSON
+$categoryMonthlyStatsJson = $isAdmin ? json_encode($categoryMonthlyStats ?? [], JSON_UNESCAPED_UNICODE) : '[]';
 ?>
 // Line Chart
 (function() {
     const ctx = document.getElementById('borrowChart');
     if (!ctx) return;
-    new Chart(ctx, {
+
+    const yearFilter = document.getElementById('borrowChartYearFilter');
+    const quarterFilter = document.getElementById('borrowChartQuarterFilter');
+    const subtitle = document.getElementById('borrowChartSubtitle');
+    const chartArea = ctx.closest('.dashboard-chart-area');
+    const statsUrl = '<?= $this->url($routePrefix . '/dashboard', ['action' => 'stats']) ?>';
+
+    // Store current full 12-month data loaded from PHP
+    let currentYearData = {
+        borrow: <?= $borrowData ?>,
+        return: <?= $returnData ?>
+    };
+
+    const allLabels = ['T1','T2','T3','T4','T5','T6','T7','T8','T9','T10','T11','T12'];
+
+    const chartInstance = new Chart(ctx, {
         type: 'line',
         data: {
-            labels: ['T1','T2','T3','T4','T5','T6','T7','T8','T9','T10','T11','T12'],
+            labels: allLabels,
             datasets: [{
-                label: 'Mượn', data: <?= $borrowData ?>,
+                label: 'Mượn', data: currentYearData.borrow,
                 borderColor: '#7c6aff', backgroundColor: 'rgba(124,106,255,0.12)',
                 fill: true, tension: 0.45, pointRadius: 3, borderWidth: 2.5
             },{
-                label: 'Trả', data: <?= $returnData ?>,
+                label: 'Trả', data: currentYearData.return,
                 borderColor: '#22c55e', backgroundColor: 'rgba(34,197,94,0.08)',
                 fill: true, tension: 0.45, pointRadius: 3, borderWidth: 2.5
             }]
@@ -224,7 +375,99 @@ $catColorsUsed = json_encode(array_slice($catColors, 0, count($categoryStats)));
             }
         }
     });
+
+    function applyFilterAndRefresh() {
+        const quarter = quarterFilter ? quarterFilter.value : 'all';
+        const year = yearFilter ? yearFilter.value : new Date().getFullYear();
+
+        let labels = [];
+        let borrowSlice = [];
+        let returnSlice = [];
+
+        if (quarter === 'all') {
+            labels = allLabels;
+            borrowSlice = currentYearData.borrow;
+            returnSlice = currentYearData.return;
+            if (subtitle) {
+                subtitle.textContent = 'Theo tháng trong năm ' + year;
+            }
+        } else if (quarter === '1') {
+            labels = ['T1', 'T2', 'T3'];
+            borrowSlice = currentYearData.borrow.slice(0, 3);
+            returnSlice = currentYearData.return.slice(0, 3);
+            if (subtitle) {
+                subtitle.textContent = 'Quý 1 năm ' + year;
+            }
+        } else if (quarter === '2') {
+            labels = ['T4', 'T5', 'T6'];
+            borrowSlice = currentYearData.borrow.slice(3, 6);
+            returnSlice = currentYearData.return.slice(3, 6);
+            if (subtitle) {
+                subtitle.textContent = 'Quý 2 năm ' + year;
+            }
+        } else if (quarter === '3') {
+            labels = ['T7', 'T8', 'T9'];
+            borrowSlice = currentYearData.borrow.slice(6, 9);
+            returnSlice = currentYearData.return.slice(6, 9);
+            if (subtitle) {
+                subtitle.textContent = 'Quý 3 năm ' + year;
+            }
+        } else if (quarter === '4') {
+            labels = ['T10', 'T11', 'T12'];
+            borrowSlice = currentYearData.borrow.slice(9, 12);
+            returnSlice = currentYearData.return.slice(9, 12);
+            if (subtitle) {
+                subtitle.textContent = 'Quý 4 năm ' + year;
+            }
+        }
+
+        chartInstance.data.labels = labels;
+        chartInstance.data.datasets[0].data = borrowSlice;
+        chartInstance.data.datasets[1].data = returnSlice;
+        chartInstance.update();
+    }
+
+    function fetchNewYearData(year) {
+        if (chartArea) {
+            chartArea.style.opacity = '0.4';
+            chartArea.style.transition = 'opacity 0.15s ease';
+        }
+
+        fetch(statsUrl + '?year=' + encodeURIComponent(year))
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data && data.borrow && data.return) {
+                    currentYearData.borrow = data.borrow;
+                    currentYearData.return = data.return;
+                    applyFilterAndRefresh();
+                }
+            })
+            .catch(error => {
+                console.error('Error loading monthly stats:', error);
+            })
+            .finally(() => {
+                if (chartArea) {
+                    chartArea.style.opacity = '1';
+                }
+            });
+    }
+
+    if (yearFilter) {
+        yearFilter.addEventListener('change', function() {
+            fetchNewYearData(yearFilter.value);
+        });
+    }
+
+    if (quarterFilter) {
+        quarterFilter.addEventListener('change', applyFilterAndRefresh);
+    }
 })();
+
 
 // Donut Chart
 (function() {
@@ -249,6 +492,185 @@ $catColorsUsed = json_encode(array_slice($catColors, 0, count($categoryStats)));
             plugins: { legend: { display: false }, tooltip: { enabled: true } }
         }
     });
+})();
+
+// Donut Chart for Monthly Categories
+(function() {
+    const ctx = document.getElementById('categoryMonthlyChart');
+    if (!ctx) return;
+    const filterSelect = document.getElementById('categoryMonthlyFilter');
+    const yearSelect = document.getElementById('categoryMonthlyYearFilter');
+    const subtitle = document.getElementById('categoryMonthlySubtitle');
+    const noDataMessage = document.getElementById('noDataMessage');
+    const legendContainer = document.getElementById('categoryMonthlyLegend');
+    const cardBody = ctx.closest('.card-body');
+    const categoryStatsUrl = '<?= $this->url($routePrefix . '/dashboard', ['action' => 'category-stats']) ?>';
+    
+    // Store current year data (default to PHP rendered data)
+    let currentCategoryYearData = <?= $categoryMonthlyStatsJson ?>;
+    
+    // Consistent color mapping for categories
+    const categoryColors = ['#7c6aff','#22c55e','#f97316','#ec4899','#3b82f6','#14b8a6','#fbbf24','#ef4444','#6366f1','#10b981','#f59e0b','#f43f5e','#06b6d4','#8b5cf6','#a855f7','#6b7280'];
+    const colorMap = {};
+    let colorIdx = 0;
+    
+    function getColorForCategory(catName) {
+        if (!colorMap[catName]) {
+            colorMap[catName] = categoryColors[colorIdx % categoryColors.length];
+            colorIdx++;
+        }
+        return colorMap[catName];
+    }
+    
+    // Pre-populate color map from initial data
+    for (const catName in currentCategoryYearData) {
+        getColorForCategory(catName);
+    }
+
+    let chartInstance = null;
+
+    function updateChart() {
+        const selectedValue = filterSelect.value;
+        const selectedYear = yearSelect ? yearSelect.value : new Date().getFullYear();
+        const labels = [];
+        const data = [];
+        const backgroundColors = [];
+
+        for (const catName in currentCategoryYearData) {
+            const monthlyCounts = currentCategoryYearData[catName];
+            let count = 0;
+
+            if (selectedValue === 'year') {
+                count = monthlyCounts.reduce((sum, val) => sum + val, 0);
+            } else {
+                const monthIndex = parseInt(selectedValue, 10) - 1;
+                count = monthlyCounts[monthIndex] || 0;
+            }
+
+            if (count > 0) {
+                labels.push(catName);
+                data.push(count);
+                backgroundColors.push(getColorForCategory(catName));
+            }
+        }
+
+        // Update subtitle text dynamically
+        if (subtitle) {
+            if (selectedValue === 'year') {
+                subtitle.textContent = 'Chi tiết số lượt mượn của từng thể loại cả năm ' + selectedYear;
+            } else {
+                subtitle.textContent = 'Chi tiết số lượt mượn của từng thể loại trong Tháng ' + selectedValue + ' năm ' + selectedYear;
+            }
+        }
+
+        if (data.length === 0) {
+            ctx.style.display = 'none';
+            if (legendContainer) legendContainer.style.display = 'none';
+            if (noDataMessage) noDataMessage.style.display = 'block';
+            if (chartInstance) {
+                chartInstance.destroy();
+                chartInstance = null;
+            }
+        } else {
+            ctx.style.display = 'block';
+            if (legendContainer) legendContainer.style.display = 'flex';
+            if (noDataMessage) noDataMessage.style.display = 'none';
+
+            // Calculate total for percentage calculation
+            const total = data.reduce((sum, val) => sum + val, 0) || 1;
+
+            // Generate HTML legend
+            if (legendContainer) {
+                let legendHtml = '';
+                for (let i = 0; i < labels.length; i++) {
+                    const catName = labels[i];
+                    const val = data[i];
+                    const color = backgroundColors[i];
+                    const pct = Math.round((val / total) * 100);
+
+                    legendHtml += `
+                        <div class="donut-legend-item">
+                            <div class="donut-legend-label"><div class="donut-legend-dot" style="background:${color}"></div>${catName}</div>
+                            <div class="donut-legend-bar"><div class="donut-legend-bar-fill" style="width:${pct}%;background:${color}"></div></div>
+                            <div class="donut-legend-pct">${pct}%</div>
+                        </div>
+                    `;
+                }
+                legendContainer.innerHTML = legendHtml;
+            }
+
+            if (chartInstance) {
+                chartInstance.data.labels = labels;
+                chartInstance.data.datasets[0].data = data;
+                chartInstance.data.datasets[0].backgroundColor = backgroundColors;
+                chartInstance.update();
+            } else {
+                chartInstance = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            data: data,
+                            backgroundColor: backgroundColors,
+                            borderWidth: 0,
+                            hoverOffset: 6
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        cutout: '68%',
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                enabled: true
+                            }
+                        }
+                    }
+                });
+            }
+        }
+    }
+
+    function fetchCategoryNewYearData(year) {
+        if (cardBody) {
+            cardBody.style.opacity = '0.4';
+            cardBody.style.transition = 'opacity 0.15s ease';
+        }
+
+        fetch(categoryStatsUrl + '?year=' + encodeURIComponent(year))
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                currentCategoryYearData = data || {};
+                updateChart();
+            })
+            .catch(error => {
+                console.error('Error loading category monthly stats:', error);
+            })
+            .finally(() => {
+                if (cardBody) {
+                    cardBody.style.opacity = '1';
+                }
+            });
+    }
+
+    updateChart();
+    
+    if (filterSelect) {
+        filterSelect.addEventListener('change', updateChart);
+    }
+    if (yearSelect) {
+        yearSelect.addEventListener('change', function() {
+            fetchCategoryNewYearData(yearSelect.value);
+        });
+    }
 })();
 
 </script>

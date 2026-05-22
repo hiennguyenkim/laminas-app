@@ -1,6 +1,9 @@
 <?php $this->headTitle('Đăng nhập');
 $this->layout('layout/library-layout'); ?>
 <div class="login-card">
+    <a href="<?= $this->url('catalog') ?>" class="btn btn-outline btn-icon" style="position: absolute; top: 20px; left: 20px;" title="Quay lại trang chủ">
+        <i class="bi bi-arrow-left"></i>
+    </a>
     <div class="login-logo"><i class="bi bi-bookshelf"></i></div>
     <div class="login-title">Thư Viện HDPE</div>
     <div class="login-sub">Hệ thống Quản lý Thư viện</div>
@@ -16,7 +19,12 @@ $this->layout('layout/library-layout'); ?>
         </div>
         <div class="form-group">
             <label class="form-label">Mật khẩu</label>
-            <input type="password" name="password" class="form-control" placeholder="••••••" required>
+            <div style="position: relative;">
+                <input type="password" name="password" id="login-password" class="form-control" placeholder="••••••" required style="padding-right: 40px;">
+                <button type="button" onclick="togglePasswordVisibility('login-password', this)" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 0; display: flex; align-items: center;">
+                    <i class="bi bi-eye"></i>
+                </button>
+            </div>
             <?php $msgs = $form->get('password')->getMessages();
             if ($msgs): ?>
                 <div class="login-error-msg"><?= htmlspecialchars(implode(', ', $msgs)) ?></div>
@@ -39,3 +47,19 @@ $this->layout('layout/library-layout'); ?>
         © 2026 Bản quyền thuộc về <span class="login-footer-link">Thư Viện HDPE</span>
     </div>
 </div>
+
+<script>
+function togglePasswordVisibility(inputId, btnEl) {
+    const input = document.getElementById(inputId);
+    const icon = btnEl.querySelector('i');
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.classList.remove('bi-eye');
+        icon.classList.add('bi-eye-slash');
+    } else {
+        input.type = 'password';
+        icon.classList.remove('bi-eye-slash');
+        icon.classList.add('bi-eye');
+    }
+}
+</script>

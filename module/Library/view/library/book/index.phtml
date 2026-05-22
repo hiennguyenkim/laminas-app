@@ -204,8 +204,12 @@ $activeCat = (string) ($filters['category'] ?? '');
         <div class="book-card">
             <?php
             $hasCover = !empty($book->coverImageUrl);
+            $coverUrl = $hasCover ? $book->coverImageUrl : '';
+            if ($hasCover && !str_starts_with($coverUrl, 'http://') && !str_starts_with($coverUrl, 'https://')) {
+                $coverUrl = $this->basePath(ltrim($coverUrl, '/'));
+            }
             $coverStyle = $hasCover
-                ? 'background: url(' . htmlspecialchars($book->coverImageUrl) . ') center/cover no-repeat;'
+                ? 'background: url(' . htmlspecialchars($coverUrl) . ') center/cover no-repeat;'
                 : 'background: ' . $grad . ';';
             $viewUrl = $this->url($routePrefix . '/book', ['action' => 'view', 'id' => $book->id]);
             ?>

@@ -626,7 +626,7 @@ class BorrowTable
                 'month' => new Expression('MONTH(borrow_date)'),
                 'cnt'   => new Expression('COUNT(*)'),
             ])
-            ->where(new Expression("YEAR(borrow_date) = $year"))
+            ->where(new \Laminas\Db\Sql\Predicate\Expression("YEAR(borrow_date) = ?", $year))
             ->where(function (\Laminas\Db\Sql\Where $where) {
                 $where->in('status', ['borrowed', 'returned', 'overdue']);
             })
@@ -651,7 +651,7 @@ class BorrowTable
             ])
             ->where(["status" => 'returned'])
             ->where('returned_at IS NOT NULL')
-            ->where(new Expression("YEAR(returned_at) = $year"))
+            ->where(new \Laminas\Db\Sql\Predicate\Expression("YEAR(returned_at) = ?", $year))
             ->group(new Expression('MONTH(returned_at)'));
 
         if ($userId !== null) {
@@ -669,6 +669,48 @@ class BorrowTable
             'borrow' => $borrowCounts,
             'return' => $returnCounts,
         ];
+    }
+
+    /**
+     * Get monthly borrow count for each category in the current year.
+     * Returns an associative array of ['CategoryName' => [month0, ..., month11]]
+     */
+    public function getCategoryMonthlyStats(int $year): array
+    {
+        $sql = $this->tableGateway->getSql();
+        $select = $sql->select()
+            ->columns([
+                'borrow_month' => new Expression('MONTH(borrow_records.borrow_date)'),
+                'cnt'          => new Expression('COUNT(*)'),
+            ])
+            ->join(
+                'books',
+                'borrow_records.book_id = books.book_id',
+                ['category']
+            )
+            ->where(new \Laminas\Db\Sql\Predicate\Expression("YEAR(borrow_records.borrow_date) = ?", $year))
+            ->where(function (\Laminas\Db\Sql\Where $where) {
+                $where->in('borrow_records.status', ['borrowed', 'returned', 'overdue']);
+            })
+            ->group([new Expression('MONTH(borrow_records.borrow_date)'), 'books.category'])
+            ->order(['borrow_month ASC', 'cnt DESC']);
+
+        $results = $sql->prepareStatementForSqlObject($select)->execute();
+        
+        $data = [];
+        foreach ($results as $row) {
+            if (is_array($row)) {
+                $category = $row['category'] ?: 'Khác';
+                $month = (int)$row['borrow_month'];
+                $count = (int)$row['cnt'];
+                
+                if (!isset($data[$category])) {
+                    $data[$category] = array_fill(0, 12, 0);
+                }
+                $data[$category][$month - 1] = $count;
+            }
+        }
+        return $data;
     }
 
     private function cleanupExpiredReturnedHistory(): void

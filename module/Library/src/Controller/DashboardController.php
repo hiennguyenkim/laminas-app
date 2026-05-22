@@ -63,23 +63,29 @@ class DashboardController extends BaseController
             } catch (\Throwable $e) {}
         }
 
+        $categoryMonthlyStats = [];
+        if ($isAdmin) {
+            $categoryMonthlyStats = $this->borrowTable->getCategoryMonthlyStats((int) date('Y'));
+        }
+
         return new ViewModel([
-            'isAdmin'        => $isAdmin,
-            'currentUser'    => $currentUser,
-            'bookSummary'    => $bookSummary,
-            'loanSummary'    => $loanSummary,
-            'totalBooks'     => $bookSummary['total_titles'],
-            'totalBorrowed'  => $loanSummary['borrowed'],
-            'totalOverdue'   => $loanSummary['overdue'],
-            'totalReturned'  => $loanSummary['returned'],
-            'dueSoon'        => $loanSummary['due_soon'],
-            'totalMembers'   => $isAdmin ? $this->userTable->countByRole('student') : 0,
-            'recentBorrows'  => $this->borrowTable->fetchAllWithDetails([], $isAdmin ? null : $userId, 6),
-            'monthlyStats'   => $this->borrowTable->getMonthlyStats((int) date('Y'), $isAdmin ? null : $userId),
-            'categoryStats'  => $this->bookTable->getCategoryStats($isAdmin ? null : $userId),
-            'isLocked'       => $isLocked,
-            'lockReason'     => $lockReason,
-            'lockedAt'       => $lockedAt,
+            'isAdmin'              => $isAdmin,
+            'currentUser'          => $currentUser,
+            'bookSummary'          => $bookSummary,
+            'loanSummary'          => $loanSummary,
+            'totalBooks'           => $bookSummary['total_titles'],
+            'totalBorrowed'        => $loanSummary['borrowed'],
+            'totalOverdue'         => $loanSummary['overdue'],
+            'totalReturned'        => $loanSummary['returned'],
+            'dueSoon'              => $loanSummary['due_soon'],
+            'totalMembers'         => $isAdmin ? $this->userTable->countByRole('student') : 0,
+            'recentBorrows'        => $this->borrowTable->fetchAllWithDetails([], $isAdmin ? null : $userId, 6),
+            'monthlyStats'         => $this->borrowTable->getMonthlyStats((int) date('Y'), $isAdmin ? null : $userId),
+            'categoryStats'        => $this->bookTable->getCategoryStats($isAdmin ? null : $userId),
+            'categoryMonthlyStats' => $categoryMonthlyStats,
+            'isLocked'             => $isLocked,
+            'lockReason'           => $lockReason,
+            'lockedAt'             => $lockedAt,
         ]);
     }
 
@@ -258,6 +264,37 @@ class DashboardController extends BaseController
             'messages' => $formattedResults,
             'pinned'   => $formattedPinned
         ]);
+    }
+
+    public function statsAction(): Response
+    {
+        if ($response = $this->requireLogin()) {
+            return $response;
+        }
+
+        $currentUser = $this->currentUser() ?? [];
+        $userId      = $currentUser['id'] ?? 0;
+        $isAdmin     = $this->isAdmin();
+        $year        = (int)$this->params()->fromQuery('year', date('Y'));
+
+        $stats = $this->borrowTable->getMonthlyStats($year, $isAdmin ? null : $userId);
+        return $this->jsonResponse($stats);
+    }
+
+    public function categoryStatsAction(): Response
+    {
+        if ($response = $this->requireLogin()) {
+            return $response;
+        }
+
+        $isAdmin = $this->isAdmin();
+        if (!$isAdmin) {
+            return $this->jsonResponse(['error' => 'Access denied'], 403);
+        }
+
+        $year = (int)$this->params()->fromQuery('year', date('Y'));
+        $stats = $this->borrowTable->getCategoryMonthlyStats($year);
+        return $this->jsonResponse($stats);
     }
 
     public function borrowedAction(): Response

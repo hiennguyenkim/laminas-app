@@ -117,14 +117,22 @@ class BookController extends BaseController
         $isGuest = $currentUser === null;
         $canManage = ($currentUser['role'] ?? '') === 'admin';
 
+        if ($isGuest) {
+            $layout = $this->layout();
+            if (method_exists($layout, 'setVariable')) {
+                $layout->setVariable('guestCatalogMode', true);
+            }
+        }
+
         $id = $this->routeInt('id');
 
         try {
             $book = $this->bookTable->getBook($id);
         } catch (\RuntimeException $exception) {
             $this->flash()->addErrorMessage($exception->getMessage());
+            $route = $currentUser ? $this->routeForRole('book') : 'catalog';
 
-            return $this->redirect()->toRoute('library/book');
+            return $this->redirect()->toRoute($route);
         }
 
         // Fetch reviews
@@ -314,11 +322,14 @@ class BookController extends BaseController
         $currentUser = $this->currentUser();
         if ($currentUser === null || $currentUser['role'] !== 'student') {
             $this->flash()->addErrorMessage('Chỉ sinh viên mới có thể đánh giá sách.');
-            return $this->redirect()->toRoute('library/book');
+            $route = $currentUser ? $this->routeForRole('book') : 'catalog';
+            return $this->redirect()->toRoute($route);
         }
 
+        $route = $this->routeForRole('book');
+
         if (!$this->httpRequest()->isPost()) {
-            return $this->redirect()->toRoute('library/book');
+            return $this->redirect()->toRoute($route);
         }
 
         $bookId = $this->routeInt('id');
@@ -339,7 +350,7 @@ class BookController extends BaseController
 
                 if (!$hasBorrowed) {
                     $this->flash()->addErrorMessage('Bạn chỉ có thể đánh giá sách sau khi đã mượn và trả.');
-                    return $this->redirect()->toRoute('library/book', ['action' => 'view', 'id' => $bookId]);
+                    return $this->redirect()->toRoute($route, ['action' => 'view', 'id' => $bookId]);
                 }
 
                 // Kiểm tra 2: Đã review cuốn này chưa?
@@ -352,7 +363,7 @@ class BookController extends BaseController
 
                 if ($hasReviewed) {
                     $this->flash()->addErrorMessage('Bạn đã đánh giá cuốn sách này rồi.');
-                    return $this->redirect()->toRoute('library/book', ['action' => 'view', 'id' => $bookId]);
+                    return $this->redirect()->toRoute($route, ['action' => 'view', 'id' => $bookId]);
                 }
 
                 $sql = 'INSERT INTO book_reviews (book_id, user_id, rating, comment, created_at) VALUES (?, ?, ?, ?, NOW())';
@@ -363,7 +374,7 @@ class BookController extends BaseController
             }
         }
 
-        return $this->redirect()->toRoute('library/book', ['action' => 'view', 'id' => $bookId]);
+        return $this->redirect()->toRoute($route, ['action' => 'view', 'id' => $bookId]);
     }
 
     public function announcementsAction(): ViewModel

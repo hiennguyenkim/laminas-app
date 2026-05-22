@@ -67,9 +67,9 @@ $pageLabel = $authUser ? ($pageLabels[$activeKey] ?? '') : 'Đăng nhập';
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
-    <link href="<?= $this->basePath('css/app.css') ?>" rel="stylesheet">
-    <link href="<?= $this->basePath('css/chatbot.css') ?>" rel="stylesheet">
-    <link href="<?= $this->basePath('css/pages.css') ?>" rel="stylesheet">
+    <link href="<?= $this->basePath('css/app.css') ?>?t=<?= filemtime(getcwd() . '/public/css/app.css') ?>" rel="stylesheet">
+    <link href="<?= $this->basePath('css/chatbot.css') ?>?t=<?= filemtime(getcwd() . '/public/css/chatbot.css') ?>" rel="stylesheet">
+    <link href="<?= $this->basePath('css/pages.css') ?>?t=<?= filemtime(getcwd() . '/public/css/pages.css') ?>" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>

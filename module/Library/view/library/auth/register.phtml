@@ -1,6 +1,9 @@
 <?php $this->headTitle('Đăng ký');
 $this->layout('layout/library-layout'); ?>
 <div class="login-card register-card">
+    <a href="<?= $this->url('catalog') ?>" class="btn btn-outline btn-icon" style="position: absolute; top: 20px; left: 20px;" title="Quay lại trang chủ">
+        <i class="bi bi-arrow-left"></i>
+    </a>
     <div class="login-logo"><i class="bi bi-person-plus"></i></div>
     <div class="login-title">Đăng ký tài khoản</div>
     <div class="login-sub">Hệ thống Quản lý Thư viện</div>
@@ -23,14 +26,46 @@ $this->layout('layout/library-layout'); ?>
         </div>
         <div class="form-group mb-3">
             <label class="form-label">Mật khẩu</label>
-            <input type="password" name="password" class="form-control" placeholder="Tối thiểu 8 ký tự" required>
+            <div style="position: relative;">
+                <input type="password" name="password" id="register-password" class="form-control" placeholder="Tối thiểu 8 ký tự, có in hoa & ký tự đặc biệt" required style="padding-right: 40px;">
+                <button type="button" onclick="togglePasswordVisibility('register-password', this)" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 0; display: flex; align-items: center;">
+                    <i class="bi bi-eye"></i>
+                </button>
+            </div>
             <?php $messages = $form->get('password')->getMessages(); if ($messages) : ?>
                 <div class="login-error-msg"><?= htmlspecialchars(implode(', ', $messages)) ?></div>
             <?php endif; ?>
+            
+            <!-- Password strength indicator & checklist -->
+            <div style="margin-top: 10px; background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: 10px; padding: 12px;">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                    <span style="font-size: 12px; font-weight: 600; color: var(--text-secondary);">Độ mạnh mật khẩu:</span>
+                    <span id="strength-label" style="font-size: 11px; font-weight: 700; color: var(--text-muted);">Trống</span>
+                </div>
+                <div style="height: 6px; background: var(--border-color); border-radius: 3px; overflow: hidden; margin-bottom: 12px; display: flex;">
+                    <div id="strength-bar" style="width: 0%; height: 100%; transition: all 0.3s ease; background: #ef4444;"></div>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 6px; font-size: 11px;">
+                    <div id="req-length" style="display: flex; align-items: center; gap: 6px; color: var(--text-muted); transition: color 0.2s;">
+                        <i class="bi bi-circle"></i> Tối thiểu 8 ký tự
+                    </div>
+                    <div id="req-uppercase" style="display: flex; align-items: center; gap: 6px; color: var(--text-muted); transition: color 0.2s;">
+                        <i class="bi bi-circle"></i> Chứa ít nhất 1 chữ in hoa
+                    </div>
+                    <div id="req-special" style="display: flex; align-items: center; gap: 6px; color: var(--text-muted); transition: color 0.2s;">
+                        <i class="bi bi-circle"></i> Chứa ít nhất 1 ký tự đặc biệt
+                    </div>
+                </div>
+            </div>
         </div>
         <div class="form-group mb-4">
             <label class="form-label">Xác nhận mật khẩu</label>
-            <input type="password" name="password_confirm" class="form-control" placeholder="Nhập lại mật khẩu" required>
+            <div style="position: relative;">
+                <input type="password" name="password_confirm" id="register-password-confirm" class="form-control" placeholder="Nhập lại mật khẩu" required style="padding-right: 40px;">
+                <button type="button" onclick="togglePasswordVisibility('register-password-confirm', this)" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 0; display: flex; align-items: center;">
+                    <i class="bi bi-eye"></i>
+                </button>
+            </div>
             <?php $messages = $form->get('password_confirm')->getMessages(); if ($messages) : ?>
                 <div class="login-error-msg"><?= htmlspecialchars(implode(', ', $messages)) ?></div>
             <?php endif; ?>
@@ -51,3 +86,97 @@ $this->layout('layout/library-layout'); ?>
         © 2026 Bản quyền thuộc về <span class="login-footer-link">Thư Viện HDPE</span>
     </div>
 </div>
+
+<script>
+function togglePasswordVisibility(inputId, btnEl) {
+    const input = document.getElementById(inputId);
+    const icon = btnEl.querySelector('i');
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.classList.remove('bi-eye');
+        icon.classList.add('bi-eye-slash');
+    } else {
+        input.type = 'password';
+        icon.classList.remove('bi-eye-slash');
+        icon.classList.add('bi-eye');
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const passwordInput = document.getElementById('register-password');
+    const reqLength = document.getElementById('req-length');
+    const reqUppercase = document.getElementById('req-uppercase');
+    const reqSpecial = document.getElementById('req-special');
+    const strengthBar = document.getElementById('strength-bar');
+    const strengthLabel = document.getElementById('strength-label');
+
+    if (passwordInput) {
+        passwordInput.addEventListener('input', function() {
+            const val = passwordInput.value;
+            
+            // Check requirements
+            const hasLength = val.length >= 8;
+            const hasUppercase = /[A-Z]/.test(val);
+            const hasSpecial = /[^a-zA-Z0-9\s]/.test(val);
+            
+            // Update checklist items
+            function updateReq(el, met) {
+                const icon = el.querySelector('i');
+                if (met) {
+                    el.style.color = '#22c55e'; // green accent
+                    icon.className = 'bi bi-check-circle-fill';
+                } else {
+                    el.style.color = 'var(--text-muted)';
+                    icon.className = 'bi bi-circle';
+                }
+            }
+            
+            updateReq(reqLength, hasLength);
+            updateReq(reqUppercase, hasUppercase);
+            updateReq(reqSpecial, hasSpecial);
+            
+            // Calculate strength score (0 to 3)
+            let score = 0;
+            if (hasLength) score++;
+            if (hasUppercase) score++;
+            if (hasSpecial) score++;
+            
+            const hasLowercase = /[a-z]/.test(val);
+            const hasNumber = /[0-9]/.test(val);
+            let extra = 0;
+            if (hasLowercase) extra++;
+            if (hasNumber) extra++;
+            
+            if (val.length === 0) {
+                strengthBar.style.width = '0%';
+                strengthBar.style.background = '#ef4444';
+                strengthLabel.textContent = 'Trống';
+                strengthLabel.style.color = 'var(--text-muted)';
+            } else if (score < 2) {
+                strengthBar.style.width = '25%';
+                strengthBar.style.background = '#ef4444';
+                strengthLabel.textContent = 'Yếu';
+                strengthLabel.style.color = '#ef4444';
+            } else if (score === 2) {
+                strengthBar.style.width = '60%';
+                strengthBar.style.background = '#f59e0b';
+                strengthLabel.textContent = 'Trung bình';
+                strengthLabel.style.color = '#f59e0b';
+            } else {
+                // score === 3
+                if (extra === 2) {
+                    strengthBar.style.width = '100%';
+                    strengthBar.style.background = '#22c55e';
+                    strengthLabel.textContent = 'Rất mạnh';
+                    strengthLabel.style.color = '#22c55e';
+                } else {
+                    strengthBar.style.width = '80%';
+                    strengthBar.style.background = '#10b981';
+                    strengthLabel.textContent = 'Mạnh';
+                    strengthLabel.style.color = '#10b981';
+                }
+            }
+        });
+    }
+});
+</script>

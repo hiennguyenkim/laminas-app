@@ -55,6 +55,10 @@ class DashboardControllerTest extends AbstractHttpControllerTestCase
             'borrow' => array_fill(0, 12, 0),
             'return' => array_fill(0, 12, 0),
         ]);
+        $borrowTableMock->method('getCategoryMonthlyStats')->willReturn([
+            'Văn học' => [1, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0],
+            'Khoa học' => [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        ]);
 
         $userTableMock = $this->createMock(UserTable::class);
         $userTableMock->method('countByRole')->willReturn(5);
@@ -375,6 +379,90 @@ class DashboardControllerTest extends AbstractHttpControllerTestCase
         ]);
         $this->assertResponseStatusCode(200);
     }
+
+    public function testStatsActionAdmin(): void
+    {
+        $this->mockLoginAsRole('admin');
+
+        $borrowTableMock = $this->createMock(BorrowTable::class);
+        $borrowTableMock->expects(self::once())
+            ->method('getMonthlyStats')
+            ->with(2025, null)
+            ->willReturn([
+                'borrow' => [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+                'return' => [12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1],
+            ]);
+
+        $serviceLocator = $this->getApplicationServiceLocator();
+        $serviceLocator->setAllowOverride(true);
+        $serviceLocator->setService(BorrowTable::class, $borrowTableMock);
+
+        $this->dispatch('/admin/dashboard/stats?year=2025', 'GET');
+        $this->assertResponseStatusCode(200);
+
+        $response = json_decode($this->getResponse()->getContent(), true);
+        $this->assertArrayHasKey('borrow', $response);
+        $this->assertArrayHasKey('return', $response);
+        $this->assertEquals([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], $response['borrow']);
+    }
+
+    public function testStatsActionStudent(): void
+    {
+        $this->mockLoginAsRole('student'); // ID is 2
+
+        $borrowTableMock = $this->createMock(BorrowTable::class);
+        $borrowTableMock->expects(self::once())
+            ->method('getMonthlyStats')
+            ->with(2026, 2)
+            ->willReturn([
+                'borrow' => array_fill(0, 12, 0),
+                'return' => array_fill(0, 12, 0),
+            ]);
+
+        $serviceLocator = $this->getApplicationServiceLocator();
+        $serviceLocator->setAllowOverride(true);
+        $serviceLocator->setService(BorrowTable::class, $borrowTableMock);
+
+        $this->dispatch('/student/dashboard/stats?year=2026', 'GET');
+        $this->assertResponseStatusCode(200);
+
+        $response = json_decode($this->getResponse()->getContent(), true);
+        $this->assertArrayHasKey('borrow', $response);
+        $this->assertArrayHasKey('return', $response);
+    }
+
+    public function testCategoryStatsActionAdmin(): void
+    {
+        $this->mockLoginAsRole('admin');
+
+        $borrowTableMock = $this->createMock(BorrowTable::class);
+        $borrowTableMock->expects(self::once())
+            ->method('getCategoryMonthlyStats')
+            ->with(2025)
+            ->willReturn([
+                'Thiếu nhi' => [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            ]);
+
+        $serviceLocator = $this->getApplicationServiceLocator();
+        $serviceLocator->setAllowOverride(true);
+        $serviceLocator->setService(BorrowTable::class, $borrowTableMock);
+
+        $this->dispatch('/admin/dashboard/category-stats?year=2025', 'GET');
+        $this->assertResponseStatusCode(200);
+
+        $response = json_decode($this->getResponse()->getContent(), true);
+        $this->assertArrayHasKey('Thiếu nhi', $response);
+        $this->assertEquals([1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], $response['Thiếu nhi']);
+    }
+
+    public function testCategoryStatsActionStudentForbidden(): void
+    {
+        $this->mockLoginAsRole('student');
+
+        $this->dispatch('/student/dashboard/category-stats?year=2025', 'GET');
+        $this->assertResponseStatusCode(403);
+    }
+
 
     private function mockLoginAsRole(string $role): void
     {

@@ -90,10 +90,36 @@ class RegisterForm extends Form
         $filter->add([
             'name'       => 'password',
             'required'   => true,
-            'validators' => [[
-                'name'    => StringLength::class,
-                'options' => ['min' => 8, 'max' => 255],
-            ]],
+            'validators' => [
+                [
+                    'name'    => StringLength::class,
+                    'options' => [
+                        'min' => 8,
+                        'max' => 255,
+                        'messages' => [
+                            StringLength::TOO_SHORT => 'Mật khẩu phải có độ dài từ 8 ký tự trở lên.',
+                        ],
+                    ],
+                ],
+                [
+                    'name'    => \Laminas\Validator\Regex::class,
+                    'options' => [
+                        'pattern' => '/[A-Z]/',
+                        'messages' => [
+                            \Laminas\Validator\Regex::NOT_MATCH => 'Mật khẩu phải chứa ít nhất một ký tự in hoa.',
+                        ],
+                    ],
+                ],
+                [
+                    'name'    => \Laminas\Validator\Regex::class,
+                    'options' => [
+                        'pattern' => '/[^a-zA-Z0-9\s]/',
+                        'messages' => [
+                            \Laminas\Validator\Regex::NOT_MATCH => 'Mật khẩu phải chứa ít nhất một ký tự đặc biệt.',
+                        ],
+                    ],
+                ],
+            ],
         ]);
 
         $filter->add([
