@@ -588,6 +588,18 @@ setTimeout(() => {
         }
     }
 
+    function clearSearchInput(clearBtn) {
+        const input = clearBtn.parentElement.querySelector('input');
+        if (input) {
+            input.value = '';
+            clearBtn.style.display = 'none';
+            const form = clearBtn.closest('form');
+            if (form) {
+                form.submit();
+            }
+        }
+    }
+
     // Initial load and poll every 30 seconds
     if (document.getElementById('notification-badge')) {
         loadNotifications();

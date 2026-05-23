@@ -11,7 +11,7 @@ $this->layout('layout/library-layout');
 
 $pagination  = is_array($pagination ?? null) ? $pagination : [];
 $page        = (int) ($pagination['page'] ?? 1);
-$perPageRaw  = $pagination['perPage'] ?? 10;
+$perPageRaw  = $pagination['perPage'] ?? 20;
 $perPage     = $perPageRaw === 'all' ? 999999 : (int) $perPageRaw;
 $totalItems  = (int) ($pagination['totalItems'] ?? 0);
 $totalPages  = (int) ($pagination['totalPages'] ?? 1);
@@ -57,9 +57,9 @@ $catBadgeColors = ['Văn học'=>'badge-purple','Khoa học'=>'badge-blue','Lị
     </div>
     <?php if ($canManage): ?>
     <div style="display: flex; gap: 12px; align-items: center;">
-        <button type="button" class="btn btn-outline" id="btn-open-category-modal" style="font-weight: 600; display: inline-flex; align-items: center; gap: 6px; height: 38px; border-color: rgba(124, 106, 255, 0.4); color: var(--text-primary);">
+        <a href="<?= $this->url($routePrefix . '/book', ['action' => 'categories']) ?>" class="btn btn-outline" style="font-weight: 600; display: inline-flex; align-items: center; gap: 6px; height: 38px; border-color: rgba(124, 106, 255, 0.4); color: var(--text-primary);">
             <i class="bi bi-tags-fill" style="color: var(--accent-purple); font-size: 14px;"></i>Danh mục
-        </button>
+        </a>
         <a href="<?= $this->url($routePrefix . '/book', ['action' => 'add']) ?>" class="btn btn-orange" style="display: inline-flex; align-items: center; gap: 6px; height: 38px; font-weight: 600;">
             <i class="bi bi-plus-lg"></i>Thêm sách mới
         </a>
@@ -71,7 +71,7 @@ $catBadgeColors = ['Văn học'=>'badge-purple','Khoa học'=>'badge-blue','Lị
     <?php endif; ?>
 </div>
 
-<?php if (!empty($announcements)): ?>
+<?php if (!empty($announcements) && !$canManage): ?>
 <div class="announcement-teaser catalog-teaser">
     <div class="catalog-teaser-left">
         <span class="teaser-pulse-dot catalog-teaser-dot"></span>
@@ -322,12 +322,8 @@ $activeCat = (string) ($filters['category'] ?? '');
     <div class="catalog-filters-left">
         <span class="filter-label"><i class="bi bi-filter-circle-fill"></i> Bộ lọc &amp; Tìm kiếm</span>
     </div>
-    <form method="GET" id="book-filter-form" class="catalog-filter-form">
-        <div class="topbar-search catalog-search-wrap">
-            <i class="bi bi-search"></i>
-            <input type="text" id="book-search-input" name="search" value="<?= htmlspecialchars($filters['search'] ?? '') ?>" placeholder="Tìm sách, tác giả...">
-        </div>
 
+    <form method="GET" id="book-filter-form" class="catalog-filter-form">
         <div class="searchable-select-wrapper catalog-category-select-wrapper" id="categorySelectWrapper">
             <div class="input-with-icon">
                 <i class="bi bi-tags-fill"></i>
@@ -358,11 +354,17 @@ $activeCat = (string) ($filters['category'] ?? '');
         <?php endif; ?>
 
         <select id="book-perpage-select" name="perPage" class="form-select catalog-perpage-select">
-            <option value="10" <?= (string)$perPageRaw === '10' ? 'selected' : '' ?>>10 sách / trang</option>
             <option value="20" <?= (string)$perPageRaw === '20' ? 'selected' : '' ?>>20 sách / trang</option>
             <option value="50" <?= (string)$perPageRaw === '50' ? 'selected' : '' ?>>50 sách / trang</option>
+            <option value="100" <?= (string)$perPageRaw === '100' ? 'selected' : '' ?>>100 sách / trang</option>
             <option value="all" <?= (string)$perPageRaw === 'all' ? 'selected' : '' ?>>Tất cả</option>
         </select>
+
+        <div class="topbar-search catalog-search-wrap" style="position: relative;">
+            <i class="bi bi-search"></i>
+            <input type="text" id="book-search-input" name="search" value="<?= htmlspecialchars($filters['search'] ?? '') ?>" placeholder="Tìm sách, tác giả..." oninput="this.nextElementSibling.style.display = this.value ? 'inline-block' : 'none';" style="padding-right: 28px;">
+            <i class="bi bi-x-circle-fill search-clear-btn" style="position: absolute; right: 12px; cursor: pointer; color: var(--text-muted); display: <?= !empty($filters['search']) ? 'inline-block' : 'none' ?>; font-size: 14px;" onclick="clearSearchInput(this)"></i>
+        </div>
 
         <button type="submit" class="btn btn-primary"><i class="bi bi-search"></i>Tìm kiếm</button>
     </form>
@@ -465,64 +467,7 @@ $activeCat = (string) ($filters['category'] ?? '');
     <?php endif; ?>
         </div>
 
-        <?php if ($canManage): ?>
-        <!-- CATEGORY CRUD MODAL -->
-        <div class="category-modal-overlay" id="categoryModalOverlay">
-            <div class="category-modal-card">
-                <div class="category-modal-header">
-                    <h3 class="category-modal-title"><i class="bi bi-tags-fill"></i> Quản lý danh mục sách</h3>
-                    <button type="button" class="category-modal-close" id="categoryModalCloseBtn">&times;</button>
-                </div>
-                <div class="category-modal-body">
-                    <form method="POST" action="<?= $this->url('library/settings', ['action' => 'add-category']) ?>" id="category-add-form" style="margin-bottom: 20px;">
-                        <div class="category-modal-input-group">
-                            <input type="text" name="category_name" class="form-control" placeholder="Tên danh mục mới..." required autocomplete="off">
-                            <button type="submit" class="btn btn-primary" style="display: inline-flex; align-items: center; gap: 4px; font-weight: 600;">
-                                <i class="bi bi-plus-lg"></i>Thêm
-                            </button>
-                        </div>
-                    </form>
 
-                    <div class="category-modal-list-title">Danh sách danh mục hiện tại:</div>
-                    <div class="category-modal-list">
-                        <?php if (empty($categoriesWithId)): ?>
-                            <div class="category-empty-text">Chưa có danh mục nào.</div>
-                        <?php else: ?>
-                            <?php foreach ($categoriesWithId as $cat): ?>
-                                <div class="category-modal-item" id="cat-item-<?= $cat['id'] ?>">
-                                    <!-- View mode -->
-                                    <div class="cat-item-view-mode" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                                        <span class="category-item-name"><?= htmlspecialchars($cat['name']) ?></span>
-                                        <div style="display: flex; gap: 12px; align-items: center;">
-                                            <button type="button" class="category-item-edit-trigger-btn" title="Sửa tên" onclick="enableEditMode(<?= $cat['id'] ?>)" style="background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 0; display: inline-flex; align-items: center; transition: var(--transition);">
-                                                <i class="bi bi-pencil" style="font-size: 13px;"></i>
-                                            </button>
-                                            <a href="<?= $this->url('library/settings', ['action' => 'delete-category', 'id' => $cat['id']]) ?>" 
-                                               class="category-item-delete-btn"
-                                               title="Xóa danh mục"
-                                               onclick="return confirm('Bạn có chắc chắn muốn xóa danh mục này?')">
-                                                <i class="bi bi-trash"></i>
-                                            </a>
-                                        </div>
-                                    </div>
-                                    <!-- Edit mode (hidden by default) -->
-                                    <form method="POST" action="<?= $this->url('library/settings', ['action' => 'edit-category', 'id' => $cat['id']]) ?>" class="cat-item-edit-mode" style="display: none; width: 100%; gap: 8px; align-items: center;">
-                                        <input type="text" name="category_name" class="form-control" value="<?= htmlspecialchars($cat['name']) ?>" required style="flex: 1; height: 32px; font-size: 13px; padding: 4px 8px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-primary);">
-                                        <button type="submit" class="btn btn-success btn-sm" style="padding: 0 10px; height: 32px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 4px; border-radius: var(--radius-sm); border: none;" title="Lưu">
-                                            <i class="bi bi-check-lg"></i>
-                                        </button>
-                                        <button type="button" class="btn btn-secondary btn-sm" style="padding: 0 10px; height: 32px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 4px; border-radius: var(--radius-sm); border: none; background: rgba(255,255,255,0.08); color: var(--text-secondary);" title="Hủy" onclick="disableEditMode(<?= $cat['id'] ?>)">
-                                            <i class="bi bi-x-lg"></i>
-                                        </button>
-                                    </form>
-                                </div>
-                            <?php endforeach; ?>
-                        <?php endif; ?>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <?php endif; ?>
     </div>
 </div>
 
@@ -776,7 +721,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const urlObj = new URL(e.state.url);
             if (searchInput) searchInput.value = urlObj.searchParams.get('search') || '';
             if (statusSelect) statusSelect.value = urlObj.searchParams.get('status') || '';
-            if (perPageSelect) perPageSelect.value = urlObj.searchParams.get('perPage') || '10';
+            if (perPageSelect) perPageSelect.value = urlObj.searchParams.get('perPage') || '20';
             if (categorySelect) {
                 const catVal = urlObj.searchParams.get('category') || '';
                 categorySelect.value = catVal;
@@ -804,94 +749,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Category Modal CRUD logic
-    const categoryModalOverlay = document.getElementById('categoryModalOverlay');
-    const btnOpenCategoryModal = document.getElementById('btn-open-category-modal');
-    const categoryModalCloseBtn = document.getElementById('categoryModalCloseBtn');
-    
-    if (categoryModalOverlay) {
-        function openCategoryModal() {
-            categoryModalOverlay.style.display = 'flex';
-            setTimeout(() => {
-                categoryModalOverlay.classList.add('open');
-            }, 10);
-        }
 
-        function closeCategoryModal() {
-            categoryModalOverlay.classList.remove('open');
-            setTimeout(() => {
-                categoryModalOverlay.style.display = 'none';
-            }, 300);
-        }
-
-        if (btnOpenCategoryModal) {
-            btnOpenCategoryModal.addEventListener('click', openCategoryModal);
-        }
-
-        if (categoryModalCloseBtn) {
-            categoryModalCloseBtn.addEventListener('click', closeCategoryModal);
-        }
-
-        categoryModalOverlay.addEventListener('click', (e) => {
-            if (e.target === categoryModalOverlay) {
-                closeCategoryModal();
-            }
-        });
-
-        // Global functions for inline edit mode triggers
-        window.enableEditMode = function(id) {
-            const item = document.getElementById('cat-item-' + id);
-            if (!item) return;
-            const viewMode = item.querySelector('.cat-item-view-mode');
-            const editMode = item.querySelector('.cat-item-edit-mode');
-            if (viewMode && editMode) {
-                viewMode.style.display = 'none';
-                editMode.style.display = 'flex';
-                const input = editMode.querySelector('input[name="category_name"]');
-                if (input) {
-                    input.focus();
-                    input.select();
-                }
-            }
-        };
-
-        window.disableEditMode = function(id) {
-            const item = document.getElementById('cat-item-' + id);
-            if (!item) return;
-            const viewMode = item.querySelector('.cat-item-view-mode');
-            const editMode = item.querySelector('.cat-item-edit-mode');
-            if (viewMode && editMode) {
-                viewMode.style.display = 'flex';
-                editMode.style.display = 'none';
-            }
-        };
-
-        const addCategoryForm = document.getElementById('category-add-form');
-        if (addCategoryForm) {
-            addCategoryForm.addEventListener('submit', () => {
-                sessionStorage.setItem('openCategoryModal', '1');
-            });
-        }
-
-        const editCategoryForms = categoryModalOverlay.querySelectorAll('.cat-item-edit-mode');
-        editCategoryForms.forEach(form => {
-            form.addEventListener('submit', () => {
-                sessionStorage.setItem('openCategoryModal', '1');
-            });
-        });
-
-        const categoryDeleteBtns = categoryModalOverlay.querySelectorAll('.category-item-delete-btn');
-        categoryDeleteBtns.forEach(btn => {
-            btn.addEventListener('click', () => {
-                sessionStorage.setItem('openCategoryModal', '1');
-            });
-        });
-
-        if (sessionStorage.getItem('openCategoryModal') === '1') {
-            sessionStorage.removeItem('openCategoryModal');
-            openCategoryModal();
-        }
-    }
 
     bindEvents();
 });

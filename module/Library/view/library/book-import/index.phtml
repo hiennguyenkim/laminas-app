@@ -56,7 +56,7 @@ $renderSortIcon = function(string $col) use ($sort, $direction) {
     </div>
     <div class="book-import-actions-row">
         <a href="<?= $this->url('library/books-import', ['action' => 'export'], ['query' => array_filter(['year' => $selectedYear, 'search' => $search, 'type' => $type, 'period' => $period, 'sort' => $sort, 'direction' => $direction], function($val) { return $val !== null && $val !== ''; })]) ?>" class="btn btn-outline d-flex align-items-center gap-2" title="Xuất Excel (.xlsx)"><i class="bi bi-file-earmark-excel" style="color:#1d6f42;"></i>Xuất .xlsx</a>
-        <button class="btn btn-primary" onclick="toggleAddModal()"><i class="bi bi-plus-circle book-import-btn-new-icon"></i>Nhập sách mới</button>
+        <a href="<?= $this->url('library/books-import', ['action' => 'add']) ?>" class="btn btn-primary"><i class="bi bi-plus-circle book-import-btn-new-icon"></i>Nhập sách mới</a>
     </div>
 </div>
 
@@ -157,9 +157,10 @@ $renderSortIcon = function(string $col) use ($sort, $direction) {
         </div>
 
         <!-- Search Input -->
-        <div class="topbar-search">
+        <div class="topbar-search" style="position: relative;">
             <i class="bi bi-search"></i>
-            <input type="text" name="search" value="<?= htmlspecialchars($search) ?>" placeholder="Tìm tên sách, tác giả, ISBN, hóa đơn...">
+            <input type="text" name="search" value="<?= htmlspecialchars($search) ?>" placeholder="Tìm tên sách, tác giả, ISBN, hóa đơn..." oninput="this.nextElementSibling.style.display = this.value ? 'inline-block' : 'none';" style="padding-right: 28px;">
+            <i class="bi bi-x-circle-fill search-clear-btn" style="position: absolute; right: 12px; cursor: pointer; color: var(--text-muted); display: <?= !empty($search) ? 'inline-block' : 'none' ?>; font-size: 14px;" onclick="clearSearchInput(this)"></i>
         </div>
 
         <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-search"></i>Tìm</button>
@@ -319,98 +320,7 @@ $renderSortIcon = function(string $col) use ($sort, $direction) {
 </div>
 <?php endif; ?>
 
-<!-- ADD MODAL -->
-<div id="addImportModal" class="modal-backdrop book-import-modal-backdrop">
-    <div class="card book-import-modal-card">
-        <div class="card-header book-import-modal-header">
-            <div class="card-title book-import-modal-title"><i class="bi bi-plus-circle-fill book-import-title-icon"></i>Tạo phiếu nhập kho sách trực tiếp</div>
-            <button class="btn btn-outline btn-sm book-import-modal-close-btn" onclick="toggleAddModal()"><i class="bi bi-x-lg"></i></button>
-        </div>
-        <form method="post" action="<?= $this->url('library/books-import') ?>" style="margin:0">
-            <div class="card-body book-import-modal-body">
-                <div class="book-import-modal-grid-1">
-                    <div class="book-import-modal-grid-15-1">
-                        <div>
-                            <label class="form-label book-import-modal-label">Tên sách *</label>
-                            <input type="text" name="title" class="form-control" placeholder="Ví dụ: Lập trình PHP Laminas" required>
-                        </div>
-                        <div>
-                            <label class="form-label book-import-modal-label">Mã hóa đơn <span style="color:var(--text-muted);font-weight:400">(tự sinh nếu để trống)</span></label>
-                            <input type="text" name="invoice_code" class="form-control" placeholder="Ví dụ: HD-2024-001">
-                        </div>
-                    </div>
-                    <div class="book-import-modal-grid-1-1">
-                        <div>
-                            <label class="form-label book-import-modal-label">Tác giả</label>
-                            <input type="text" name="author" class="form-control" placeholder="Tên tác giả">
-                        </div>
-                        <div>
-                            <label class="form-label book-import-modal-label">Mã ISBN</label>
-                            <input type="text" name="isbn" class="form-control" placeholder="Mã ISBN">
-                        </div>
-                    </div>
-                    <div class="book-import-modal-grid-1-1">
-                        <div>
-                            <label class="form-label book-import-modal-label">Thể loại</label>
-                            <input type="text" name="category" class="form-control" placeholder="Ví dụ: Công nghệ thông tin">
-                        </div>
-                        <div>
-                            <label class="form-label book-import-modal-label">Nhà xuất bản</label>
-                            <input type="text" name="publisher" class="form-control" placeholder="Tên nhà xuất bản">
-                        </div>
-                    </div>
-                    <div class="book-import-modal-grid-1-1">
-                        <div>
-                            <label class="form-label book-import-modal-label">Năm xuất bản</label>
-                            <input type="number" name="published_year" class="form-control" min="1900" max="<?= date('Y') ?>" placeholder="YYYY">
-                        </div>
-                        <div>
-                            <label class="form-label book-import-modal-label">Phân loại nhập</label>
-                            <select name="import_type" class="form-control">
-                                <option value="purchase">Mua sắm (Purchase)</option>
-                                <option value="donation">Tặng/Biếu (Donation)</option>
-                                <option value="other">Khác (Other)</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="book-import-modal-grid-1-1">
-                        <div>
-                            <label class="form-label book-import-modal-label">Số lượng nhập <span style="color:var(--text-muted);font-weight:400">(tối đa 1000)</span></label>
-                            <input type="number" name="quantity" class="form-control" min="1" max="1000" value="1" required>
-                        </div>
-                        <div>
-                            <label class="form-label book-import-modal-label">Đơn giá chi phí (đ)</label>
-                            <input type="number" name="price" class="form-control" min="0" value="0" step="1000">
-                        </div>
-                    </div>
-                    <div>
-                        <label class="form-label book-import-modal-label">Đường dẫn Hóa đơn / Chứng từ (Invoice URL)</label>
-                        <input type="text" name="invoice_url" class="form-control" placeholder="http://example.com/invoice.pdf">
-                    </div>
-                    <div>
-                        <label class="form-label book-import-modal-label">Ghi chú</label>
-                        <textarea name="note" class="form-control" placeholder="Ghi chú thêm về lô sách..." rows="3"></textarea>
-                    </div>
-                </div>
-            </div>
-            <div class="card-footer book-import-modal-footer">
-                <button type="button" class="btn btn-outline" onclick="toggleAddModal()">Hủy bỏ</button>
-                <button type="submit" class="btn btn-primary">Xác nhận nhập kho</button>
-            </div>
-        </form>
-    </div>
-</div>
 
-<script>
-function toggleAddModal() {
-    const modal = document.getElementById('addImportModal');
-    if (modal.style.display === 'none' || modal.style.display === '') {
-        modal.style.display = 'flex';
-    } else {
-        modal.style.display = 'none';
-    }
-}
-</script>
 
 <style>
 .book-import-filters-container {

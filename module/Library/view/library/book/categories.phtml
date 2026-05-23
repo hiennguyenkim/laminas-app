@@ -1,0 +1,183 @@
+<?php
+$this->headTitle('Quản lý danh mục sách');
+$this->layout('layout/library-layout');
+?>
+
+<!-- PAGE HEADER -->
+<div class="page-header">
+    <div class="d-flex align-center gap-3" style="display: flex; align-items: center; gap: 12px;">
+        <a href="<?= $this->url('library/book') ?>" class="btn btn-outline btn-icon" title="Quay lại danh sách sách"><i class="bi bi-arrow-left"></i></a>
+        <div>
+            <div class="page-title" style="margin: 0; line-height: 1.2;"><i class="bi bi-tags-fill" style="color: var(--accent-purple); margin-right: 8px;"></i>Quản lý danh mục sách</div>
+            <p class="text-muted" style="font-size: 13px; margin: 4px 0 0 0;">Xem, tìm kiếm, thêm, sửa, xóa các danh mục sách của thư viện.</p>
+        </div>
+    </div>
+</div>
+
+<div class="settings-grid" style="display: grid; grid-template-columns: 1fr 1.5fr; gap: 24px; align-items: start;">
+    
+    <!-- CỘT TRÁI: THÊM DANH MỤC MỚI -->
+    <div class="card">
+        <div class="card-header" style="border-bottom: 2px solid rgba(139,92,246,.15);">
+            <div class="card-title" style="font-size: 16px; font-weight: 700;">
+                <i class="bi bi-plus-circle" style="color: var(--accent-purple); margin-right: 8px;"></i>Thêm danh mục mới
+            </div>
+        </div>
+        <div class="card-body" style="padding: 24px;">
+            <form method="POST" action="<?= $this->url('library/settings', ['action' => 'add-category']) ?>">
+                <div class="form-group mb-3">
+                    <label class="form-label" style="font-weight: 600; font-size: 12.5px;">Tên danh mục *</label>
+                    <input type="text" name="category_name" class="form-control" placeholder="Nhập tên danh mục..." required autocomplete="off" style="background: var(--bg-secondary); border: 1px solid var(--border-color); color: var(--text-primary); padding: 10px 14px; font-size: 14px; border-radius: var(--radius-sm);">
+                </div>
+                <button type="submit" class="btn btn-primary w-100" style="padding: 10px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
+                    <i class="bi bi-plus-lg"></i>Thêm danh mục
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- CỘT PHẢI: DANH SÁCH DANH MỤC HIỆN TẠI -->
+    <div class="card">
+        <div class="card-header" style="border-bottom: 2px solid rgba(139,92,246,.15); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 14px 22px;">
+            <div class="card-title" style="font-size: 16px; font-weight: 700;">
+                <i class="bi bi-list-stars" style="color: var(--accent-purple); margin-right: 8px;"></i>Danh sách danh mục
+            </div>
+            <!-- Search bar -->
+            <div style="position: relative; width: 220px; display: flex; align-items: center;">
+                <input type="text" id="category-search-input" placeholder="Tìm danh mục..." style="width: 100%; height: 32px; padding: 4px 24px 4px 30px; font-size: 12.5px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-primary); outline: none; transition: var(--transition);">
+                <i class="bi bi-search" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 12px; pointer-events: none;"></i>
+                <span id="category-search-clear" style="position: absolute; right: 10px; cursor: pointer; color: var(--text-muted); font-size: 14px; display: none; align-items: center; justify-content: center; transition: var(--transition);" title="Xóa tìm kiếm">
+                    <i class="bi bi-x"></i>
+                </span>
+            </div>
+        </div>
+        <div class="card-body" style="padding: 24px;">
+            <div class="category-list-wrapper" style="border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: rgba(0, 0, 0, 0.15); max-height: 400px; overflow-y: auto;">
+                <?php if (empty($categoriesWithId)): ?>
+                    <div style="padding: 24px; text-align: center; color: var(--text-muted); font-style: italic; font-size: 13.5px;">Chưa có danh mục nào.</div>
+                <?php else: ?>
+                    <?php foreach ($categoriesWithId as $cat): ?>
+                        <div class="category-item-row" id="cat-item-<?= $cat['id'] ?>" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 18px; border-bottom: 1px solid var(--border-color); transition: var(--transition);">
+                            <!-- View mode -->
+                            <div class="cat-item-view-mode" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                                <span class="category-item-name" style="font-size: 14.5px; font-weight: 500; color: var(--text-primary);"><?= htmlspecialchars($cat['name']) ?></span>
+                                <div style="display: flex; gap: 14px; align-items: center;">
+                                    <button type="button" class="category-item-edit-trigger-btn" title="Sửa tên" onclick="enableEditMode(<?= $cat['id'] ?>)" style="background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 0; display: inline-flex; align-items: center; transition: var(--transition);">
+                                        <i class="bi bi-pencil" style="font-size: 14px;"></i>
+                                    </button>
+                                    <a href="<?= $this->url('library/settings', ['action' => 'delete-category', 'id' => $cat['id']]) ?>" 
+                                       class="category-item-delete-btn"
+                                       title="Xóa danh mục"
+                                       onclick="return confirm('Bạn có chắc chắn muốn xóa danh mục này?')"
+                                       style="color: var(--text-muted); display: inline-flex; align-items: center; text-decoration: none; transition: var(--transition);">
+                                        <i class="bi bi-trash" style="font-size: 14px;"></i>
+                                    </a>
+                                </div>
+                            </div>
+                            <!-- Edit mode (hidden by default) -->
+                            <form method="POST" action="<?= $this->url('library/settings', ['action' => 'edit-category', 'id' => $cat['id']]) ?>" class="cat-item-edit-mode" style="display: none; width: 100%; gap: 10px; align-items: center;">
+                                <input type="text" name="category_name" class="form-control" value="<?= htmlspecialchars($cat['name']) ?>" required style="flex: 1; height: 34px; font-size: 13.5px; padding: 6px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-primary); outline: none;">
+                                <button type="submit" class="btn btn-success btn-sm" style="padding: 0 12px; height: 34px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 4px; border-radius: var(--radius-sm); border: none;" title="Lưu">
+                                    <i class="bi bi-check-lg"></i>
+                                </button>
+                                <button type="button" class="btn btn-secondary btn-sm" style="padding: 0 12px; height: 34px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 4px; border-radius: var(--radius-sm); border: none; background: rgba(255,255,255,0.08); color: var(--text-secondary);" title="Hủy" onclick="disableEditMode(<?= $cat['id'] ?>)">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
+                            </form>
+                        </div>
+                    <?php endforeach; ?>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.category-item-row:last-child {
+    border-bottom: none !important;
+}
+.category-item-row:hover {
+    background: rgba(255, 255, 255, 0.02);
+}
+.category-item-edit-trigger-btn:hover {
+    color: var(--accent-purple) !important;
+}
+.category-item-delete-btn:hover {
+    color: #ef4444 !important;
+}
+#category-search-input:focus {
+    border-color: var(--accent-purple) !important;
+    box-shadow: 0 0 0 3px rgba(124, 106, 255, 0.2);
+}
+#category-search-clear:hover {
+    color: #ef4444 !important;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // Search filter logic
+    const searchInput = document.getElementById('category-search-input');
+    const clearBtn = document.getElementById('category-search-clear');
+    const rows = document.querySelectorAll('.category-item-row');
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            const query = searchInput.value.toLowerCase().trim();
+            rows.forEach(row => {
+                const nameEl = row.querySelector('.category-item-name');
+                if (nameEl) {
+                    const name = nameEl.textContent.toLowerCase();
+                    if (name.includes(query)) {
+                        row.style.setProperty('display', 'flex', 'important');
+                    } else {
+                        row.style.setProperty('display', 'none', 'important');
+                    }
+                }
+            });
+
+            if (searchInput.value.length > 0) {
+                if (clearBtn) clearBtn.style.display = 'flex';
+            } else {
+                if (clearBtn) clearBtn.style.display = 'none';
+            }
+        });
+    }
+
+    if (clearBtn && searchInput) {
+        clearBtn.addEventListener('click', function() {
+            searchInput.value = '';
+            clearBtn.style.display = 'none';
+            searchInput.focus();
+            searchInput.dispatchEvent(new Event('input'));
+        });
+    }
+
+    // Inline editing functions
+    window.enableEditMode = function(id) {
+        const row = document.getElementById('cat-item-' + id);
+        if (!row) return;
+        const viewMode = row.querySelector('.cat-item-view-mode');
+        const editMode = row.querySelector('.cat-item-edit-mode');
+        if (viewMode && editMode) {
+            viewMode.style.display = 'none';
+            editMode.style.display = 'flex';
+            const input = editMode.querySelector('input[name="category_name"]');
+            if (input) {
+                input.focus();
+                input.select();
+            }
+        }
+    };
+
+    window.disableEditMode = function(id) {
+        const row = document.getElementById('cat-item-' + id);
+        if (!row) return;
+        const viewMode = row.querySelector('.cat-item-view-mode');
+        const editMode = row.querySelector('.cat-item-edit-mode');
+        if (viewMode && editMode) {
+            viewMode.style.display = 'flex';
+            editMode.style.display = 'none';
+        }
+    };
+});
+</script>

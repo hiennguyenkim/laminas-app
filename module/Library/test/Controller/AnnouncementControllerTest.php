@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace LibraryTest\Controller;
 
-use Library\Controller\BookController;
+use Library\Controller\AnnouncementController;
 use Library\Session\AuthSessionContainer;
 use Laminas\Db\Adapter\AdapterInterface;
 use Laminas\Db\Adapter\Driver\StatementInterface;
 use Laminas\Db\Adapter\Driver\ResultInterface;
 use Laminas\Test\PHPUnit\Controller\AbstractHttpControllerTestCase;
 
-class BookControllerTest extends AbstractHttpControllerTestCase
+class AnnouncementControllerTest extends AbstractHttpControllerTestCase
 {
     protected function setUp(): void
     {
@@ -195,8 +195,8 @@ class BookControllerTest extends AbstractHttpControllerTestCase
         $this->dispatch('/admin/announcements?status=active', 'GET');
         $this->assertResponseStatusCode(200);
         $this->assertModuleName('Library');
-        $this->assertControllerName(BookController::class);
-        $this->assertControllerClass('BookController');
+        $this->assertControllerName(AnnouncementController::class);
+        $this->assertControllerClass('AnnouncementController');
         $this->assertMatchedRouteName('library/announcements');
     }
 

@@ -57,7 +57,7 @@ class BookImportControllerTest extends AbstractHttpControllerTestCase
         // 2. totalSql
         // 3. fetch paginated imports
         // 4. statsSql
-        
+
         $mockResults = [
             // 1. typeCounts
             [['import_type' => 'purchase', 'cnt' => 2]],
@@ -93,25 +93,35 @@ class BookImportControllerTest extends AbstractHttpControllerTestCase
         ];
 
         $queryIndex = 0;
-        $dbMock->method('query')->willReturnCallback(function($sql) use (&$queryIndex, $stmtMock, $resultMock, $mockResults) {
+        $dbMock->method('query')->willReturnCallback(function ($sql) use (&$queryIndex, $stmtMock, $resultMock, $mockResults) {
             // Verify that for query index 2 (fetching imports), it contains the order by clause
             if (strpos($sql, 'ORDER BY') !== false) {
                 if ($queryIndex === 2) {
                     self::assertStringContainsString('ORDER BY i.price ASC', $sql);
                 }
             }
-            
+
             $currentResult = $mockResults[$queryIndex] ?? [];
             $queryIndex++;
 
             $res = $this->createMock(ResultInterface::class);
             $idx = 0;
-            $res->method('rewind')->willReturnCallback(function() use (&$idx) { $idx = 0; });
-            $res->method('valid')->willReturnCallback(function() use (&$idx, $currentResult) { return $idx < count($currentResult); });
-            $res->method('current')->willReturnCallback(function() use (&$idx, $currentResult) { return $currentResult[$idx]; });
-            $res->method('key')->willReturnCallback(function() use (&$idx) { return $idx; });
-            $res->method('next')->willReturnCallback(function() use (&$idx) { $idx++; });
-            
+            $res->method('rewind')->willReturnCallback(function () use (&$idx) {
+                $idx = 0;
+            });
+            $res->method('valid')->willReturnCallback(function () use (&$idx, $currentResult) {
+                return $idx < count($currentResult);
+            });
+            $res->method('current')->willReturnCallback(function () use (&$idx, $currentResult) {
+                return $currentResult[$idx];
+            });
+            $res->method('key')->willReturnCallback(function () use (&$idx) {
+                return $idx;
+            });
+            $res->method('next')->willReturnCallback(function () use (&$idx) {
+                $idx++;
+            });
+
             $stmt = $this->createMock(StatementInterface::class);
             $stmt->method('execute')->willReturn($res);
             return $stmt;
@@ -129,6 +139,110 @@ class BookImportControllerTest extends AbstractHttpControllerTestCase
         $this->assertResponseStatusCode(200);
         $this->assertControllerName(BookImportController::class);
         $this->assertMatchedRouteName('library/books-import');
+    }
+
+    public function testAddActionGet(): void
+    {
+        $this->mockLoginAsRole('admin');
+        $this->dispatch('/admin/books/import/add', 'GET');
+        $this->assertResponseStatusCode(200);
+        $this->assertControllerName(BookImportController::class);
+        $this->assertMatchedRouteName('library/books-import');
+    }
+
+    public function testAddActionPost(): void
+    {
+        $this->mockLoginAsRole('admin');
+
+        $dbMock = $this->createMock(\Laminas\Db\Adapter\Adapter::class);
+        $resMock = $this->createMock(ResultInterface::class);
+        $stmtMock = $this->createMock(StatementInterface::class);
+        $driverMock = $this->createMock(\Laminas\Db\Adapter\Driver\DriverInterface::class);
+
+        $resMock->method('current')->willReturn(null);
+        $driverMock->method('getLastGeneratedValue')->willReturn(99);
+        $dbMock->method('getDriver')->willReturn($driverMock);
+
+        $stmtMock->method('execute')->willReturn($resMock);
+        $dbMock->method('query')->willReturn($stmtMock);
+
+        $serviceLocator = $this->getApplicationServiceLocator();
+        $serviceLocator->setAllowOverride(true);
+        $serviceLocator->setService(AdapterInterface::class, $dbMock);
+
+        $postData = [
+            'title' => 'Direct Import Book Title',
+            'quantity' => 10,
+            'price' => 50000,
+            'import_type' => 'purchase'
+        ];
+        $this->dispatch('/admin/books/import/add', 'POST', $postData);
+
+        $this->assertResponseStatusCode(302);
+        $this->assertRedirectTo('/admin/books/import');
+    }
+
+    public function testDownloadTemplateAction(): void
+    {
+        $this->mockLoginAsRole('admin');
+        $this->dispatch('/admin/books/import/downloadTemplate', 'GET');
+        $this->assertResponseStatusCode(200);
+        $responseHeaders = $this->getResponse()->getHeaders();
+        $this->assertTrue($responseHeaders->has('Content-Disposition'));
+        $contentDisposition = $responseHeaders->get('Content-Disposition')->getFieldValue();
+        $this->assertStringContainsString('mau_nhap_kho_sach.xlsx', $contentDisposition);
+    }
+
+    public function testImportExcelAction(): void
+    {
+        $this->mockLoginAsRole('admin');
+
+        $dbMock = $this->createMock(\Laminas\Db\Adapter\Adapter::class);
+        $resMock = $this->createMock(ResultInterface::class);
+        $stmtMock = $this->createMock(StatementInterface::class);
+        $driverMock = $this->createMock(\Laminas\Db\Adapter\Driver\DriverInterface::class);
+
+        $resMock->method('current')->willReturn(null);
+        $driverMock->method('getLastGeneratedValue')->willReturn(101);
+        $dbMock->method('getDriver')->willReturn($driverMock);
+
+        $stmtMock->method('execute')->willReturn($resMock);
+        $dbMock->method('query')->willReturn($stmtMock);
+
+        $serviceLocator = $this->getApplicationServiceLocator();
+        $serviceLocator->setAllowOverride(true);
+        $serviceLocator->setService(AdapterInterface::class, $dbMock);
+
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->fromArray([
+            ['Tên sách (Bắt buộc)', 'Tác giả', 'ISBN', 'Thể loại', 'Nhà xuất bản', 'Năm xuất bản', 'Hình thức nhập', 'Số lượng nhập', 'Đơn giá', 'Mã hóa đơn', 'Đường dẫn hóa đơn', 'Ghi chú'],
+            ['Excel Import Book 1', 'Author X', '9781234567890', 'Science', 'Publisher Y', '2023', 'purchase', '12', '120000', 'HD-EX-001', '', 'Excel Note']
+        ]);
+        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+        $tempFile = tempnam(sys_get_temp_dir(), 'test_excel_import');
+        $writer->save($tempFile);
+
+        $request = $this->getRequest();
+        $fileParams = new \Laminas\Stdlib\Parameters([
+            'excel_file' => [
+                'name' => 'test_import.xlsx',
+                'type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'tmp_name' => $tempFile,
+                'error' => UPLOAD_ERR_OK,
+                'size' => filesize($tempFile)
+            ]
+        ]);
+        $request->setFiles($fileParams);
+
+        $this->dispatch('/admin/books/import/importExcel', 'POST');
+
+        if (file_exists($tempFile)) {
+            unlink($tempFile);
+        }
+
+        $this->assertResponseStatusCode(302);
+        $this->assertRedirectTo('/admin/books/import');
     }
 
     private function mockLoginAsRole(string $role): void

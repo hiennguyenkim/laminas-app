@@ -56,27 +56,38 @@ $currentLogoUrl = $logoFile ? 'img/uploads/' . $logoFile : null;
     </div>
 
     <!-- ══ CỘT PHẢI: CHẾ ĐỘ BẢO TRÌ ═══════════════════════════ -->
-    <div class="card">
-        <div class="card-header" style="border-bottom: 2px solid rgba(236,72,153,0.15);">
-            <div class="card-title" style="font-size: 16px; font-weight: 700;">
-                <i class="bi bi-shield-slash" style="color: #ec4899; margin-right: 8px;"></i>Chế độ bảo trì
+    <div class="card" id="maintenance-card" style="transition: all 0.3s ease; <?= $maintenanceMode === '1' ? 'border-color: rgba(239, 68, 68, 0.4); box-shadow: 0 4px 20px rgba(239, 68, 68, 0.08);' : '' ?>">
+        <div class="card-header" style="border-bottom: 2px solid rgba(236,72,153,0.15); display: flex; align-items: center; justify-content: space-between;">
+            <div class="card-title" style="font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+                <i class="bi bi-shield-slash-fill" style="color: #ec4899;"></i>Chế độ bảo trì
             </div>
+            <span id="maintenance-status-badge" class="badge <?= $maintenanceMode === '1' ? 'badge-red' : 'badge-green' ?>" style="font-size: 11px; padding: 4px 10px; border-radius: 30px; display: flex; align-items: center; gap: 4px; transition: all 0.3s ease;">
+                <?php if ($maintenanceMode === '1'): ?>
+                    <i class="bi bi-exclamation-triangle-fill"></i> Đang bảo trì
+                <?php else: ?>
+                    <i class="bi bi-check-circle-fill"></i> Đang hoạt động
+                <?php endif; ?>
+            </span>
         </div>
         <div class="card-body" style="padding: 24px;">
             <form method="post" action="<?= $this->url('library/settings', ['action' => 'maintenance']) ?>" id="maintenance-form">
+                <!-- Hidden parameter input for state toggling -->
+                <input type="hidden" name="maintenance_mode" id="maintenance_mode_state" value="1" <?= $maintenanceMode === '1' ? '' : 'disabled' ?>>
+                
                 <div style="display: flex; flex-direction: column; gap: 20px;">
-                    <p class="text-secondary" style="font-size: 13px; line-height: 1.5; opacity: 0.8;">
-                        Khi kích hoạt chế độ bảo trì, toàn bộ trang web sẽ tạm khóa đối với người dùng thông thường và khách. Chỉ có Quản trị viên (Admin) được quyền truy cập hệ thống.
-                    </p>
-
-                    <!-- Toggle maintenance switch -->
-                    <div class="settings-toggle-row" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: rgba(255,255,255,.02); border: 1px solid var(--border-color); border-radius: 12px;">
-                        <span class="settings-toggle-label" style="font-size: 14px; font-weight: 600;">Trạng thái chế độ bảo trì</span>
-                        <div class="form-switch-wrap">
-                            <label class="switch">
-                                <input type="checkbox" name="maintenance_mode" id="maintenance_mode_toggle" value="1" <?= $maintenanceMode === '1' ? 'checked' : '' ?>>
-                                <span class="slider round"></span>
-                            </label>
+                    
+                    <!-- Dynamic Notification Banner -->
+                    <div id="maintenance-alert-banner" class="alert <?= $maintenanceMode === '1' ? 'alert-danger' : 'alert-success' ?>" style="display: flex; align-items: flex-start; gap: 12px; border-radius: 12px; padding: 16px; margin: 0; background: <?= $maintenanceMode === '1' ? 'rgba(239, 68, 68, 0.08)' : 'rgba(16, 185, 129, 0.08)' ?>; border: 1px solid <?= $maintenanceMode === '1' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(16, 185, 129, 0.2)' ?>; transition: all 0.3s ease;">
+                        <i id="maintenance-alert-icon" class="bi <?= $maintenanceMode === '1' ? 'bi-exclamation-octagon-fill text-danger' : 'bi-check-circle-fill text-success' ?>" style="font-size: 20px; line-height: 1; margin-top: 2px; transition: all 0.3s ease;"></i>
+                        <div style="flex: 1;">
+                            <strong id="maintenance-alert-title" style="display: block; font-size: 14px; margin-bottom: 4px; color: <?= $maintenanceMode === '1' ? '#ef4444' : '#10b981' ?>; transition: all 0.3s ease;">
+                                <?= $maintenanceMode === '1' ? 'Hệ thống sẽ bị khóa!' : 'Hệ thống đang mở công khai' ?>
+                            </strong>
+                            <span id="maintenance-alert-desc" style="font-size: 13px; line-height: 1.5; opacity: 0.9; transition: all 0.3s ease;">
+                                <?= $maintenanceMode === '1' 
+                                    ? 'Khi kích hoạt chế độ bảo trì, toàn bộ trang web sẽ tạm khóa đối với người dùng thông thường và khách. Chỉ có Quản trị viên (Admin) được quyền truy cập hệ thống.' 
+                                    : 'Tất cả người dùng, độc giả và khách truy cập có thể truy cập hệ thống và thực hiện các chức năng mượn/trả sách bình thường.' ?>
+                            </span>
                         </div>
                     </div>
 
@@ -90,9 +101,27 @@ $currentLogoUrl = $logoFile ? 'img/uploads/' . $logoFile : null;
                         <div style="font-size: 11px; opacity: 0.6; margin-top: 6px;">Sau mốc thời gian này, hệ thống sẽ tự động mở lại cho người dùng.</div>
                     </div>
 
-                    <button type="submit" class="btn btn-primary" style="width: 100%; padding: 10px; margin-top: 10px;">
-                        <i class="bi bi-save2-fill" style="margin-right: 6px;"></i>Lưu cấu hình bảo trì
-                    </button>
+                    <!-- Action Buttons -->
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <?php if ($maintenanceMode === '1'): ?>
+                            <button type="button" id="maintenance-action-btn" class="btn btn-success" style="width: 100%; padding: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.3s ease;">
+                                <i class="bi bi-shield-check"></i> Tắt chế độ bảo trì
+                            </button>
+                            <button type="button" id="maintenance-update-btn" class="btn btn-orange" style="width: 100%; padding: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.3s ease;">
+                                <i class="bi bi-calendar-event"></i> Cập nhật thời gian bảo trì
+                            </button>
+                        <?php else: ?>
+                            <button type="button" id="maintenance-action-btn" class="btn btn-primary" style="width: 100%; padding: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.3s ease;">
+                                <i class="bi bi-power"></i> Bật chế độ bảo trì
+                            </button>
+                            <button type="button" id="maintenance-update-btn" class="btn btn-orange" style="width: 100%; padding: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.3s ease; display: none;">
+                                <i class="bi bi-exclamation-triangle-fill"></i> Xác nhận Bật bảo trì
+                            </button>
+                            <button type="button" id="maintenance-cancel-btn" class="btn btn-outline" style="width: 100%; padding: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.3s ease; display: none;">
+                                <i class="bi bi-x-circle"></i> Hủy
+                            </button>
+                        <?php endif; ?>
+                    </div>
                 </div>
             </form>
         </div>
@@ -136,42 +165,187 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Maintenance Mode Toggle script
-    const toggle = document.getElementById('maintenance_mode_toggle');
+    // Maintenance Mode script
     const wrap = document.getElementById('maintenance_until_wrap');
     const picker = document.getElementById('maintenance_until');
     const mForm = document.getElementById('maintenance-form');
+    const mStateInput = document.getElementById('maintenance_mode_state');
 
-    if (toggle && wrap) {
-        toggle.addEventListener('change', function() {
-            if (this.checked) {
-                wrap.style.display = 'block';
-                picker.required = true;
-                // Set default until to 1 hour from now if empty
-                if (!picker.value) {
-                    const now = new Date();
-                    now.setHours(now.getHours() + 1);
-                    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-                    picker.value = now.toISOString().slice(0, 16);
+    const mCard = document.getElementById('maintenance-card');
+    const mStatusBadge = document.getElementById('maintenance-status-badge');
+    const mAlertBanner = document.getElementById('maintenance-alert-banner');
+    const mAlertIcon = document.getElementById('maintenance-alert-icon');
+    const mAlertTitle = document.getElementById('maintenance-alert-title');
+    const mAlertDesc = document.getElementById('maintenance-alert-desc');
+    
+    const mActionBtn = document.getElementById('maintenance-action-btn');
+    const mUpdateBtn = document.getElementById('maintenance-update-btn');
+    const mCancelBtn = document.getElementById('maintenance-cancel-btn');
+
+    // Is the system currently in maintenance mode based on PHP initial state?
+    const isCurrentlyMaintenance = <?= $maintenanceMode === '1' ? 'true' : 'false' ?>;
+
+    if (isCurrentlyMaintenance) {
+        // --- Flow when system is CURRENTLY IN MAINTENANCE MODE ---
+        if (mActionBtn) {
+            mActionBtn.addEventListener('click', () => {
+                if (confirm('Bạn có chắc chắn muốn tắt chế độ bảo trì và mở công khai website ngay lập tức?')) {
+                    if (mStateInput) {
+                        mStateInput.disabled = true; // Disable parameter so controller sets isset to false
+                    }
+                    mForm.submit();
                 }
-            } else {
-                wrap.style.display = 'none';
-                picker.required = false;
-            }
-        });
-    }
+            });
+        }
 
-    if (mForm && toggle && picker) {
-        mForm.addEventListener('submit', function(e) {
-            if (toggle.checked && picker.value) {
+        if (mUpdateBtn && picker) {
+            mUpdateBtn.addEventListener('click', () => {
+                if (!picker.value) {
+                    alert('Vui lòng thiết lập thời gian kết thúc bảo trì.');
+                    return;
+                }
                 const selectedTime = new Date(picker.value).getTime();
                 const nowTime = new Date().getTime();
                 if (selectedTime <= nowTime) {
-                    e.preventDefault();
                     alert('Thời gian kết thúc bảo trì phải ở tương lai.');
+                    return;
                 }
-            }
-        });
+
+                // Format friendly date time string for confirmation
+                const dateStr = new Date(picker.value).toLocaleString('vi-VN', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric'
+                });
+
+                if (confirm(`Bạn có chắc chắn muốn cập nhật thời gian hoàn thành bảo trì đến: ${dateStr}?`)) {
+                    if (mStateInput) {
+                        mStateInput.disabled = false;
+                        mStateInput.value = '1';
+                    }
+                    mForm.submit();
+                }
+            });
+        }
+    } else {
+        // --- Flow when system is CURRENTLY PUBLIC / INACTIVE ---
+        if (mActionBtn) {
+            mActionBtn.addEventListener('click', () => {
+                // Show datetime picker wrap
+                if (wrap) wrap.style.display = 'block';
+                if (picker) {
+                    picker.required = true;
+                    if (!picker.value) {
+                        const now = new Date();
+                        now.setHours(now.getHours() + 1);
+                        now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+                        picker.value = now.toISOString().slice(0, 16);
+                    }
+                    picker.focus();
+                }
+
+                // Toggle buttons visibility
+                mActionBtn.style.display = 'none';
+                if (mUpdateBtn) mUpdateBtn.style.display = 'flex';
+                if (mCancelBtn) mCancelBtn.style.display = 'flex';
+
+                // Real-time Visual Preview of Maintenance Glow
+                if (mStatusBadge) {
+                    mStatusBadge.className = 'badge badge-orange';
+                    mStatusBadge.innerHTML = '<i class="bi bi-clock"></i> Chuẩn bị bảo trì';
+                }
+                if (mCard) {
+                    mCard.style.borderColor = 'rgba(249, 115, 22, 0.4)';
+                    mCard.style.boxShadow = '0 4px 20px rgba(249, 115, 22, 0.08)';
+                }
+                if (mAlertBanner) {
+                    mAlertBanner.className = 'alert alert-warning';
+                    mAlertBanner.style.background = 'rgba(249, 115, 22, 0.08)';
+                    mAlertBanner.style.borderColor = 'rgba(249, 115, 22, 0.2)';
+                }
+                if (mAlertIcon) {
+                    mAlertIcon.className = 'bi bi-exclamation-triangle-fill text-warning';
+                }
+                if (mAlertTitle) {
+                    mAlertTitle.textContent = 'Thiết lập thời gian bảo trì';
+                    mAlertTitle.style.color = 'var(--accent-orange)';
+                }
+                if (mAlertDesc) {
+                    mAlertDesc.textContent = 'Vui lòng chọn thời điểm dự kiến hoàn thành bên dưới để tạm khóa toàn bộ website đối với độc giả thông thường.';
+                }
+            });
+        }
+
+        if (mCancelBtn) {
+            mCancelBtn.addEventListener('click', () => {
+                // Hide datetime picker wrap
+                if (wrap) wrap.style.display = 'none';
+                if (picker) picker.required = false;
+
+                // Toggle buttons visibility back
+                mActionBtn.style.display = 'flex';
+                if (mUpdateBtn) mUpdateBtn.style.display = 'none';
+                if (mCancelBtn) mCancelBtn.style.display = 'none';
+
+                // Reset visual states to public operating state
+                if (mStatusBadge) {
+                    mStatusBadge.className = 'badge badge-green';
+                    mStatusBadge.innerHTML = '<i class="bi bi-check-circle-fill"></i> Đang hoạt động';
+                }
+                if (mCard) {
+                    mCard.style.borderColor = '';
+                    mCard.style.boxShadow = '';
+                }
+                if (mAlertBanner) {
+                    mAlertBanner.className = 'alert alert-success';
+                    mAlertBanner.style.background = 'rgba(16, 185, 129, 0.08)';
+                    mAlertBanner.style.borderColor = 'rgba(16, 185, 129, 0.2)';
+                }
+                if (mAlertIcon) {
+                    mAlertIcon.className = 'bi bi-check-circle-fill text-success';
+                }
+                if (mAlertTitle) {
+                    mAlertTitle.textContent = 'Hệ thống đang mở công khai';
+                    mAlertTitle.style.color = '#10b981';
+                }
+                if (mAlertDesc) {
+                    mAlertDesc.textContent = 'Tất cả người dùng, độc giả và khách truy cập có thể truy cập hệ thống và thực hiện các chức năng mượn/trả sách bình thường.';
+                }
+            });
+        }
+
+        if (mUpdateBtn && picker) {
+            mUpdateBtn.addEventListener('click', () => {
+                if (!picker.value) {
+                    alert('Vui lòng thiết lập thời gian kết thúc bảo trì.');
+                    return;
+                }
+                const selectedTime = new Date(picker.value).getTime();
+                const nowTime = new Date().getTime();
+                if (selectedTime <= nowTime) {
+                    alert('Thời gian kết thúc bảo trì phải ở tương lai.');
+                    return;
+                }
+
+                const dateStr = new Date(picker.value).toLocaleString('vi-VN', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric'
+                });
+
+                if (confirm(`Xác nhận kích hoạt chế độ bảo trì hệ thống?\nToàn bộ website sẽ bị tạm khóa cho đến: ${dateStr}`)) {
+                    if (mStateInput) {
+                        mStateInput.disabled = false;
+                        mStateInput.value = '1';
+                    }
+                    mForm.submit();
+                }
+            });
+        }
     }
 });
 </script>

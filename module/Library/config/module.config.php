@@ -84,7 +84,7 @@ return [
                 'options' => [
                     'route'    => '/announcements',
                     'defaults' => [
-                        'controller' => BookController::class,
+                        'controller' => Controller\AnnouncementController::class,
                         'action'     => 'announcements',
                     ],
                 ],
@@ -191,7 +191,7 @@ return [
                         'options' => [
                             'route'    => '/announcements',
                             'defaults' => [
-                                'controller' => BookController::class,
+                                'controller' => Controller\AnnouncementController::class,
                                 'action'     => 'announcements',
                             ],
                         ],
@@ -315,7 +315,7 @@ return [
                         'options' => [
                             'route'    => '/announcements',
                             'defaults' => [
-                                'controller' => BookController::class,
+                                'controller' => Controller\AnnouncementController::class,
                                 'action'     => 'announcements',
                             ],
                         ],
@@ -419,6 +419,7 @@ return [
     // ── Controllers (all via explicit Factories) ───────────────────────
     'controllers' => [
         'factories' => [
+            Controller\AnnouncementController::class => Factory\Controller\AnnouncementControllerFactory::class,
             BookImportController::class  => BookImportControllerFactory::class,
             SettingsController::class     => SettingsControllerFactory::class,
             HomeController::class        => HomeControllerFactory::class,

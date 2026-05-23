@@ -231,9 +231,10 @@ $buildTabUrl = function(string $statusVal) use ($filters, $routePrefix) {
             </select>
         </div>
 
-        <div class="topbar-search tx-search-wrap">
+        <div class="topbar-search tx-search-wrap" style="position: relative;">
             <i class="bi bi-search"></i>
-            <input type="text" name="search" value="<?= htmlspecialchars($filters['search']??'') ?>" placeholder="Tìm theo sách, thành viên...">
+            <input type="text" name="search" value="<?= htmlspecialchars($filters['search']??'') ?>" placeholder="Tìm theo sách, thành viên..." oninput="this.nextElementSibling.style.display = this.value ? 'inline-block' : 'none';" style="padding-right: 28px;">
+            <i class="bi bi-x-circle-fill search-clear-btn" style="position: absolute; right: 12px; cursor: pointer; color: var(--text-muted); display: <?= !empty($filters['search']) ? 'inline-block' : 'none' ?>; font-size: 14px;" onclick="clearSearchInput(this)"></i>
         </div>
         <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-search"></i>Tìm</button>
     </form>

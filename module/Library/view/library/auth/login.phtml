@@ -1,10 +1,28 @@
 <?php $this->headTitle('Đăng nhập');
-$this->layout('layout/library-layout'); ?>
+$this->layout('layout/library-layout'); 
+
+$publicDir = getcwd();
+if (basename($publicDir) !== 'public') {
+    $publicDir .= '/public';
+}
+$customLogoFile = null;
+foreach (['logo.png','logo.jpg','logo.jpeg','logo.svg','logo.webp'] as $_lf) {
+    if (file_exists($publicDir . '/img/uploads/' . $_lf)) {
+        $customLogoFile = 'img/uploads/' . $_lf; break;
+    }
+}
+?>
 <div class="login-card">
     <a href="<?= $this->url('catalog') ?>" class="btn btn-outline btn-icon" style="position: absolute; top: 20px; left: 20px;" title="Quay lại trang chủ">
         <i class="bi bi-arrow-left"></i>
     </a>
-    <div class="login-logo"><i class="bi bi-bookshelf"></i></div>
+    <div class="login-logo">
+        <?php if ($customLogoFile): ?>
+            <img src="<?= $this->basePath($customLogoFile) ?>?t=<?= filemtime($publicDir . '/' . $customLogoFile) ?>" alt="Logo">
+        <?php else: ?>
+            <i class="bi bi-bookshelf"></i>
+        <?php endif; ?>
+    </div>
     <div class="login-title">Thư Viện HDPE</div>
     <div class="login-sub">Hệ thống Quản lý Thư viện</div>
     <form method="POST" action="<?= $this->url('library/auth', ['action' => 'login']) ?>">

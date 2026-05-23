@@ -4,13 +4,16 @@ $this->layout('layout/library-layout');
 ?>
 
 <div class="page-header">
-    <div>
-        <h1 class="page-title"><i class="bi bi-megaphone-fill text-warning" style="margin-right: 12px;"></i>Đăng bản tin mới</h1>
-        <p class="text-muted settings-header-desc">Nhập nội dung thông báo để gửi tới sinh viên thư viện.</p>
+    <div class="d-flex align-center gap-3">
+        <a href="<?= $this->url('library/announcements') ?>" class="btn btn-outline btn-icon"><i class="bi bi-arrow-left"></i></a>
+        <div>
+            <h1 class="page-title" style="margin-bottom: 0;"><i class="bi bi-megaphone-fill text-warning" style="margin-right: 12px;"></i>Đăng bản tin mới</h1>
+            <p class="text-muted settings-header-desc" style="margin-top: 4px; margin-bottom: 0;">Nhập nội dung thông báo để gửi tới sinh viên thư viện.</p>
+        </div>
     </div>
 </div>
 
-<div class="card" style="max-width: 800px; margin: 0 auto 24px auto;">
+<div class="card" style="margin-bottom: 24px;">
     <div class="card-header" style="border-bottom: 2px solid rgba(245,158,11,.2);">
         <div class="card-title" style="font-size: 16px; font-weight: 700;">
             <i class="bi bi-plus-circle-fill text-warning" style="margin-right: 8px;"></i>Thông tin bản tin mới

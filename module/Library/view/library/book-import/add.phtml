@@ -1,0 +1,184 @@
+<?php
+$this->headTitle('Tạo phiếu nhập kho sách');
+$this->layout('layout/library-layout');
+?>
+
+<div class="page-header">
+    <div class="d-flex align-center gap-3">
+        <a href="<?= $this->url('library/books-import') ?>" class="btn btn-outline btn-icon"><i class="bi bi-arrow-left"></i></a>
+        <div>
+            <h1 class="page-title" style="margin-bottom: 0;"><i class="bi bi-box-seam book-import-title-icon"></i>Tạo phiếu nhập kho sách</h1>
+            <p class="text-muted book-import-subtitle" style="margin-top: 4px; margin-bottom: 0;">Nhập sách mới trực tiếp vào hệ thống hoặc tải lên từ tệp Excel.</p>
+        </div>
+    </div>
+</div>
+
+<div class="filter-tabs book-import-filter-tabs" style="margin-bottom: 24px; border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
+    <a href="javascript:void(0)" class="filter-tab active" onclick="switchTab('direct')" id="tab-btn-direct" style="text-decoration: none;">
+        <i class="bi bi-pencil-square" style="margin-right: 6px;"></i>Nhập trực tiếp 
+    </a>
+    <a href="javascript:void(0)" class="filter-tab" onclick="switchTab('excel')" id="tab-btn-excel" style="text-decoration: none;">
+        <i class="bi bi-file-earmark-excel" style="margin-right: 6px;"></i>Nhập bằng Excel
+    </a>
+</div>
+
+<!-- TAB 1: DIRECT FORM IMPORT -->
+<div id="tab-content-direct">
+    <div class="card" style="margin-bottom: 24px;">
+        <div class="card-header" style="border-bottom: 2px solid rgba(79, 70, 229, 0.2);">
+            <div class="card-title" style="font-size: 16px; font-weight: 700;">
+                <i class="bi bi-plus-circle-fill text-primary" style="margin-right: 8px; color: var(--accent-purple) !important;"></i>Thông tin phiếu nhập kho trực tiếp
+            </div>
+        </div>
+        <form method="post" action="<?= $this->url('library/books-import', ['action' => 'add']) ?>" style="margin:0">
+            <div class="card-body">
+                <div class="book-import-modal-grid-1" style="display: flex; flex-direction: column; gap: 20px;">
+                    <div class="book-import-modal-grid-15-1" style="display: grid; grid-template-columns: 2fr 1fr; gap: 16px;">
+                        <div>
+                            <label class="form-label" style="font-weight: 600; font-size: 13px; display: block; margin-bottom: 6px;">Tên sách *</label>
+                            <input type="text" name="title" class="form-control" placeholder="Ví dụ: Lập trình PHP Laminas" required style="width: 100%;">
+                        </div>
+                        <div>
+                            <label class="form-label" style="font-weight: 600; font-size: 13px; display: block; margin-bottom: 6px;">Mã hóa đơn <span style="color:var(--text-muted);font-weight:400">(tự sinh nếu để trống)</span></label>
+                            <input type="text" name="invoice_code" class="form-control" placeholder="Ví dụ: HD-2024-001" style="width: 100%;">
+                        </div>
+                    </div>
+                    
+                    <div class="book-import-modal-grid-1-1" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                        <div>
+                            <label class="form-label" style="font-weight: 600; font-size: 13px; display: block; margin-bottom: 6px;">Tác giả</label>
+                            <input type="text" name="author" class="form-control" placeholder="Tên tác giả" style="width: 100%;">
+                        </div>
+                        <div>
+                            <label class="form-label" style="font-weight: 600; font-size: 13px; display: block; margin-bottom: 6px;">Mã ISBN</label>
+                            <input type="text" name="isbn" class="form-control" placeholder="Mã ISBN" style="width: 100%;">
+                        </div>
+                    </div>
+                    
+                    <div class="book-import-modal-grid-1-1" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                        <div>
+                            <label class="form-label" style="font-weight: 600; font-size: 13px; display: block; margin-bottom: 6px;">Thể loại</label>
+                            <input type="text" name="category" class="form-control" placeholder="Ví dụ: Công nghệ thông tin" style="width: 100%;">
+                        </div>
+                        <div>
+                            <label class="form-label" style="font-weight: 600; font-size: 13px; display: block; margin-bottom: 6px;">Nhà xuất bản</label>
+                            <input type="text" name="publisher" class="form-control" placeholder="Tên nhà xuất bản" style="width: 100%;">
+                        </div>
+                    </div>
+                    
+                    <div class="book-import-modal-grid-1-1" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                        <div>
+                            <label class="form-label" style="font-weight: 600; font-size: 13px; display: block; margin-bottom: 6px;">Năm xuất bản</label>
+                            <input type="number" name="published_year" class="form-control" min="1900" max="<?= date('Y') ?>" placeholder="YYYY" style="width: 100%;">
+                        </div>
+                        <div>
+                            <label class="form-label" style="font-weight: 600; font-size: 13px; display: block; margin-bottom: 6px;">Phân loại nhập</label>
+                            <select name="import_type" class="form-control" style="width: 100%;">
+                                <option value="purchase">Mua sắm (Purchase)</option>
+                                <option value="donation">Tặng/Biếu (Donation)</option>
+                                <option value="other">Khác (Other)</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="book-import-modal-grid-1-1" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                        <div>
+                            <label class="form-label" style="font-weight: 600; font-size: 13px; display: block; margin-bottom: 6px;">Số lượng nhập <span style="color:var(--text-muted);font-weight:400">(tối đa 1000)</span></label>
+                            <input type="number" name="quantity" class="form-control" min="1" max="1000" value="1" required style="width: 100%;">
+                        </div>
+                        <div>
+                            <label class="form-label" style="font-weight: 600; font-size: 13px; display: block; margin-bottom: 6px;">Đơn giá chi phí (đ)</label>
+                            <input type="number" name="price" class="form-control" min="0" value="0" step="1000" style="width: 100%;">
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="form-label" style="font-weight: 600; font-size: 13px; display: block; margin-bottom: 6px;">Đường dẫn Hóa đơn / Chứng từ (Invoice URL)</label>
+                        <input type="text" name="invoice_url" class="form-control" placeholder="http://example.com/invoice.pdf" style="width: 100%;">
+                    </div>
+                    
+                    <div>
+                        <label class="form-label" style="font-weight: 600; font-size: 13px; display: block; margin-bottom: 6px;">Ghi chú</label>
+                        <textarea name="note" class="form-control" placeholder="Ghi chú thêm về lô sách..." rows="3" style="width: 100%; resize: vertical;"></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer d-flex justify-content-end gap-2" style="padding: 16px 24px;">
+                <a href="<?= $this->url('library/books-import') ?>" class="btn btn-outline">Hủy bỏ</a>
+                <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg" style="margin-right: 6px;"></i>Xác nhận nhập kho</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- TAB 2: EXCEL IMPORT -->
+<div id="tab-content-excel" style="display: none;">
+    <div class="card" style="margin-bottom: 24px;">
+        <div class="card-header" style="border-bottom: 2px solid rgba(16, 185, 129, 0.2);">
+            <div class="card-title" style="font-size: 16px; font-weight: 700;">
+                <i class="bi bi-file-earmark-excel text-success" style="margin-right: 8px;"></i>Nhập sách số lượng lớn từ tệp Excel
+            </div>
+        </div>
+        <div class="card-body" style="padding: 24px;">
+            <div style="display: grid; grid-template-columns: 3fr 2fr; gap: 32px;">
+                <!-- Instructions -->
+                <div style="background: rgba(255,255,255,0.01); border: 1px solid var(--border-color); border-radius: 8px; padding: 20px;">
+                    <h5 style="margin-top: 0; font-size: 15px; font-weight: 600; color: var(--text-primary);"><i class="bi bi-info-circle text-primary" style="margin-right: 8px; color: var(--accent-purple) !important;"></i>Hướng dẫn chuẩn bị tệp tin Excel</h5>
+                    <ol style="padding-left: 20px; font-size: 13px; line-height: 1.6; color: var(--text-secondary); display: flex; flex-direction: column; gap: 8px;">
+                        <li>Vui lòng tải tệp mẫu Excel bằng cách nhấn vào nút <strong>"Tải mẫu nhập kho"</strong> bên cạnh.</li>
+                        <li>Điền đầy đủ thông tin sách của bạn bắt đầu từ hàng thứ 2. Không thay đổi cấu trúc tiêu đề cột ở hàng thứ 1.</li>
+                        <li><strong>Tiêu đề sách</strong> và <strong>Số lượng nhập</strong> là các cột bắt buộc phải điền dữ liệu.</li>
+                        <li>Cột <strong>Hình thức nhập</strong> chỉ nhận giá trị: <code>purchase</code> (Mua sắm), <code>donation</code> (Tặng/Biếu), hoặc <code>other</code> (Khác). Nếu để trống, hệ thống sẽ mặc định là <code>purchase</code>.</li>
+                        <li>Nhấn <strong>"Chọn tệp"</strong>, chọn tệp Excel vừa chuẩn bị (.xlsx) rồi nhấn <strong>"Bắt đầu nhập kho"</strong>.</li>
+                    </ol>
+                </div>
+                
+                <!-- Upload form & template download -->
+                <div style="display: flex; flex-direction: column; justify-content: center; gap: 24px; border-left: 1px solid var(--border-color); padding-left: 32px;">
+                    <div>
+                        <h6 style="margin-top: 0; font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 8px;">Bước 1: Tải tệp mẫu Excel cấu chuẩn</h6>
+                        <a href="<?= $this->url('library/books-import', ['action' => 'downloadTemplate']) ?>" class="btn btn-outline d-inline-flex align-items-center gap-2" style="padding: 10px 16px;">
+                            <i class="bi bi-download" style="color: var(--accent-purple);"></i> Tải mẫu nhập kho (.xlsx)
+                        </a>
+                    </div>
+                    
+                    <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 0;">
+                    
+                    <form method="post" action="<?= $this->url('library/books-import', ['action' => 'importExcel']) ?>" enctype="multipart/form-data" style="margin:0">
+                        <h6 style="font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 12px;">Bước 2: Tải lên tệp Excel dữ liệu của bạn</h6>
+                        <div class="form-group" style="margin-bottom: 16px;">
+                            <input type="file" name="excel_file" class="form-control" accept=".xlsx" required style="padding: 8px 12px; width: 100%;">
+                        </div>
+                        <div style="display: flex; gap: 12px; margin-top: 20px;">
+                            <button type="submit" class="btn btn-primary d-inline-flex align-items-center gap-2" style="background-color: #10b981; border-color: #10b981;">
+                                <i class="bi bi-cloud-arrow-up"></i> Bắt đầu nhập kho
+                            </button>
+                            <a href="<?= $this->url('library/books-import') ?>" class="btn btn-outline">Hủy bỏ</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function switchTab(tab) {
+    const directBtn = document.getElementById('tab-btn-direct');
+    const excelBtn = document.getElementById('tab-btn-excel');
+    const directContent = document.getElementById('tab-content-direct');
+    const excelContent = document.getElementById('tab-content-excel');
+
+    if (tab === 'direct') {
+        directBtn.classList.add('active');
+        excelBtn.classList.remove('active');
+        directContent.style.display = 'block';
+        excelContent.style.display = 'none';
+    } else {
+        excelBtn.classList.add('active');
+        directBtn.classList.remove('active');
+        excelContent.style.display = 'block';
+        directContent.style.display = 'none';
+    }
+}
+</script>

@@ -1922,7 +1922,7 @@
    9. SUPPORT TICKET VIEWS (ticket/create.phtml, ticket/index.phtml, ticket/view.phtml)
    ────────────────────────────────────────────────────────── */
 .ticket-create-card {
-    max-width: 800px;
+    max-width: 100%;
 }
 .ticket-required-star {
     color: #ef4444;
@@ -1977,7 +1977,7 @@
     margin-bottom: 8px;
 }
 .ticket-view-card {
-    max-width: 900px;
+    max-width: 100%;
     margin-bottom: 24px;
 }
 .ticket-view-card-body {
@@ -2033,13 +2033,13 @@
     border-bottom-left-radius: 4px;
 }
 .ticket-reply-card {
-    max-width: 900px;
+    max-width: 100%;
 }
 .ticket-form-group {
     margin-bottom: 12px;
 }
 .ticket-alert-closed {
-    max-width: 900px;
+    max-width: 100%;
     display: flex;
     align-items: center;
     gap: 10px;
@@ -3301,6 +3301,10 @@
 }
 .category-item-edit-trigger-btn:hover {
     color: var(--accent-purple) !important;
+}
+#category-modal-search-input:focus {
+    border-color: var(--accent-purple) !important;
+    box-shadow: 0 0 0 3px rgba(124, 106, 255, 0.2);
 }
 
 

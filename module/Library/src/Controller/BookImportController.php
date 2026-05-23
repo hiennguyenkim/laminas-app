@@ -29,68 +29,7 @@ class BookImportController extends BaseController
         $currentUser = $this->currentUser();
         $selectedYear = (int)($this->params()->fromQuery('year', date('Y')));
 
-        // If POST, handle creating a new book import request directly as approved
-        if ($this->getRequest()->isPost()) {
-            $data = $this->postData();
-            $title = trim((string)($data['title'] ?? ''));
-            $author = trim((string)($data['author'] ?? ''));
-            $isbn = trim((string)($data['isbn'] ?? ''));
-            $category = trim((string)($data['category'] ?? 'Khác'));
-            $publisher = trim((string)($data['publisher'] ?? ''));
-            $publishedYear = !empty($data['published_year']) ? (int)$data['published_year'] : null;
-            // Bug 7 fix: cap quantity to 1–1000
-            $quantity = min(1000, max(1, (int)($data['quantity'] ?? 1)));
-            $price = max(0.0, (float)($data['price'] ?? 0.0));
-            $importType = $data['import_type'] ?? 'purchase';
-            $invoiceCode = trim((string)($data['invoice_code'] ?? ''));
-            $invoiceUrl = trim((string)($data['invoice_url'] ?? ''));
-            $note = trim((string)($data['note'] ?? ''));
 
-            if ($title === '') {
-                $this->flash()->addErrorMessage('Vui lòng nhập Tên sách.');
-            } else {
-                try {
-                    $generatedCode = $invoiceCode !== '' ? $invoiceCode : 'INV-' . strtoupper(uniqid());
-
-                    // Bug 1 fix: sync to books catalog FIRST to get a valid book_id,
-                    // then INSERT into book_imports with the real book_id (no NULL violation).
-                    $syncData = [
-                        'title'          => $title,
-                        'isbn'           => $isbn !== '' ? $isbn : null,
-                        'quantity'       => $quantity,
-                        'author'         => $author !== '' ? $author : 'Khác',
-                        'category'       => $category !== '' ? $category : 'Khác',
-                        'publisher'      => $publisher !== '' ? $publisher : null,
-                        'published_year' => $publishedYear,
-                    ];
-                    $bookId = $this->syncImportToBooks($syncData);
-
-                    $sql = "INSERT INTO book_imports (book_id, invoice_code, title, author, isbn, category, publisher, published_year, quantity, import_type, invoice_url, price, note, imported_by, status, import_date, created_at, updated_at)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'approved', CURDATE(), NOW(), NOW())";
-                    $this->dbAdapter->query($sql, [
-                        $bookId,
-                        $generatedCode,
-                        $title,
-                        $author !== '' ? $author : 'Khác',
-                        $isbn !== '' ? $isbn : null,
-                        $category !== '' ? $category : 'Khác',
-                        $publisher !== '' ? $publisher : null,
-                        $publishedYear,
-                        $quantity,
-                        $importType,
-                        $invoiceUrl !== '' ? $invoiceUrl : null,
-                        $price,
-                        $note !== '' ? $note : null,
-                        $currentUser['id']
-                    ]);
-
-                    $this->flash()->addSuccessMessage('Đã nhập kho sách trực tiếp thành công.');
-                } catch (\Throwable $e) {
-                    $this->flash()->addErrorMessage('Lỗi hệ thống: ' . $e->getMessage());
-                }
-                return $this->redirect()->toRoute('library/books-import');
-            }
-        }
 
         // Extract filters
         $search  = trim((string)$this->params()->fromQuery('search', ''));
@@ -99,7 +38,7 @@ class BookImportController extends BaseController
         $period  = trim((string)$this->params()->fromQuery('period', 'year'));
         $sort    = trim((string)$this->params()->fromQuery('sort', ''));
         $direction = strtoupper(trim((string)$this->params()->fromQuery('direction', 'DESC')));
-        if (!in_array($direction, ['ASC', 'DESC'])) {
+        if (! in_array($direction, ['ASC', 'DESC'])) {
             $direction = 'DESC';
         }
 
@@ -303,7 +242,7 @@ class BookImportController extends BaseController
         $period = trim((string)$this->params()->fromQuery('period', 'year'));
         $sort   = trim((string)$this->params()->fromQuery('sort', ''));
         $direction = strtoupper(trim((string)$this->params()->fromQuery('direction', 'DESC')));
-        if (!in_array($direction, ['ASC', 'DESC'])) {
+        if (! in_array($direction, ['ASC', 'DESC'])) {
             $direction = 'DESC';
         }
 
@@ -465,11 +404,15 @@ class BookImportController extends BaseController
         $s1->mergeCells('A1:F1');
         $s1->getStyle('A1')->applyFromArray($titleStyle);
 
-        $s1->setCellValue('A2', 'Thoi gian:');  $s1->setCellValue('B2', $periodText . ' / Nam ' . $selectedYear);
-        $s1->setCellValue('A3', 'Ngay xuat:');  $s1->setCellValue('B3', date('d/m/Y H:i:s'));
-        
-        $s1->setCellValue('D2', 'Tong so phieu:'); $s1->setCellValue('E2', $totalCountFiltered);
-        $s1->setCellValue('D3', 'Tong chi tieu:'); $s1->setCellValue('E3', $totalSpendFiltered);
+        $s1->setCellValue('A2', 'Thoi gian:');
+        $s1->setCellValue('B2', $periodText . ' / Nam ' . $selectedYear);
+        $s1->setCellValue('A3', 'Ngay xuat:');
+        $s1->setCellValue('B3', date('d/m/Y H:i:s'));
+
+        $s1->setCellValue('D2', 'Tong so phieu:');
+        $s1->setCellValue('E2', $totalCountFiltered);
+        $s1->setCellValue('D3', 'Tong chi tieu:');
+        $s1->setCellValue('E3', $totalSpendFiltered);
         $s1->getStyle('E3')->getNumberFormat()->setFormatCode($money . ' "d"');
 
         $s1->getStyle('A2:A3')->applyFromArray($boldStyle);
@@ -490,8 +433,8 @@ class BookImportController extends BaseController
             $s1->fromArray([$row], null, 'A' . $r2);
             $s1->getStyle('J' . $r2)->getNumberFormat()->setFormatCode($money);
             $s1->getStyle('L' . $r2)->getNumberFormat()->setFormatCode($money);
-            if ($r2 % 2 === 1) { 
-                $s1->getStyle('A' . $r2 . ':O' . $r2)->applyFromArray($evenStyle); 
+            if ($r2 % 2 === 1) {
+                $s1->getStyle('A' . $r2 . ':O' . $r2)->applyFromArray($evenStyle);
             }
             $r2++;
         }
@@ -504,8 +447,8 @@ class BookImportController extends BaseController
             $s1->getStyle('L' . $r2)->getNumberFormat()->setFormatCode($money);
             $s1->getStyle('A' . $r2 . ':O' . $r2)->applyFromArray($sumStyle);
         }
-        foreach (range('A', 'O') as $c) { 
-            $s1->getColumnDimension($c)->setAutoSize(true); 
+        foreach (range('A', 'O') as $c) {
+            $s1->getColumnDimension($c)->setAutoSize(true);
         }
 
         // ── Sheet 2: Thong ke theo quy (Secondary) ──────────────────────
@@ -515,11 +458,15 @@ class BookImportController extends BaseController
         $s2->setCellValue('A1', 'BAO CAO THONG KE NHAP KHO & CHI TIEU SACH THU VIEN');
         $s2->mergeCells('A1:C1');
         $s2->getStyle('A1')->applyFromArray($titleStyle);
-        $s2->setCellValue('A2', 'Nam bao cao:');  $s2->setCellValue('B2', $selectedYear);
-        $s2->setCellValue('A3', 'Ngay xuat:');    $s2->setCellValue('B3', date('d/m/Y H:i:s'));
-        $s2->setCellValue('A4', 'Tong chi tieu ca nam:'); $s2->setCellValue('B4', $totalSpendYear);
+        $s2->setCellValue('A2', 'Nam bao cao:');
+        $s2->setCellValue('B2', $selectedYear);
+        $s2->setCellValue('A3', 'Ngay xuat:');
+        $s2->setCellValue('B3', date('d/m/Y H:i:s'));
+        $s2->setCellValue('A4', 'Tong chi tieu ca nam:');
+        $s2->setCellValue('B4', $totalSpendYear);
         $s2->getStyle('B4')->getNumberFormat()->setFormatCode($money . ' "d"');
-        $s2->setCellValue('A5', 'Tong phieu nhap:'); $s2->setCellValue('B5', $totalImportsYear);
+        $s2->setCellValue('A5', 'Tong phieu nhap:');
+        $s2->setCellValue('B5', $totalImportsYear);
         $s2->getStyle('A2:A5')->applyFromArray($boldStyle);
 
         $s2->fromArray([['Quy', 'So phieu nhap', 'Tong chi tieu (d)']], null, 'A7');
@@ -533,8 +480,8 @@ class BookImportController extends BaseController
             $s2->setCellValue('B' . $r, $d['count']);
             $s2->setCellValue('C' . $r, $d['spend']);
             $s2->getStyle('C' . $r)->getNumberFormat()->setFormatCode($money);
-            if ($r % 2 === 0) { 
-                $s2->getStyle('A' . $r . ':C' . $r)->applyFromArray($evenStyle); 
+            if ($r % 2 === 0) {
+                $s2->getStyle('A' . $r . ':C' . $r)->applyFromArray($evenStyle);
             }
             $r++;
         }
@@ -543,8 +490,8 @@ class BookImportController extends BaseController
         $s2->setCellValue('C' . $r, '=SUM(C8:C' . ($r - 1) . ')');
         $s2->getStyle('C' . $r)->getNumberFormat()->setFormatCode($money);
         $s2->getStyle('A' . $r . ':C' . $r)->applyFromArray($sumStyle);
-        foreach (['A', 'B', 'C'] as $c) { 
-            $s2->getColumnDimension($c)->setAutoSize(true); 
+        foreach (['A', 'B', 'C'] as $c) {
+            $s2->getColumnDimension($c)->setAutoSize(true);
         }
 
         $spreadsheet->setActiveSheetIndex(0);
@@ -568,11 +515,268 @@ class BookImportController extends BaseController
         return $response;
     }
 
+    public function addAction(): Response|ViewModel
+    {
+        if ($response = $this->requireAdmin()) {
+            return $response;
+        }
+
+        $currentUser = $this->currentUser();
+
+        if ($this->getRequest()->isPost()) {
+            $data = $this->postData();
+            $title = trim((string)($data['title'] ?? ''));
+            $author = trim((string)($data['author'] ?? ''));
+            $isbn = trim((string)($data['isbn'] ?? ''));
+            $category = trim((string)($data['category'] ?? 'Khác'));
+            $publisher = trim((string)($data['publisher'] ?? ''));
+            $publishedYear = ! empty($data['published_year']) ? (int)$data['published_year'] : null;
+            $quantity = min(1000, max(1, (int)($data['quantity'] ?? 1)));
+            $price = max(0.0, (float)($data['price'] ?? 0.0));
+            $importType = $data['import_type'] ?? 'purchase';
+            $invoiceCode = trim((string)($data['invoice_code'] ?? ''));
+            $invoiceUrl = trim((string)($data['invoice_url'] ?? ''));
+            $note = trim((string)($data['note'] ?? ''));
+
+            if ($title === '') {
+                $this->flash()->addErrorMessage('Vui lòng nhập Tên sách.');
+            } else {
+                try {
+                    $generatedCode = $invoiceCode !== '' ? $invoiceCode : 'INV-' . strtoupper(uniqid());
+
+                    $syncData = [
+                        'title'          => $title,
+                        'isbn'           => $isbn !== '' ? $isbn : null,
+                        'quantity'       => $quantity,
+                        'author'         => $author !== '' ? $author : 'Khác',
+                        'category'       => $category !== '' ? $category : 'Khác',
+                        'publisher'      => $publisher !== '' ? $publisher : null,
+                        'published_year' => $publishedYear,
+                    ];
+                    $bookId = $this->syncImportToBooks($syncData);
+
+                    $sql = "INSERT INTO book_imports (book_id, invoice_code, title, author, isbn, category, publisher, published_year, quantity, import_type, invoice_url, price, note, imported_by, status, import_date, created_at, updated_at)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'approved', CURDATE(), NOW(), NOW())";
+                    $this->dbAdapter->query($sql, [
+                        $bookId,
+                        $generatedCode,
+                        $title,
+                        $author !== '' ? $author : 'Khác',
+                        $isbn !== '' ? $isbn : null,
+                        $category !== '' ? $category : 'Khác',
+                        $publisher !== '' ? $publisher : null,
+                        $publishedYear,
+                        $quantity,
+                        $importType,
+                        $invoiceUrl !== '' ? $invoiceUrl : null,
+                        $price,
+                        $note !== '' ? $note : null,
+                        $currentUser['id']
+                    ]);
+
+                    $this->flash()->addSuccessMessage('Đã nhập kho sách trực tiếp thành công.');
+                } catch (\Throwable $e) {
+                    $this->flash()->addErrorMessage('Lỗi hệ thống: ' . $e->getMessage());
+                }
+                return $this->redirect()->toRoute('library/books-import');
+            }
+        }
+
+        return new ViewModel();
+    }
+
+    public function downloadTemplateAction(): Response
+    {
+        if ($response = $this->requireAdmin()) {
+            return $response;
+        }
+
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $spreadsheet->getProperties()
+            ->setTitle('Mẫu nhập kho sách')
+            ->setCreator('Thư viện');
+
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Nhập kho sách');
+
+        $headers = [
+            'Tên sách (Bắt buộc)',
+            'Tác giả',
+            'ISBN',
+            'Thể loại',
+            'Nhà xuất bản',
+            'Năm xuất bản',
+            'Hình thức nhập (purchase/donation/other)',
+            'Số lượng nhập (Bắt buộc)',
+            'Đơn giá chi phí (đ)',
+            'Mã hóa đơn',
+            'Đường dẫn hóa đơn/chứng từ',
+            'Ghi chú'
+        ];
+
+        $sheet->fromArray([$headers], null, 'A1');
+
+        $headerStyle = [
+            'font' => ['bold' => true, 'color' => ['argb' => 'FFFFFFFF']],
+            'fill' => [
+                'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                'startColor' => ['argb' => 'FF4F46E5']
+            ],
+            'alignment' => [
+                'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
+                'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER,
+            ]
+        ];
+        $sheet->getStyle('A1:L1')->applyFromArray($headerStyle);
+        $sheet->getRowDimension(1)->setRowHeight(28);
+
+        $sampleRow = [
+            'Lập trình web với PHP Laminas',
+            'Nguyễn Văn A',
+            '9786049012345',
+            'Công nghệ thông tin',
+            'NXB Đại học Sư phạm',
+            '2024',
+            'purchase',
+            '10',
+            '120000',
+            'HD-2024-001',
+            'http://example.com/hd-001.pdf',
+            'Sách phục vụ môn lập trình web'
+        ];
+        $sheet->fromArray([$sampleRow], null, 'A2');
+
+        foreach (range('A', 'L') as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+        ob_start();
+        $writer->save('php://output');
+        $content = ob_get_clean();
+
+        $filename = 'mau_nhap_kho_sach.xlsx';
+
+        $response = $this->getResponse();
+        $response->getHeaders()->addHeaders([
+            'Content-Type'        => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            'Cache-Control'       => 'max-age=0',
+            'Pragma'              => 'no-cache',
+            'Expires'             => '0',
+        ]);
+        $response->setContent($content !== false ? $content : '');
+
+        return $response;
+    }
+
+    public function importExcelAction(): Response
+    {
+        if ($response = $this->requireAdmin()) {
+            return $response;
+        }
+
+        $currentUser = $this->currentUser();
+
+        if ($this->getRequest()->isPost()) {
+            $files = $this->getRequest()->getFiles();
+            $file = $files->get('excel_file');
+
+            if (! $file || empty($file['tmp_name']) || $file['error'] !== UPLOAD_ERR_OK) {
+                $this->flash()->addErrorMessage('Vui lòng chọn một file Excel hợp lệ.');
+                return $this->redirect()->toRoute('library/books-import', ['action' => 'add']);
+            }
+
+            try {
+                $filePath = $file['tmp_name'];
+                $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($filePath);
+                $sheet = $spreadsheet->getActiveSheet();
+                $rows = $sheet->toArray(null, true, true, true);
+
+                $successCount = 0;
+                $skippedCount = 0;
+                $rowNum = 0;
+
+                foreach ($rows as $row) {
+                    $rowNum++;
+                    if ($rowNum === 1) {
+                        continue;
+                    }
+
+                    $title = isset($row['A']) ? trim((string)$row['A']) : '';
+                    if ($title === '') {
+                        $skippedCount++;
+                        continue;
+                    }
+
+                    $author = isset($row['B']) && trim((string)$row['B']) !== '' ? trim((string)$row['B']) : 'Khác';
+                    $isbn = isset($row['C']) && trim((string)$row['C']) !== '' ? trim((string)$row['C']) : null;
+                    $category = isset($row['D']) && trim((string)$row['D']) !== '' ? trim((string)$row['D']) : 'Khác';
+                    $publisher = isset($row['E']) && trim((string)$row['E']) !== '' ? trim((string)$row['E']) : null;
+                    $publishedYear = isset($row['F']) && ! empty($row['F']) ? (int)$row['F'] : null;
+
+                    $importType = isset($row['G']) ? trim(strtolower((string)$row['G'])) : 'purchase';
+                    if (! in_array($importType, ['purchase', 'donation', 'other'])) {
+                        $importType = 'purchase';
+                    }
+
+                    $quantity = isset($row['H']) ? (int)$row['H'] : 1;
+                    $quantity = min(1000, max(1, $quantity));
+
+                    $price = isset($row['I']) ? (float)$row['I'] : 0.0;
+                    $price = max(0.0, $price);
+
+                    $invoiceCode = isset($row['J']) && trim((string)$row['J']) !== '' ? trim((string)$row['J']) : 'INV-EXCEL-' . strtoupper(uniqid());
+                    $invoiceUrl = isset($row['K']) && trim((string)$row['K']) !== '' ? trim((string)$row['K']) : null;
+                    $note = isset($row['L']) && trim((string)$row['L']) !== '' ? trim((string)$row['L']) : null;
+
+                    $syncData = [
+                        'title'          => $title,
+                        'isbn'           => $isbn,
+                        'quantity'       => $quantity,
+                        'author'         => $author,
+                        'category'       => $category,
+                        'publisher'      => $publisher,
+                        'published_year' => $publishedYear,
+                    ];
+                    $bookId = $this->syncImportToBooks($syncData);
+
+                    $sql = "INSERT INTO book_imports (book_id, invoice_code, title, author, isbn, category, publisher, published_year, quantity, import_type, invoice_url, price, note, imported_by, status, import_date, created_at, updated_at)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'approved', CURDATE(), NOW(), NOW())";
+                    $this->dbAdapter->query($sql, [
+                        $bookId,
+                        $invoiceCode,
+                        $title,
+                        $author,
+                        $isbn,
+                        $category,
+                        $publisher,
+                        $publishedYear,
+                        $quantity,
+                        $importType,
+                        $invoiceUrl,
+                        $price,
+                        $note,
+                        $currentUser['id']
+                    ]);
+
+                    $successCount++;
+                }
+
+                $this->flash()->addSuccessMessage("Đã nhập thành công {$successCount} đầu sách từ file Excel. (Bỏ qua {$skippedCount} dòng trống)");
+            } catch (\Throwable $e) {
+                $this->flash()->addErrorMessage('Lỗi đọc file Excel: ' . $e->getMessage());
+            }
+        }
+
+        return $this->redirect()->toRoute('library/books-import');
+    }
+
     private function syncImportToBooks(array $import): int
     {
         $title    = $import['title'];
         // Bug 4 fix: use !empty() to handle both null and empty-string ISBN
-        $isbn     = !empty($import['isbn']) ? trim((string)$import['isbn']) : null;
+        $isbn     = ! empty($import['isbn']) ? trim((string)$import['isbn']) : null;
         $quantity = (int)$import['quantity'];
 
         // Try to find matching book by ISBN first
@@ -606,11 +810,11 @@ class BookImportController extends BaseController
                           VALUES (?, ?, ?, ?, ?, ?, ?, 'available', CURDATE(), NOW())";
             $this->dbAdapter->query($insertSql, [
                 $title,
-                !empty($import['author'])        ? $import['author']        : 'Khác',
+                ! empty($import['author']) ? $import['author'] : 'Khác',
                 $isbn,
-                !empty($import['category'])      ? $import['category']      : 'Khác',
-                !empty($import['publisher'])     ? $import['publisher']     : null,
-                !empty($import['published_year']) ? $import['published_year'] : null,
+                ! empty($import['category']) ? $import['category'] : 'Khác',
+                ! empty($import['publisher']) ? $import['publisher'] : null,
+                ! empty($import['published_year']) ? $import['published_year'] : null,
                 $quantity,
             ]);
             $matchingBookId = (int)$this->dbAdapter->getDriver()->getLastGeneratedValue();

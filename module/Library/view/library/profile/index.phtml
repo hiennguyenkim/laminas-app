@@ -148,13 +148,30 @@ $routePrefix = ($authUser['role'] ?? '') === 'admin' ? 'library' : 'student';
                     <i class="bi bi-clock-history"></i> Lịch sử mượn trả
                 </div>
                 <div class="card-body profile-card-body-flat">
+                    <!-- SEARCH BAR -->
+                    <div style="padding: 16px; display: flex; justify-content: flex-end; border-bottom: 1px solid var(--border-color, #2a2f45);">
+                        <form method="GET" action="<?= $this->url($routePrefix . '/profile') ?>" style="display: flex; gap: 8px; width: 100%; max-width: 320px;">
+                            <div class="topbar-search" style="position: relative; flex: 1; max-width: 100%; margin: 0;">
+                                <i class="bi bi-search"></i>
+                                <input type="text" name="search" value="<?= htmlspecialchars($search) ?>" placeholder="Tìm tên sách, tác giả..." oninput="this.nextElementSibling.style.display = this.value ? 'inline-block' : 'none';" style="padding-right: 28px;">
+                                <i class="bi bi-x-circle-fill search-clear-btn" style="position: absolute; right: 12px; cursor: pointer; color: var(--text-muted); display: <?= !empty($search) ? 'inline-block' : 'none' ?>; font-size: 14px;" onclick="clearSearchInput(this)"></i>
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-search"></i>Tìm</button>
+                        </form>
+                    </div>
+
                     <?php if (empty($history)): ?>
-                        <div class="profile-empty">
+                        <div class="profile-empty" style="border-bottom: <?= $totalPages > 1 ? '1px solid var(--border-color, #2a2f45)' : 'none' ?>;">
                             <i class="bi bi-inbox profile-empty-icon"></i>
-                            <p class="profile-empty-text">Bạn chưa mượn cuốn sách nào.</p>
+                            <?php if ($search !== ''): ?>
+                                <p class="profile-empty-text">Không tìm thấy kết quả phù hợp.</p>
+                                <a href="<?= $this->url($routePrefix . '/profile') ?>" class="btn btn-outline btn-sm" style="margin-top: 10px;">Xóa tìm kiếm</a>
+                            <?php else: ?>
+                                <p class="profile-empty-text">Bạn chưa mượn cuốn sách nào.</p>
+                            <?php endif; ?>
                         </div>
                     <?php else: ?>
-                        <table class="data-table profile-table">
+                        <table class="data-table profile-table" style="border-bottom: <?= $totalPages > 1 ? '1px solid var(--border-color, #2a2f45)' : 'none' ?>;">
                             <thead>
                                 <tr>
                                     <th>Sách</th>
@@ -219,12 +236,38 @@ $routePrefix = ($authUser['role'] ?? '') === 'admin' ? 'library' : 'student';
                             </tbody>
                         </table>
                     <?php endif; ?>
+
+                    <!-- PAGINATION -->
+                    <?php if ($totalPages > 1): ?>
+                    <?php
+                    $buildPageUrl = function(int $p) use ($routePrefix, $search): string {
+                        return $this->url($routePrefix . '/profile', [], ['query' => array_filter([
+                            'page' => $p,
+                            'search' => $search
+                        ])]);
+                    };
+                    ?>
+                    <div class="catalog-pagination-bar" style="padding: 16px; width: 100%;">
+                        <div class="catalog-pagination-info">
+                            Hiển thị <?= min(($page-1)*$perPage+1,$totalCount) ?> – <?= min($page*$perPage,$totalCount) ?> / <?= $totalCount ?> bản ghi
+                        </div>
+                        <div class="pagination">
+                            <a class="page-btn <?= $page<=1?'disabled':'' ?>" href="<?= $page>1?$buildPageUrl($page-1):'#' ?>"><i class="bi bi-chevron-left"></i></a>
+                            <?php for ($p=max(1,$page-2); $p<=min($totalPages,$page+2); $p++): ?>
+                            <a class="page-btn <?= $p===$page?'active':'' ?>" href="<?= $buildPageUrl($p) ?>"><?= $p ?></a>
+                            <?php endfor; ?>
+                            <a class="page-btn <?= $page>=$totalPages?'disabled':'' ?>" href="<?= $page<$totalPages?$buildPageUrl($page+1):'#' ?>"><i class="bi bi-chevron-right"></i></a>
+                        </div>
+                    </div>
+                    <?php endif; ?>
                 </div>
+            </div>
         <?php endif; ?>
     </div>
 </div>
 
 <script>
+
 function previewAvatar(input) {
     const file = input.files[0];
     if (!file) return;

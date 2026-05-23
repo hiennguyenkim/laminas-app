@@ -48,12 +48,32 @@ class ProfileController extends BaseController
             ];
         }
 
+        $page = max(1, (int)$this->params()->fromQuery('page', 1));
+        $search = trim((string)$this->params()->fromQuery('search', ''));
+        $perPage = 5;
+
+        $filters = [
+            'search' => $search,
+        ];
+
+        $totalCount = $isAdmin ? 0 : $this->borrowTable->countFiltered($filters, $userId);
+        $totalPages = max(1, (int)ceil($totalCount / $perPage));
+        $page = min($page, $totalPages);
+        $offset = ($page - 1) * $perPage;
+
+        $history = $isAdmin ? [] : $this->borrowTable->fetchAllWithDetails($filters, $userId, $perPage, $offset);
+
         return new ViewModel([
             'user'       => $user,
             'stats'      => $stats,
             'isAdmin'    => $isAdmin,
             'adminStats' => $adminStats,
-            'history'    => $isAdmin ? [] : $this->borrowTable->fetchAllWithDetails([], $userId, 50),
+            'history'    => $history,
+            'page'       => $page,
+            'totalPages' => $totalPages,
+            'totalCount' => $totalCount,
+            'perPage'    => $perPage,
+            'search'     => $search,
         ]);
     }
 
