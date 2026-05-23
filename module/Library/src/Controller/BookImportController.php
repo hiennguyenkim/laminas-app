@@ -93,34 +93,50 @@ class BookImportController extends BaseController
         }
 
         // Extract filters
-        $search = trim((string)$this->params()->fromQuery('search', ''));
-        $type   = trim((string)$this->params()->fromQuery('type', ''));
-
-        // Query import type counts matching current search filter (to show in tabs)
-        $typeCountSql = "SELECT import_type, COUNT(*) AS cnt FROM book_imports";
-        $whereTypeCounts = [];
-        $paramsTypeCounts = [];
-        if ($search !== '') {
-            $whereTypeCounts[] = "(title LIKE ? OR author LIKE ? OR isbn LIKE ? OR invoice_code LIKE ? OR publisher LIKE ?)";
-            $searchWildcard = '%' . $search . '%';
-            $paramsTypeCounts[] = $searchWildcard;
-            $paramsTypeCounts[] = $searchWildcard;
-            $paramsTypeCounts[] = $searchWildcard;
-            $paramsTypeCounts[] = $searchWildcard;
-            $paramsTypeCounts[] = $searchWildcard;
+        $search  = trim((string)$this->params()->fromQuery('search', ''));
+        $type    = trim((string)$this->params()->fromQuery('type', ''));
+        // period: 'year' | 'q1'..'q4' | 'm1'..'m12'
+        $period  = trim((string)$this->params()->fromQuery('period', 'year'));
+        $sort    = trim((string)$this->params()->fromQuery('sort', ''));
+        $direction = strtoupper(trim((string)$this->params()->fromQuery('direction', 'DESC')));
+        if (!in_array($direction, ['ASC', 'DESC'])) {
+            $direction = 'DESC';
         }
-        if (count($whereTypeCounts) > 0) {
-            $typeCountSql .= " WHERE " . implode(" AND ", $whereTypeCounts);
+
+        // Parse period into SQL condition + params
+        $periodWhere  = "YEAR(COALESCE(i.import_date, i.created_at)) = ?";
+        $periodParams = [$selectedYear];
+        $periodWhereNoAlias  = "YEAR(COALESCE(import_date, created_at)) = ?";
+        $periodParamsNoAlias = [$selectedYear];
+
+        if (preg_match('/^q([1-4])$/', $period, $m)) {
+            $q = (int)$m[1];
+            $periodWhere        .= " AND QUARTER(COALESCE(i.import_date, i.created_at)) = ?";
+            $periodParams[]      = $q;
+            $periodWhereNoAlias .= " AND QUARTER(COALESCE(import_date, created_at)) = ?";
+            $periodParamsNoAlias[] = $q;
+        } elseif (preg_match('/^m(\d{1,2})$/', $period, $m)) {
+            $mo = (int)$m[1];
+            if ($mo >= 1 && $mo <= 12) {
+                $periodWhere        .= " AND MONTH(COALESCE(i.import_date, i.created_at)) = ?";
+                $periodParams[]      = $mo;
+                $periodWhereNoAlias .= " AND MONTH(COALESCE(import_date, created_at)) = ?";
+                $periodParamsNoAlias[] = $mo;
+            }
+        }
+
+        // Query import type counts matching current search + period filter
+        $typeCountSql    = "SELECT import_type, COUNT(*) AS cnt FROM book_imports WHERE " . $periodWhereNoAlias;
+        $paramsTypeCounts = $periodParamsNoAlias;
+        if ($search !== '') {
+            $typeCountSql .= " AND (title LIKE ? OR author LIKE ? OR isbn LIKE ? OR invoice_code LIKE ? OR publisher LIKE ?)";
+            $sw = '%' . $search . '%';
+            array_push($paramsTypeCounts, $sw, $sw, $sw, $sw, $sw);
         }
         $typeCountSql .= " GROUP BY import_type";
 
         $typeCountRaw = iterator_to_array($this->dbAdapter->query($typeCountSql)->execute($paramsTypeCounts));
-        $typeCounts = [
-            'all'      => 0,
-            'purchase' => 0,
-            'donation' => 0,
-            'other'    => 0
-        ];
+        $typeCounts = ['all' => 0, 'purchase' => 0, 'donation' => 0, 'other' => 0];
         foreach ($typeCountRaw as $row) {
             if (isset($typeCounts[$row['import_type']])) {
                 $typeCounts[$row['import_type']] = (int)$row['cnt'];
@@ -128,46 +144,53 @@ class BookImportController extends BaseController
             $typeCounts['all'] += (int)$row['cnt'];
         }
 
-        // Bug 5 fix: paginate the imports list (10 per page)
+        // Paginate the imports list (10 per page)
         $page    = max(1, (int)($this->params()->fromQuery('page', 1)));
         $perPage = 10;
 
-        $whereList = [];
-        $paramsList = [];
+        $whereList  = [$periodWhere];
+        $paramsList = $periodParams;
         if ($search !== '') {
             $whereList[] = "(i.title LIKE ? OR i.author LIKE ? OR i.isbn LIKE ? OR i.invoice_code LIKE ? OR i.publisher LIKE ?)";
-            $searchWildcard = '%' . $search . '%';
-            $paramsList[] = $searchWildcard;
-            $paramsList[] = $searchWildcard;
-            $paramsList[] = $searchWildcard;
-            $paramsList[] = $searchWildcard;
-            $paramsList[] = $searchWildcard;
+            $sw = '%' . $search . '%';
+            array_push($paramsList, $sw, $sw, $sw, $sw, $sw);
         }
         if ($type !== '') {
             $whereList[] = "i.import_type = ?";
             $paramsList[] = $type;
         }
 
-        $totalSql = "SELECT COUNT(*) AS cnt FROM book_imports i";
-        if (count($whereList) > 0) {
-            $totalSql .= " WHERE " . implode(" AND ", $whereList);
+        $totalSql   = "SELECT COUNT(*) AS cnt FROM book_imports i WHERE " . implode(" AND ", $whereList);
+        $totalCount = (int)(($this->dbAdapter->query($totalSql)->execute($paramsList)->current()['cnt']) ?? 0);
+        $totalPages = max(1, (int)ceil($totalCount / $perPage));
+        $page       = min($page, $totalPages);
+        $offset     = ($page - 1) * $perPage;
+
+        $allowedSorts = [
+            'id' => 'i.import_id',
+            'invoice' => 'i.invoice_code',
+            'book' => 'i.title',
+            'category' => 'i.category',
+            'price' => 'i.price',
+            'quantity' => 'i.quantity',
+            'total' => '(i.price * i.quantity)',
+            'status' => 'i.status',
+            'date' => 'i.created_at',
+        ];
+        $orderBy = 'i.created_at DESC';
+        if (array_key_exists($sort, $allowedSorts)) {
+            $orderBy = $allowedSorts[$sort] . ' ' . $direction;
         }
-        $totalCount  = (int)(($this->dbAdapter->query($totalSql)->execute($paramsList)->current()['cnt']) ?? 0);
-        $totalPages  = max(1, (int)ceil($totalCount / $perPage));
-        $page        = min($page, $totalPages);
-        $offset      = ($page - 1) * $perPage;
 
         // Fetch paginated imports
         $sql = "SELECT i.*, u.username as admin_name, b.title as existing_book_title
                 FROM book_imports i
                 LEFT JOIN users u ON i.imported_by = u.user_id
-                LEFT JOIN books b ON i.book_id = b.book_id";
-        if (count($whereList) > 0) {
-            $sql .= " WHERE " . implode(" AND ", $whereList);
-        }
-        $sql .= " ORDER BY i.created_at DESC LIMIT ? OFFSET ?";
-        
-        $bindParams = $paramsList;
+                LEFT JOIN books b ON i.book_id = b.book_id
+                WHERE " . implode(" AND ", $whereList) . "
+                ORDER BY " . $orderBy . " LIMIT ? OFFSET ?";
+
+        $bindParams   = $paramsList;
         $bindParams[] = $perPage;
         $bindParams[] = $offset;
 
@@ -189,7 +212,7 @@ class BookImportController extends BaseController
             3 => ['count' => 0, 'spend' => 0.0],
             4 => ['count' => 0, 'spend' => 0.0]
         ];
-        $totalSpendYear  = 0.0;
+        $totalSpendYear   = 0.0;
         $totalImportsYear = 0;
 
         foreach ($statsRaw as $row) {
@@ -197,7 +220,7 @@ class BookImportController extends BaseController
             if (isset($quarterlyStats[$q])) {
                 $quarterlyStats[$q]['count'] = (int)$row['total_count'];
                 $quarterlyStats[$q]['spend'] = (float)$row['total_spend'];
-                $totalSpendYear  += (float)$row['total_spend'];
+                $totalSpendYear   += (float)$row['total_spend'];
                 $totalImportsYear += (int)$row['total_count'];
             }
         }
@@ -213,7 +236,10 @@ class BookImportController extends BaseController
             'totalCount'       => $totalCount,
             'search'           => $search,
             'type'             => $type,
+            'period'           => $period,
             'typeCounts'       => $typeCounts,
+            'sort'             => $sort,
+            'direction'        => strtolower($direction),
         ]);
     }
 
@@ -274,10 +300,38 @@ class BookImportController extends BaseController
         $selectedYear = (int)($this->params()->fromQuery('year', date('Y')));
         $search = trim((string)$this->params()->fromQuery('search', ''));
         $type   = trim((string)$this->params()->fromQuery('type', ''));
+        $period = trim((string)$this->params()->fromQuery('period', 'year'));
+        $sort   = trim((string)$this->params()->fromQuery('sort', ''));
+        $direction = strtoupper(trim((string)$this->params()->fromQuery('direction', 'DESC')));
+        if (!in_array($direction, ['ASC', 'DESC'])) {
+            $direction = 'DESC';
+        }
 
-        // Fetch imports with year filter and optional search/type filters
-        $whereList = ["YEAR(COALESCE(i.import_date, i.created_at)) = ?"];
-        $paramsList = [$selectedYear];
+        // Parse period into SQL condition + params
+        $periodWhere  = "YEAR(COALESCE(i.import_date, i.created_at)) = ?";
+        $periodParams = [$selectedYear];
+        $periodWhereNoAlias  = "YEAR(COALESCE(import_date, created_at)) = ?";
+        $periodParamsNoAlias = [$selectedYear];
+
+        if (preg_match('/^q([1-4])$/', $period, $m)) {
+            $q = (int)$m[1];
+            $periodWhere        .= " AND QUARTER(COALESCE(i.import_date, i.created_at)) = ?";
+            $periodParams[]      = $q;
+            $periodWhereNoAlias .= " AND QUARTER(COALESCE(import_date, created_at)) = ?";
+            $periodParamsNoAlias[] = $q;
+        } elseif (preg_match('/^m(\d{1,2})$/', $period, $m)) {
+            $mo = (int)$m[1];
+            if ($mo >= 1 && $mo <= 12) {
+                $periodWhere        .= " AND MONTH(COALESCE(i.import_date, i.created_at)) = ?";
+                $periodParams[]      = $mo;
+                $periodWhereNoAlias .= " AND MONTH(COALESCE(import_date, created_at)) = ?";
+                $periodParamsNoAlias[] = $mo;
+            }
+        }
+
+        // Fetch imports with period filter and optional search/type filters
+        $whereList = [$periodWhere];
+        $paramsList = $periodParams;
 
         if ($search !== '') {
             $whereList[] = "(i.title LIKE ? OR i.author LIKE ? OR i.isbn LIKE ? OR i.invoice_code LIKE ? OR i.publisher LIKE ?)";
@@ -293,15 +347,31 @@ class BookImportController extends BaseController
             $paramsList[] = $type;
         }
 
+        $allowedSorts = [
+            'id' => 'i.import_id',
+            'invoice' => 'i.invoice_code',
+            'book' => 'i.title',
+            'category' => 'i.category',
+            'price' => 'i.price',
+            'quantity' => 'i.quantity',
+            'total' => '(i.price * i.quantity)',
+            'status' => 'i.status',
+            'date' => 'i.created_at',
+        ];
+        $orderBy = 'i.created_at DESC';
+        if (array_key_exists($sort, $allowedSorts)) {
+            $orderBy = $allowedSorts[$sort] . ' ' . $direction;
+        }
+
         $sql = "SELECT i.*, u.username as admin_name, b.title as existing_book_title 
                 FROM book_imports i 
                 LEFT JOIN users u ON i.imported_by = u.user_id 
                 LEFT JOIN books b ON i.book_id = b.book_id 
                 WHERE " . implode(" AND ", $whereList) . "
-                ORDER BY i.created_at DESC";
+                ORDER BY " . $orderBy;
         $imports = iterator_to_array($this->dbAdapter->query($sql)->execute($paramsList));
 
-        // Fetch quarterly stats
+        // Fetch quarterly stats for the selected year (unfiltered by quarter/month so it gives full context)
         $statsSql = "SELECT 
                         QUARTER(import_date) AS qtr, 
                         COUNT(*) AS total_count,
@@ -317,104 +387,183 @@ class BookImportController extends BaseController
             3 => ['count' => 0, 'spend' => 0.0],
             4 => ['count' => 0, 'spend' => 0.0]
         ];
-        $totalSpendYear = 0.0;
+        $totalSpendYear   = 0.0;
+        $totalImportsYear = 0;
         foreach ($statsRaw as $row) {
             $q = (int)$row['qtr'];
             if (isset($quarterlyStats[$q])) {
                 $quarterlyStats[$q]['count'] = (int)$row['total_count'];
                 $quarterlyStats[$q]['spend'] = (float)$row['total_spend'];
-                $totalSpendYear += (float)$row['total_spend'];
+                $totalSpendYear   += (float)$row['total_spend'];
+                $totalImportsYear += (int)$row['total_count'];
             }
         }
 
-        // Generate CSV output
-        $output = fopen('php://temp', 'r+');
+        // Generate XLSX output
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $spreadsheet->getProperties()
+            ->setTitle('Bao cao nhap kho ' . $selectedYear)
+            ->setCreator('Thu vien');
+
+        $hStyle = [
+            'font'      => ['bold' => true, 'color' => ['argb' => 'FFFFFFFF'], 'size' => 11],
+            'fill'      => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => ['argb' => 'FF4472C4']],
+            'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER, 'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER],
+            'borders'   => ['allBorders' => ['borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN, 'color' => ['argb' => 'FFB0BEC5']]],
+        ];
+        $sumStyle  = ['font' => ['bold' => true], 'fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFDCE6F1']]];
+        $evenStyle = ['fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFF0F4FA']]];
+        $boldStyle = ['font' => ['bold' => true]];
+        $titleStyle = ['font' => ['bold' => true, 'size' => 13, 'color' => ['argb' => 'FF1A237E']]];
+        $money = '#,##0';
+
+        $periodText = 'Cả năm';
+        $periodLabel = 'ca-nam';
+        if (preg_match('/^q([1-4])$/', $period, $m)) {
+            $periodText = 'Quý ' . $m[1];
+            $periodLabel = 'quy-' . $m[1];
+        } elseif (preg_match('/^m(\d{1,2})$/', $period, $m)) {
+            $periodText = 'Tháng ' . $m[1];
+            $periodLabel = 'thang-' . $m[1];
+        }
+
+        // ── Sheet 1: Danh sach chi tiet (Now primary!) ──────────────────
+        $s1 = $spreadsheet->getActiveSheet();
+        $s1->setTitle('Chi tiet hoa don');
+
+        $statusMap = ['pending' => 'Cho duyet', 'approved' => 'Da nhap kho', 'rejected' => 'Da tu choi'];
+        $typeMap   = ['purchase' => 'Mua moi', 'donation' => 'Tai tro', 'other' => 'Khac'];
+
+        $totalSpendFiltered = 0.0;
+        $totalCountFiltered = 0;
+        $dataRows = [];
+        foreach ($imports as $imp) {
+            $total = (float)$imp['price'] * (int)$imp['quantity'];
+            $totalSpendFiltered += $total;
+            $totalCountFiltered++;
+            $dataRows[] = [
+                (int)$imp['import_id'],
+                $imp['invoice_code'],
+                $imp['title'],
+                $imp['author'],
+                $imp['isbn'] ?? '',
+                $imp['category'],
+                $imp['publisher'] ?? '',
+                $imp['published_year'] ?? '',
+                $typeMap[$imp['import_type']] ?? $imp['import_type'],
+                (float)$imp['price'],
+                (int)$imp['quantity'],
+                $total,
+                $statusMap[$imp['status']] ?? $imp['status'],
+                $imp['admin_name'] ?? '',
+                $imp['import_date'] ?? '',
+            ];
+        }
+
+        // Title Block
+        $s1->setCellValue('A1', 'CHI TIET PHIEU NHAP KHO & HOA DON SACH');
+        $s1->mergeCells('A1:F1');
+        $s1->getStyle('A1')->applyFromArray($titleStyle);
+
+        $s1->setCellValue('A2', 'Thoi gian:');  $s1->setCellValue('B2', $periodText . ' / Nam ' . $selectedYear);
+        $s1->setCellValue('A3', 'Ngay xuat:');  $s1->setCellValue('B3', date('d/m/Y H:i:s'));
         
-        // UTF-8 BOM for Excel compatibility
-        fwrite($output, "\xEF\xBB\xBF");
+        $s1->setCellValue('D2', 'Tong so phieu:'); $s1->setCellValue('E2', $totalCountFiltered);
+        $s1->setCellValue('D3', 'Tong chi tieu:'); $s1->setCellValue('E3', $totalSpendFiltered);
+        $s1->getStyle('E3')->getNumberFormat()->setFormatCode($money . ' "d"');
 
-        // 1. Report Header
-        fputcsv($output, ['BÁO CÁO THỐNG KÊ NHẬP KHO & CHI TIÊU SÁCH THƯ VIỆN']);
-        fputcsv($output, ['Năm báo cáo:', $selectedYear]);
-        fputcsv($output, ['Ngày xuất báo cáo:', date('d/m/Y H:i:s')]);
-        fputcsv($output, ['Tổng chi tiêu cả năm:', number_format($totalSpendYear, 0, ',', '.') . ' đ']);
-        fputcsv($output, []);
+        $s1->getStyle('A2:A3')->applyFromArray($boldStyle);
+        $s1->getStyle('D2:D3')->applyFromArray($boldStyle);
+        $s1->getStyle('E2:E3')->applyFromArray($boldStyle);
 
-        // 2. Quarterly Stats Section
-        fputcsv($output, ['THỐNG KÊ CHI TIÊU THEO QUÝ']);
-        fputcsv($output, ['Quý', 'Số lượng yêu cầu', 'Tổng chi tiêu (đ)']);
-        $quartersNames = [1 => 'Quý I', 2 => 'Quý II', 3 => 'Quý III', 4 => 'Quý IV'];
-        foreach ($quarterlyStats as $qtr => $data) {
-            fputcsv($output, [
-                $quartersNames[$qtr],
-                $data['count'],
-                number_format($data['spend'], 0, ',', '.')
-            ]);
-        }
-        fputcsv($output, []);
+        // Table Headers at Row 5
+        $h2 = ['ID', 'Ma hoa don', 'Ten sach', 'Tac gia', 'ISBN', 'The loai', 'NXB',
+                'Nam XB', 'Loai nhap', 'Don gia (d)', 'So luong', 'Thanh tien (d)',
+                'Trang thai', 'Nguoi nhap', 'Ngay nhap'];
+        $s1->fromArray([$h2], null, 'A5');
+        $s1->getStyle('A5:O5')->applyFromArray($hStyle);
+        $s1->setAutoFilter('A5:O5');
+        $s1->freezePane('A6');
 
-        // 3. Detailed Imports List Section
-        fputcsv($output, ['DANH SÁCH CHI TIẾT PHIẾU NHẬP KHO']);
-        fputcsv($output, [
-            'ID', 
-            'Mã Hóa Đơn', 
-            'Tên Sách', 
-            'Tác Giả', 
-            'ISBN', 
-            'Thể Loại', 
-            'NXB', 
-            'Năm XB', 
-            'Loại Nhập', 
-            'Đơn Giá (đ)', 
-            'Số Lượng', 
-            'Thành Tiền (đ)', 
-            'Trạng Thái', 
-            'Ngày Nhập'
-        ]);
-
-        $statusMap = [
-            'pending'  => 'Chờ duyệt',
-            'approved' => 'Đã nhập kho',
-            'rejected' => 'Đã từ chối'
-        ];
-        $typeMap = [
-            'purchase' => 'Mua mới',
-            'donation' => 'Tài trợ',
-            'other'    => 'Khác'
-        ];
-
-        foreach ($imports as $import) {
-            $totalPrice = (float)$import['price'] * (int)$import['quantity'];
-            fputcsv($output, [
-                $import['import_id'],
-                $import['invoice_code'],
-                $import['title'],
-                $import['author'],
-                $import['isbn'],
-                $import['category'],
-                $import['publisher'],
-                $import['published_year'],
-                $typeMap[$import['import_type']] ?? $import['import_type'],
-                number_format((float)$import['price'], 0, ',', '.'),
-                $import['quantity'],
-                number_format($totalPrice, 0, ',', '.'),
-                $statusMap[$import['status']] ?? $import['status'],
-                $import['import_date']
-            ]);
+        $r2 = 6;
+        foreach ($dataRows as $row) {
+            $s1->fromArray([$row], null, 'A' . $r2);
+            $s1->getStyle('J' . $r2)->getNumberFormat()->setFormatCode($money);
+            $s1->getStyle('L' . $r2)->getNumberFormat()->setFormatCode($money);
+            if ($r2 % 2 === 1) { 
+                $s1->getStyle('A' . $r2 . ':O' . $r2)->applyFromArray($evenStyle); 
+            }
+            $r2++;
         }
 
-        rewind($output);
-        $csvData = stream_get_contents($output);
-        fclose($output);
+        if ($r2 > 6) {
+            $last = $r2 - 1;
+            $s1->setCellValue('A' . $r2, 'Tong cong');
+            $s1->setCellValue('K' . $r2, '=SUM(K6:K' . $last . ')');
+            $s1->setCellValue('L' . $r2, '=SUM(L6:L' . $last . ')');
+            $s1->getStyle('L' . $r2)->getNumberFormat()->setFormatCode($money);
+            $s1->getStyle('A' . $r2 . ':O' . $r2)->applyFromArray($sumStyle);
+        }
+        foreach (range('A', 'O') as $c) { 
+            $s1->getColumnDimension($c)->setAutoSize(true); 
+        }
+
+        // ── Sheet 2: Thong ke theo quy (Secondary) ──────────────────────
+        $s2 = $spreadsheet->createSheet();
+        $s2->setTitle('Thong ke quy');
+
+        $s2->setCellValue('A1', 'BAO CAO THONG KE NHAP KHO & CHI TIEU SACH THU VIEN');
+        $s2->mergeCells('A1:C1');
+        $s2->getStyle('A1')->applyFromArray($titleStyle);
+        $s2->setCellValue('A2', 'Nam bao cao:');  $s2->setCellValue('B2', $selectedYear);
+        $s2->setCellValue('A3', 'Ngay xuat:');    $s2->setCellValue('B3', date('d/m/Y H:i:s'));
+        $s2->setCellValue('A4', 'Tong chi tieu ca nam:'); $s2->setCellValue('B4', $totalSpendYear);
+        $s2->getStyle('B4')->getNumberFormat()->setFormatCode($money . ' "d"');
+        $s2->setCellValue('A5', 'Tong phieu nhap:'); $s2->setCellValue('B5', $totalImportsYear);
+        $s2->getStyle('A2:A5')->applyFromArray($boldStyle);
+
+        $s2->fromArray([['Quy', 'So phieu nhap', 'Tong chi tieu (d)']], null, 'A7');
+        $s2->getStyle('A7:C7')->applyFromArray($hStyle);
+        $s2->freezePane('A8');
+
+        $qNames = [1 => 'Quy I', 2 => 'Quy II', 3 => 'Quy III', 4 => 'Quy IV'];
+        $r = 8;
+        foreach ($quarterlyStats as $q => $d) {
+            $s2->setCellValue('A' . $r, $qNames[$q]);
+            $s2->setCellValue('B' . $r, $d['count']);
+            $s2->setCellValue('C' . $r, $d['spend']);
+            $s2->getStyle('C' . $r)->getNumberFormat()->setFormatCode($money);
+            if ($r % 2 === 0) { 
+                $s2->getStyle('A' . $r . ':C' . $r)->applyFromArray($evenStyle); 
+            }
+            $r++;
+        }
+        $s2->setCellValue('A' . $r, 'Tong cong');
+        $s2->setCellValue('B' . $r, '=SUM(B8:B' . ($r - 1) . ')');
+        $s2->setCellValue('C' . $r, '=SUM(C8:C' . ($r - 1) . ')');
+        $s2->getStyle('C' . $r)->getNumberFormat()->setFormatCode($money);
+        $s2->getStyle('A' . $r . ':C' . $r)->applyFromArray($sumStyle);
+        foreach (['A', 'B', 'C'] as $c) { 
+            $s2->getColumnDimension($c)->setAutoSize(true); 
+        }
+
+        $spreadsheet->setActiveSheetIndex(0);
+        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+        ob_start();
+        $writer->save('php://output');
+        $content = ob_get_clean();
+
+        $filename = 'bao-cao-nhap-kho-' . $periodLabel . '-' . $selectedYear . ($type !== '' ? '-' . $type : '') . '.xlsx';
 
         $response = $this->getResponse();
         $response->getHeaders()->addHeaders([
-            'Content-Type' => 'text/csv; charset=utf-8',
-            'Content-Disposition' => 'attachment; filename="bao-cao-nhap-kho-' . $selectedYear . '.csv"',
-            'Pragma' => 'no-cache',
-            'Expires' => '0'
+            'Content-Type'        => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            'Cache-Control'       => 'max-age=0',
+            'Pragma'              => 'no-cache',
+            'Expires'             => '0',
         ]);
-        $response->setContent($csvData);
+        $response->setContent($content !== false ? $content : '');
 
         return $response;
     }

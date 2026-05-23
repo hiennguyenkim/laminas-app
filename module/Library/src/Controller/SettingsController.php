@@ -25,98 +25,13 @@ class SettingsController extends BaseController
             return $response;
         }
 
-        $page    = max(1, (int)($this->params()->fromQuery('page', 1)));
-        $perPage = 5;
-
-        $search = trim($this->queryString('search'));
-        $type   = trim($this->queryString('type'));
-
-        $filters = [
-            'search' => $search,
-            'type'   => $type,
-        ];
-
-        // Global stats (all announcements in DB)
-        $globalCounts = $this->dbAdapter->query(
-            "SELECT 
-                COUNT(*) AS total_count,
-                SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) AS active_count
-             FROM announcements"
-        )->execute()->current();
-        
-        $globalTotal = (int)($globalCounts['total_count'] ?? 0);
-        $activeCount = (int)($globalCounts['active_count'] ?? 0);
-        $hiddenCount = $globalTotal - $activeCount;
-
-        // Build filtering query
-        $where = [];
-        $params = [];
-
-        // Type filter
-        $allowedTypes = ['event', 'contest', 'holiday', 'general'];
-        if ($type !== '' && in_array($type, $allowedTypes, true)) {
-            $where[] = "a.type = ?";
-            $params[] = $type;
-        }
-
-        // Search filter
-        if ($search !== '') {
-            $where[] = "(a.title LIKE ? OR a.content LIKE ?)";
-            $searchTerm = '%' . $search . '%';
-            $params[] = $searchTerm;
-            $params[] = $searchTerm;
-        }
-
-        $whereClause = !empty($where) ? "WHERE " . implode(" AND ", $where) : "";
-
-        // Filtered counts
-        $countSql = "SELECT COUNT(*) as cnt FROM announcements a $whereClause";
-        $totalCount = (int)(($this->dbAdapter->query($countSql)->execute($params)->current()['cnt']) ?? 0);
-
-        $totalPages  = max(1, (int)ceil($totalCount / $perPage));
-        $page        = min($page, $totalPages);
-        $offset      = ($page - 1) * $perPage;
-
-        $announcements = iterator_to_array(
-            $this->dbAdapter->query(
-                "SELECT a.*, u.full_name AS creator_name
-                 FROM announcements a
-                 LEFT JOIN users u ON a.created_by = u.user_id
-                 $whereClause
-                 ORDER BY a.created_at DESC
-                 LIMIT ? OFFSET ?"
-            )->execute(array_merge($params, [$perPage, $offset]))
-        );
-
-        // Get counts for each type matching the current search keyword
-        $allCountWhere = [];
-        $allCountParams = [];
-        if ($search !== '') {
-            $allCountWhere[] = "(title LIKE ? OR content LIKE ?)";
-            $searchTerm = '%' . $search . '%';
-            $allCountParams[] = $searchTerm;
-            $allCountParams[] = $searchTerm;
-        }
-        $allCountWhereClause = !empty($allCountWhere) ? "WHERE " . implode(" AND ", $allCountWhere) : "";
-
-        $totalFilteredCount = (int)(($this->dbAdapter->query("SELECT COUNT(*) as cnt FROM announcements $allCountWhereClause")->execute($allCountParams)->current()['cnt']) ?? 0);
-
-        $typeCountsRaw = iterator_to_array($this->dbAdapter->query("SELECT type, COUNT(*) as cnt FROM announcements $allCountWhereClause GROUP BY type")->execute($allCountParams));
-        $typeCounts = [
-            'general' => 0,
-            'event'   => 0,
-            'contest' => 0,
-            'holiday' => 0,
-        ];
-        foreach ($typeCountsRaw as $row) {
-            if (isset($typeCounts[$row['type']])) {
-                $typeCounts[$row['type']] = (int)$row['cnt'];
-            }
-        }
-
-        // Detect current logo (uploaded file takes priority)
+        // 1. Logo check
         $logoFile = null;
-        $uploadDir = 'public/img/uploads/';
+        $publicDir = getcwd();
+        if (basename($publicDir) !== 'public') {
+            $publicDir .= '/public';
+        }
+        $uploadDir = $publicDir . '/img/uploads/';
         foreach (['logo.png', 'logo.jpg', 'logo.jpeg', 'logo.svg', 'logo.webp'] as $f) {
             if (file_exists($uploadDir . $f)) {
                 $logoFile = $f;
@@ -124,18 +39,25 @@ class SettingsController extends BaseController
             }
         }
 
+        // 2. Fetch maintenance configuration
+        $maintenanceMode = '0';
+        $maintenanceUntil = null;
+        try {
+            $stmt = $this->dbAdapter->query("SELECT setting_value FROM system_settings WHERE setting_key = ? LIMIT 1");
+            
+            $resMode = iterator_to_array($stmt->execute(['maintenance_mode']));
+            $maintenanceMode = count($resMode) > 0 ? $resMode[0]['setting_value'] : '0';
+
+            $resUntil = iterator_to_array($stmt->execute(['maintenance_until']));
+            $maintenanceUntil = count($resUntil) > 0 ? $resUntil[0]['setting_value'] : null;
+        } catch (\Throwable $e) {
+            // ignore
+        }
+
         return new ViewModel([
-            'announcements'      => $announcements,
-            'logoFile'           => $logoFile,
-            'activeCount'        => $activeCount,
-            'hiddenCount'        => $hiddenCount,
-            'page'               => $page,
-            'totalPages'         => $totalPages,
-            'totalCount'         => $totalCount,
-            'perPage'            => $perPage,
-            'filters'            => $filters,
-            'typeCounts'         => $typeCounts,
-            'totalFilteredCount' => $totalFilteredCount,
+            'logoFile'         => $logoFile,
+            'maintenanceMode'  => $maintenanceMode,
+            'maintenanceUntil' => $maintenanceUntil,
         ]);
     }
 
@@ -150,7 +72,17 @@ class SettingsController extends BaseController
             return $this->redirect()->toRoute('library/settings');
         }
 
-        $uploadDir = getcwd() . '/public/img/uploads/';
+        $publicDir = getcwd();
+        if (basename($publicDir) !== 'public') {
+            $publicDir .= '/public';
+        }
+        $uploadDir = $publicDir . '/img/uploads/';
+
+        // Ensure directory exists
+        if (!is_dir($uploadDir)) {
+            mkdir($uploadDir, 0777, true);
+        }
+
         $file = $_FILES['logo'] ?? null;
 
         if (!$file || $file['error'] !== UPLOAD_ERR_OK) {
@@ -189,8 +121,8 @@ class SettingsController extends BaseController
         return $this->redirect()->toRoute('library/settings');
     }
 
-    // ── Create announcement ───────────────────────────────────────────
-    public function announcementAction(): Response
+    // ── Maintenance mode settings ────────────────────────────────────
+    public function maintenanceAction(): Response
     {
         if ($response = $this->requireAdmin()) {
             return $response;
@@ -200,72 +132,202 @@ class SettingsController extends BaseController
             return $this->redirect()->toRoute('library/settings');
         }
 
-        $currentUser = $this->currentUser();
         $data = $this->postData();
+        $mode = isset($data['maintenance_mode']) ? '1' : '0';
+        $until = !empty($data['maintenance_until']) ? $data['maintenance_until'] : null;
 
-        $title     = trim((string)($data['title'] ?? ''));
-        $content   = trim((string)($data['content'] ?? ''));
-        $type      = $data['type'] ?? 'general';
-        $startDate = !empty($data['start_date']) ? $data['start_date'] : null;
-        $endDate   = !empty($data['end_date'])   ? $data['end_date']   : null;
-        $isActive  = isset($data['is_active']) ? 1 : 0;
-
-        $allowedTypes = ['event', 'contest', 'holiday', 'general'];
-        if (!in_array($type, $allowedTypes)) {
-            $type = 'general';
-        }
-
-        if ($title === '' || $content === '') {
-            $this->flash()->addErrorMessage('Tiêu đề và nội dung bản tin không được để trống.');
-            return $this->redirect()->toRoute('library/settings');
+        // If maintenance mode is enabled, check if the time is in the future
+        if ($mode === '1') {
+            if (empty($until)) {
+                $this->flash()->addErrorMessage('Vui lòng thiết lập thời gian kết thúc bảo trì.');
+                return $this->redirect()->toRoute('library/settings');
+            }
+            if (strtotime($until) <= time()) {
+                $this->flash()->addErrorMessage('Thời gian kết thúc bảo trì phải ở tương lai.');
+                return $this->redirect()->toRoute('library/settings');
+            }
         }
 
         try {
-            $this->dbAdapter->query(
-                "INSERT INTO announcements (title, content, type, start_date, end_date, is_active, created_by)
-                 VALUES (?, ?, ?, ?, ?, ?, ?)",
-                [$title, $content, $type, $startDate, $endDate, $isActive, $currentUser['id']]
-            );
-            $this->flash()->addSuccessMessage('Đã đăng bản tin "' . htmlspecialchars($title) . '" thành công.');
+            $stmtCheck = $this->dbAdapter->query("SELECT COUNT(*) as count FROM system_settings WHERE setting_key = ?");
+            
+            $countMode = (int)$stmtCheck->execute(['maintenance_mode'])->current()['count'];
+            if ($countMode > 0) {
+                $this->dbAdapter->query("UPDATE system_settings SET setting_value = ? WHERE setting_key = ?", [$mode, 'maintenance_mode']);
+            } else {
+                $this->dbAdapter->query("INSERT INTO system_settings (setting_key, setting_value) VALUES (?, ?)", ['maintenance_mode', $mode]);
+            }
+
+            $countUntil = (int)$stmtCheck->execute(['maintenance_until'])->current()['count'];
+            if ($countUntil > 0) {
+                $this->dbAdapter->query("UPDATE system_settings SET setting_value = ? WHERE setting_key = ?", [$until, 'maintenance_until']);
+            } else {
+                $this->dbAdapter->query("INSERT INTO system_settings (setting_key, setting_value) VALUES (?, ?)", ['maintenance_until', $until]);
+            }
+
+            if ($mode === '1') {
+                $this->flash()->addSuccessMessage('Đã kích hoạt chế độ bảo trì thành công đến ' . date('H:i d/m/Y', strtotime($until)) . '.');
+            } else {
+                $this->flash()->addSuccessMessage('Đã tắt chế độ bảo trì.');
+            }
+        } catch (\Throwable $e) {
+            $this->flash()->addErrorMessage('Lỗi hệ thống khi cập nhật: ' . $e->getMessage());
+        }
+
+        return $this->redirect()->toRoute('library/settings');
+    }
+
+    // ── Add category ──────────────────────────────────────────────────
+    public function addCategoryAction(): Response
+    {
+        if ($response = $this->requireAdmin()) {
+            return $response;
+        }
+
+        if (!$this->getRequest()->isPost()) {
+            return $this->redirectToRefererOrSettings();
+        }
+
+        $data = $this->postData();
+        $name = trim((string)($data['category_name'] ?? ''));
+
+        if ($name === '') {
+            $this->flash()->addErrorMessage('Tên danh mục không được để trống.');
+            return $this->redirectToRefererOrSettings();
+        }
+
+        if (mb_strlen($name) > 100) {
+            $this->flash()->addErrorMessage('Tên danh mục tối đa 100 ký tự.');
+            return $this->redirectToRefererOrSettings();
+        }
+
+        try {
+            // Check if already exists
+            $stmt = $this->dbAdapter->query("SELECT id FROM book_categories WHERE name = ? LIMIT 1");
+            $exists = $stmt->execute([$name])->current();
+            if ($exists) {
+                $this->flash()->addErrorMessage('Danh mục "' . htmlspecialchars($name) . '" đã tồn tại.');
+            } else {
+                $this->dbAdapter->query("INSERT INTO book_categories (name) VALUES (?)", [$name]);
+                $this->flash()->addSuccessMessage('Đã thêm danh mục "' . htmlspecialchars($name) . '" thành công.');
+            }
         } catch (\Throwable $e) {
             $this->flash()->addErrorMessage('Lỗi hệ thống: ' . $e->getMessage());
         }
 
-        return $this->redirect()->toRoute('library/settings');
+        return $this->redirectToRefererOrSettings();
     }
 
-    // ── Toggle active/inactive announcement ───────────────────────────
-    public function toggleAction(): Response
+    // ── Delete category ───────────────────────────────────────────────
+    public function deleteCategoryAction(): Response
     {
         if ($response = $this->requireAdmin()) {
             return $response;
         }
 
         $id = (int)$this->params()->fromRoute('id', 0);
-        if ($id > 0) {
-            $this->dbAdapter->query(
-                "UPDATE announcements SET is_active = NOT is_active WHERE id = ?",
-                [$id]
-            );
-            $this->flash()->addSuccessMessage('Đã cập nhật trạng thái bản tin.');
+        if ($id <= 0) {
+            $this->flash()->addErrorMessage('ID danh mục không hợp lệ.');
+            return $this->redirectToRefererOrSettings();
         }
 
-        return $this->redirect()->toRoute('library/settings');
+        try {
+            // Get category name
+            $stmt = $this->dbAdapter->query("SELECT name FROM book_categories WHERE id = ? LIMIT 1");
+            $cat = $stmt->execute([$id])->current();
+            if (!$cat) {
+                $this->flash()->addErrorMessage('Không tìm thấy danh mục cần xóa.');
+                return $this->redirectToRefererOrSettings();
+            }
+
+            $catName = $cat['name'];
+
+            // Check if there are books using this category
+            $stmtCheck = $this->dbAdapter->query("SELECT COUNT(*) as cnt FROM books WHERE category = ?");
+            $count = (int)($stmtCheck->execute([$catName])->current()['cnt'] ?? 0);
+
+            if ($count > 0) {
+                $this->flash()->addErrorMessage('Không thể xóa danh mục "' . htmlspecialchars($catName) . '" vì có ' . $count . ' đầu sách đang thuộc danh mục này.');
+            } else {
+                $this->dbAdapter->query("DELETE FROM book_categories WHERE id = ?", [$id]);
+                $this->flash()->addSuccessMessage('Đã xóa danh mục "' . htmlspecialchars($catName) . '" thành công.');
+            }
+        } catch (\Throwable $e) {
+            $this->flash()->addErrorMessage('Lỗi hệ thống: ' . $e->getMessage());
+        }
+
+        return $this->redirectToRefererOrSettings();
     }
 
-    // ── Delete announcement ───────────────────────────────────────────
-    public function deleteAnnouncementAction(): Response
+    // ── Edit category ─────────────────────────────────────────────────
+    public function editCategoryAction(): Response
     {
         if ($response = $this->requireAdmin()) {
             return $response;
         }
 
-        $id = (int)$this->params()->fromRoute('id', 0);
-        if ($id > 0) {
-            $this->dbAdapter->query("DELETE FROM announcements WHERE id = ?", [$id]);
-            $this->flash()->addSuccessMessage('Đã xóa bản tin.');
+        if (!$this->getRequest()->isPost()) {
+            return $this->redirectToRefererOrSettings();
         }
 
+        $id = (int)$this->params()->fromRoute('id', 0);
+        if ($id <= 0) {
+            $this->flash()->addErrorMessage('ID danh mục không hợp lệ.');
+            return $this->redirectToRefererOrSettings();
+        }
+
+        $data = $this->postData();
+        $newName = trim((string)($data['category_name'] ?? ''));
+
+        if ($newName === '') {
+            $this->flash()->addErrorMessage('Tên danh mục không được để trống.');
+            return $this->redirectToRefererOrSettings();
+        }
+
+        if (mb_strlen($newName) > 100) {
+            $this->flash()->addErrorMessage('Tên danh mục tối đa 100 ký tự.');
+            return $this->redirectToRefererOrSettings();
+        }
+
+        try {
+            // Get current category info
+            $stmt = $this->dbAdapter->query("SELECT name FROM book_categories WHERE id = ? LIMIT 1");
+            $cat = $stmt->execute([$id])->current();
+            if (!$cat) {
+                $this->flash()->addErrorMessage('Không tìm thấy danh mục cần sửa.');
+                return $this->redirectToRefererOrSettings();
+            }
+
+            $oldName = $cat['name'];
+
+            if ($oldName === $newName) {
+                return $this->redirectToRefererOrSettings();
+            }
+
+            // Check if new name already exists
+            $stmtCheck = $this->dbAdapter->query("SELECT id FROM book_categories WHERE name = ? AND id != ? LIMIT 1");
+            $exists = $stmtCheck->execute([$newName, $id])->current();
+            if ($exists) {
+                $this->flash()->addErrorMessage('Danh mục "' . htmlspecialchars($newName) . '" đã tồn tại.');
+            } else {
+                $this->dbAdapter->query("UPDATE book_categories SET name = ? WHERE id = ?", [$newName, $id]);
+                $this->dbAdapter->query("UPDATE books SET category = ? WHERE category = ?", [$newName, $oldName]);
+
+                $this->flash()->addSuccessMessage('Đã đổi tên danh mục "' . htmlspecialchars($oldName) . '" thành "' . htmlspecialchars($newName) . '" thành công.');
+            }
+        } catch (\Throwable $e) {
+            $this->flash()->addErrorMessage('Lỗi hệ thống: ' . $e->getMessage());
+        }
+
+        return $this->redirectToRefererOrSettings();
+    }
+
+    private function redirectToRefererOrSettings(): Response
+    {
+        $referer = $this->getRequest()->getHeader('Referer');
+        if ($referer) {
+            return $this->redirect()->toUrl($referer->getUri());
+        }
         return $this->redirect()->toRoute('library/settings');
     }
 }

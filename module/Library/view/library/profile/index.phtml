@@ -37,16 +37,22 @@ $routePrefix = ($authUser['role'] ?? '') === 'admin' ? 'library' : 'student';
                     <div class="profile-avatar-row">
                         <div class="avatar-preview profile-avatar-preview">
                             <?php if ($user->avatarUrl): ?>
-                                <img src="<?= $this->basePath($user->avatarUrl) ?>" class="profile-avatar-img">
+                                <img id="avatar-preview-img" src="<?= $this->basePath($user->avatarUrl) ?>" class="profile-avatar-img">
                             <?php else: ?>
-                                <div class="profile-avatar-placeholder">
+                                <div id="avatar-placeholder" class="profile-avatar-placeholder">
                                     <?= substr($user->fullName ?: $user->username, 0, 1) ?>
                                 </div>
+                                <img id="avatar-preview-img" src="" class="profile-avatar-img d-none" style="display:none">
                             <?php endif; ?>
                         </div>
                         <div class="profile-flex-fill">
                             <label class="form-label">Ảnh đại diện</label>
-                            <input type="file" name="avatar" class="form-control" accept="image/*">
+                            <label for="avatar-input" class="profile-avatar-drop-zone" id="avatar-drop-zone" style="cursor: pointer; display: block; border: 2px dashed var(--border-color, #e2e8f0); border-radius: 8px; padding: 15px; text-align: center; background: var(--bg-body, #f8fafc); transition: all 0.2s;">
+                                <i class="bi bi-cloud-arrow-up" style="font-size: 1.5rem; color: var(--primary-color); display: block; margin-bottom: 4px;"></i>
+                                <span style="font-size: 13px; color: var(--text-primary);">Kéo thả hoặc <span style="color: var(--primary-color); font-weight: 500;">chọn ảnh</span></span><br>
+                                <span style="font-size: 11px; color: var(--text-muted);">PNG · JPG · WEBP · Tối đa 2MB</span>
+                            </label>
+                            <input type="file" id="avatar-input" name="avatar" accept="image/*" class="d-none" onchange="previewAvatar(this)">
                         </div>
                     </div>
 
@@ -108,7 +114,7 @@ $routePrefix = ($authUser['role'] ?? '') === 'admin' ? 'library' : 'student';
                     <i class="bi bi-shield-lock-fill"></i> Quyền hạn Quản trị viên
                 </div>
                 <div class="card-body profile-card-body-text">
-                    <p class="profile-paragraph">Bạn đang đăng nhập bằng tài khoản <strong>Quản trị viên (Admin) / Thủ kho</strong>. Các chức năng chính bạn có thể thực hiện bao gồm:</p>
+                    <p class="profile-paragraph">Bạn đang đăng nhập bằng tài khoản <strong>Quản trị viên (Admin)</strong>. Các chức năng chính bạn có thể thực hiện bao gồm:</p>
                     <ul class="profile-list">
                         <li><i class="bi bi-check-circle profile-list-icon"></i> Nhập kho và cập nhật số lượng sách mới về.</li>
                         <li><i class="bi bi-check-circle profile-list-icon"></i> Quản lý danh mục sách và phê duyệt đăng ký mượn của độc giả.</li>
@@ -214,7 +220,52 @@ $routePrefix = ($authUser['role'] ?? '') === 'admin' ? 'library' : 'student';
                         </table>
                     <?php endif; ?>
                 </div>
-            </div>
         <?php endif; ?>
     </div>
 </div>
+
+<script>
+function previewAvatar(input) {
+    const file = input.files[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) { alert('File quá lớn. Tối đa 2MB.'); input.value = ''; return; }
+    const allowed = ['image/png','image/jpeg','image/webp','image/gif'];
+    if (!allowed.includes(file.type)) { alert('Định dạng không hỗ trợ. Chỉ chấp nhận PNG, JPG, WEBP, GIF.'); input.value = ''; return; }
+    const reader = new FileReader();
+    reader.onload = e => {
+        const img = document.getElementById('avatar-preview-img');
+        const ph  = document.getElementById('avatar-placeholder');
+        if (img) {
+            img.src = e.target.result;
+            img.classList.remove('d-none');
+            img.style.display = 'block';
+        }
+        if (ph) {
+            ph.classList.add('d-none');
+            ph.style.display = 'none';
+        }
+        const dz = document.getElementById('avatar-drop-zone');
+        if (dz) {
+            dz.style.borderColor = 'var(--primary-color)';
+        }
+    };
+    reader.readAsDataURL(file);
+}
+document.addEventListener('DOMContentLoaded', () => {
+    const dropZone = document.getElementById('avatar-drop-zone');
+    if (!dropZone) return;
+    ['dragenter','dragover'].forEach(e => dropZone.addEventListener(e, ev => {
+        ev.preventDefault(); dropZone.style.background = 'rgba(124,106,255,.08)'; dropZone.style.borderColor = 'var(--primary-color)';
+    }));
+    ['dragleave','drop'].forEach(e => dropZone.addEventListener(e, ev => {
+        ev.preventDefault(); dropZone.style.background = ''; dropZone.style.borderColor = '';
+    }));
+    dropZone.addEventListener('drop', e => {
+        const input = document.getElementById('avatar-input');
+        if (input) {
+            input.files = e.dataTransfer.files;
+            previewAvatar(input);
+        }
+    });
+});
+</script>

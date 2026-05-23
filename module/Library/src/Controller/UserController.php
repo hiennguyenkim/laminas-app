@@ -56,7 +56,18 @@ class UserController extends BaseController
 
         $page = (int) $this->queryString('page', '1');
         $page = max(1, $page);
-        $perPage = 8;
+
+        $perPageRaw = $this->queryString('perPage', '10');
+        if ($perPageRaw === 'all') {
+            $perPage = 999999;
+        } else {
+            $perPage = (int) $perPageRaw;
+            if (! in_array($perPage, [10, 20, 50], true)) {
+                $perPage = 10;
+                $perPageRaw = '10';
+            }
+        }
+
         $totalItems = $this->userTable->countFiltered($filters);
         $totalPages = max(1, (int) ceil($totalItems / $perPage));
         $page = min($page, $totalPages);
@@ -73,7 +84,7 @@ class UserController extends BaseController
             'currentId' => $currentUser['id'],
             'pagination' => [
                 'page'       => $page,
-                'perPage'    => $perPage,
+                'perPage'    => $perPageRaw,
                 'totalItems' => $totalItems,
                 'totalPages' => $totalPages,
             ],

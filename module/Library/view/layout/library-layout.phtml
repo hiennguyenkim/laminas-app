@@ -7,6 +7,19 @@ $currentUri     = $_SERVER['REQUEST_URI'] ?? '';
 $isAdmin        = ($authUser['role'] ?? '') === 'admin';
 $routePrefix    = $isAdmin ? 'library' : 'student';
 
+$publicDir = getcwd();
+if (basename($publicDir) !== 'public') {
+    $publicDir .= '/public';
+}
+
+// Detect custom logo uploaded by admin (shared between guest topbar and sidebar)
+$customLogoFile = null;
+foreach (['logo.png','logo.jpg','logo.jpeg','logo.svg','logo.webp'] as $_lf) {
+    if (file_exists($publicDir . '/img/uploads/' . $_lf)) {
+        $customLogoFile = 'img/uploads/' . $_lf; break;
+    }
+}
+
 $initials = function(string $name): string {
     $words = explode(' ', trim($name));
     $i = mb_strtoupper(mb_substr(end($words), 0, 1, 'UTF-8'), 'UTF-8');
@@ -20,7 +33,7 @@ $navItems = [];
 if ($authUser) {
     $navItems[] = ['url' => $this->url($routePrefix . '/dashboard'), 'icon' => 'bi-grid-1x2-fill', 'label' => 'Tổng quan', 'key' => 'dashboard', 'color' => '#7c6aff'];
     $navItems[] = ['url' => $this->url($bookRouteName), 'icon' => 'bi-book', 'label' => $isAdmin ? 'Sách' : 'Danh mục sách', 'key' => 'book', 'color' => '#f97316'];
-    $navItems[] = ['url' => $this->url('announcements'), 'icon' => 'bi-megaphone-fill', 'label' => 'Bảng tin', 'key' => 'announcements', 'color' => '#ef4444'];
+    $navItems[] = ['url' => $this->url($routePrefix . '/announcements'), 'icon' => 'bi-megaphone-fill', 'label' => 'Bảng tin', 'key' => 'announcements', 'color' => '#ef4444'];
     if ($isAdmin) {
         $navItems[] = ['url' => $this->url('library/user'), 'icon' => 'bi-people', 'label' => 'Thành viên', 'key' => 'user', 'color' => '#22c55e'];
         $navItems[] = ['url' => $this->url('library/books-import'), 'icon' => 'bi-box-seam', 'label' => 'Nhập sách', 'key' => 'books-import', 'color' => '#f59e0b'];
@@ -50,7 +63,7 @@ $pageLabels = [
     'book'         => ($isAdmin ? 'Sách' : 'Danh mục sách'),
     'announcements'=> 'Bảng tin thư viện',
     'user'         => 'Thành viên',
-    'books-import' => 'Nhập sách Online',
+    'books-import' => 'Nhập sách',
     'transaction'  => 'Mượn / Trả',
     'ticket'       => 'Hỏi đáp & Hỗ trợ',
     'profile'      => 'Hồ sơ cá nhân',
@@ -67,9 +80,9 @@ $pageLabel = $authUser ? ($pageLabels[$activeKey] ?? '') : 'Đăng nhập';
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
-    <link href="<?= $this->basePath('css/app.css') ?>?t=<?= filemtime(getcwd() . '/public/css/app.css') ?>" rel="stylesheet">
-    <link href="<?= $this->basePath('css/chatbot.css') ?>?t=<?= filemtime(getcwd() . '/public/css/chatbot.css') ?>" rel="stylesheet">
-    <link href="<?= $this->basePath('css/pages.css') ?>?t=<?= filemtime(getcwd() . '/public/css/pages.css') ?>" rel="stylesheet">
+    <link href="<?= $this->basePath('css/app.css') ?>?t=<?= filemtime($publicDir . '/css/app.css') ?>" rel="stylesheet">
+    <link href="<?= $this->basePath('css/chatbot.css') ?>?t=<?= filemtime($publicDir . '/css/chatbot.css') ?>" rel="stylesheet">
+    <link href="<?= $this->basePath('css/pages.css') ?>?t=<?= filemtime($publicDir . '/css/pages.css') ?>" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
@@ -92,19 +105,11 @@ $pageLabel = $authUser ? ($pageLabels[$activeKey] ?? '') : 'Đăng nhập';
     <?php if ($authUser): ?>
     <!-- SIDEBAR -->
     <nav class="sidebar" id="sidebar">
-        <div class="sidebar-brand">
-            <?php
-            // Detect custom logo uploaded by admin
-            $customLogoFile = null;
-            foreach (['logo.png','logo.jpg','logo.jpeg','logo.svg','logo.webp'] as $_lf) {
-                if (file_exists(getcwd() . '/public/img/uploads/' . $_lf)) {
-                    $customLogoFile = '/img/uploads/' . $_lf; break;
-                }
-            }
-            ?>
-            <div class="sidebar-brand-icon sidebar-brand-icon-wrap">
+        <a href="<?= $this->url($routePrefix . '/announcements') ?>" class="sidebar-brand sidebar-brand-link" title="Đi đến Bảng tin">
+            <?php // Logo already detected at top of layout ?>
+            <div class="sidebar-brand-icon sidebar-brand-icon-wrap" <?= $customLogoFile ? 'style="background:transparent"' : '' ?>>
                 <?php if ($customLogoFile): ?>
-                    <img src="<?= $customLogoFile ?>?t=<?= filemtime(getcwd() . '/public' . $customLogoFile) ?>"
+                    <img src="<?= $this->basePath($customLogoFile) ?>?t=<?= filemtime($publicDir . '/' . $customLogoFile) ?>"
                          alt="Logo thư viện"
                          class="sidebar-brand-img">
                 <?php else: ?>
@@ -115,7 +120,7 @@ $pageLabel = $authUser ? ($pageLabels[$activeKey] ?? '') : 'Đăng nhập';
                 <div class="name">Thư Viện HDPE</div>
                 <div class="sub">Hệ thống quản lý thư viện</div>
             </div>
-        </div>
+        </a>
 
         <div class="sidebar-nav">
             <?php foreach ($navItems as $item): ?>
@@ -136,9 +141,13 @@ $pageLabel = $authUser ? ($pageLabels[$activeKey] ?? '') : 'Đăng nhập';
 
         <div class="sidebar-footer">
             <div class="sidebar-user">
-                <div class="sidebar-user-avatar">
-                    <?= $initials(htmlspecialchars($authUser['full_name'] ?? 'QL')) ?>
-                </div>
+                <a href="<?= $this->url($routePrefix . '/profile') ?>" class="sidebar-user-avatar" style="<?= !empty($authUser['avatar_url']) ? 'background: none;' : '' ?>" title="Xem hồ sơ">
+                    <?php if (!empty($authUser['avatar_url'])): ?>
+                        <img src="<?= $this->basePath() . $authUser['avatar_url'] ?>" alt="Avatar" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
+                    <?php else: ?>
+                        <?= $initials(htmlspecialchars($authUser['full_name'] ?? 'QL')) ?>
+                    <?php endif; ?>
+                </a>
                 <div class="sidebar-user-info sidebar-user-info-wrap">
                     <a href="<?= $this->url($routePrefix . '/profile') ?>" class="sidebar-user-info-link">
                         <div class="uname"><?= $isAdmin ? 'Quản Lý' : htmlspecialchars($authUser['full_name'] ?? '') ?></div>
@@ -198,15 +207,27 @@ $pageLabel = $authUser ? ($pageLabels[$activeKey] ?? '') : 'Đăng nhập';
         <?php else: ?>
         <!-- PREMIUM TOPBAR FOR GUEST READERS -->
         <header class="topbar topbar--guest">
-            <div class="topbar-guest-left">
-                <i class="bi bi-bookshelf"></i>
+            <a href="<?= $this->url('library/auth', ['action' => 'login']) ?>" class="topbar-guest-left">
+                <?php if ($customLogoFile): ?>
+                    <img src="<?= $this->basePath($customLogoFile) ?>?t=<?= filemtime($publicDir . '/' . $customLogoFile) ?>"
+                         alt="Logo thư viện"
+                         style="width:36px;height:36px;object-fit:cover;border-radius:50%;">
+                <?php else: ?>
+                    <i class="bi bi-bookshelf"></i>
+                <?php endif; ?>
                 <span class="topbar-guest-title">Thư Viện HDPE</span>
                 <span class="badge badge-purple">Cổng tra cứu</span>
-            </div>
+            </a>
             <div class="topbar-guest-right">
+                <?php if ($activeKey === 'book' || strpos($currentUri, '/books') !== false): ?>
                 <a href="<?= $this->url('announcements') ?>" class="btn btn-outline btn-sm topbar-guest-btn-announcement">
                     <i class="bi bi-megaphone-fill"></i>Bảng tin
                 </a>
+                <?php else: ?>
+                <a href="<?= $this->url('catalog') ?>" class="btn btn-outline btn-sm topbar-guest-btn-announcement">
+                    <i class="bi bi-book"></i>Mượn sách
+                </a>
+                <?php endif; ?>
                 <a href="<?= $this->url('library/auth', ['action' => 'login']) ?>" class="btn btn-primary btn-sm topbar-guest-btn-login">
                     <i class="bi bi-box-arrow-in-right"></i>Đăng nhập
                 </a>

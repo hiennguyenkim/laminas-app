@@ -96,11 +96,13 @@ abstract class BaseController extends AbstractActionController
         }
 
         return [
-            'id'        => (int) ($user['id'] ?? 0),
-            'username'  => (string) ($user['username'] ?? ''),
-            'email'     => (string) ($user['email'] ?? ''),
-            'full_name' => (string) ($user['full_name'] ?? ''),
-            'role'      => (string) ($user['role'] ?? ''),
+            'id'         => (int) ($user['id'] ?? 0),
+            'username'   => (string) ($user['username'] ?? ''),
+            'email'      => (string) ($user['email'] ?? ''),
+            'full_name'  => (string) ($user['full_name'] ?? ''),
+            'role'       => (string) ($user['role'] ?? ''),
+            'avatar_url' => (string) ($user['avatar_url'] ?? ''),
+            'nickname'   => (string) ($user['nickname'] ?? ''),
         ];
     }
 

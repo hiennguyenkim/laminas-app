@@ -25,14 +25,14 @@ class HomeControllerTest extends AbstractHttpControllerTestCase
         unset($authSession->user);
     }
 
-    public function testRootRedirectsToCatalog(): void
+    public function testRootRedirectsToAnnouncements(): void
     {
         $this->dispatch('/', 'GET');
 
         $this->assertResponseStatusCode(302);
         $this->assertControllerName(HomeController::class);
         $this->assertMatchedRouteName('home');
-        $this->assertRedirectTo('/books');
+        $this->assertRedirectTo('/announcements');
     }
 
     public function testRootRedirectsAuthenticatedAdminToAdminDashboard(): void

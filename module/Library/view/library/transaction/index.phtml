@@ -25,8 +25,13 @@ $totalItems = (int) ($pagination['totalItems'] ?? 0);
 $totalPages = (int) ($pagination['totalPages'] ?? 1);
 
 $queryBase = [
-    'search' => (string) ($filters['search'] ?? ''),
-    'status' => (string) ($filters['status'] ?? ''),
+    'search'    => (string) ($filters['search'] ?? ''),
+    'status'    => (string) ($filters['status'] ?? ''),
+    'year'      => (string) ($filters['year'] ?? ''),
+    'period'    => (string) ($filters['period'] ?? ''),
+    'week'      => (string) ($filters['week'] ?? ''),
+    'sort'      => (string) ($filters['sort'] ?? ''),
+    'direction' => (string) ($filters['direction'] ?? ''),
 ];
 if ($isAdmin) {
     $queryBase['user_id'] = (string) ($filters['user_id'] ?? '');
@@ -37,6 +42,33 @@ $buildPageUrl = function(int $p) use ($queryBase, $routePrefix): string {
     $q = array_filter($q, fn($v, $k) => $k === 'page' || $v !== '', ARRAY_FILTER_USE_BOTH);
     return $this->url($routePrefix . '/transaction', [], ['query' => $q]);
 };
+
+$buildSortUrl = function(string $col) use ($queryBase, $routePrefix): string {
+    $currentSort = $queryBase['sort'];
+    $currentDir  = strtoupper($queryBase['direction']);
+    if ($currentSort === $col) {
+        $newDir = ($currentDir === 'ASC') ? 'DESC' : 'ASC';
+    } else {
+        $newDir = in_array($col, ['borrow_date', 'return_date']) ? 'DESC' : 'ASC';
+    }
+    $q = $queryBase;
+    $q['sort'] = $col;
+    $q['direction'] = $newDir;
+    $q = array_filter($q, fn($v) => $v !== null && $v !== '');
+    return $this->url($routePrefix . '/transaction', [], ['query' => $q]);
+};
+
+$renderSortIcon = function(string $col) use ($queryBase): string {
+    $currentSort = $queryBase['sort'];
+    $currentDir  = strtoupper($queryBase['direction']);
+    if ($currentSort !== $col) {
+        return '<i class="bi bi-arrow-down-up ms-1" style="font-size: 0.75rem; opacity: 0.4;"></i>';
+    }
+    if ($currentDir === 'ASC') {
+        return '<i class="bi bi-sort-down ms-1" style="font-size: 0.85rem; color: var(--primary-color);"></i>';
+    }
+    return '<i class="bi bi-sort-up ms-1" style="font-size: 0.85rem; color: var(--primary-color);"></i>';
+};
 ?>
 
 <!-- PAGE HEADER -->
@@ -46,8 +78,8 @@ $buildPageUrl = function(int $p) use ($queryBase, $routePrefix): string {
         <div class="page-subtitle"><?= number_format((int)($summary['total'] ?? count((array)($records ?? [])))) ?> giao dịch gần đây</div>
     </div>
     <div class="d-flex gap-2">
-        <a href="<?= $this->url($routePrefix . '/transaction', ['action' => 'export'], ['query' => $queryBase]) ?>" class="btn btn-outline">
-            <i class="bi bi-file-earmark-excel"></i>Xuất Excel
+        <a href="<?= $this->url($routePrefix . '/transaction', ['action' => 'export'], ['query' => $queryBase]) ?>" class="btn btn-outline d-flex align-items-center gap-2" title="Xuất Excel (.xlsx)">
+            <i class="bi bi-file-earmark-excel" style="color:#1d6f42;"></i>Xuất .xlsx
         </a>
         <?php if ($isAdmin): ?>
         <a href="<?= $this->url($routePrefix . '/transaction', ['action' => 'borrow']) ?>" class="btn btn-primary">
@@ -111,30 +143,98 @@ $buildPageUrl = function(int $p) use ($queryBase, $routePrefix): string {
 </div>
 
 <!-- FILTER TABS + SEARCH -->
+<?php
+$buildTabUrl = function(string $statusVal) use ($filters, $routePrefix) {
+    $q = [
+        'search'    => $filters['search'] ?? '',
+        'status'    => $statusVal,
+        'year'      => $filters['year'] ?? '',
+        'period'    => $filters['period'] ?? '',
+        'week'      => $filters['week'] ?? '',
+        'sort'      => $filters['sort'] ?? '',
+        'direction' => $filters['direction'] ?? '',
+    ];
+    if (!empty($filters['user_id'])) {
+        $q['user_id'] = $filters['user_id'];
+    }
+    return $this->url($routePrefix . '/transaction', [], ['query' => array_filter($q, fn($v) => $v !== null && $v !== '')]);
+};
+?>
 <div class="tx-filters-bar">
     <div class="filter-tabs tx-filter-tabs">
-        <a href="<?= $this->url($routePrefix . '/transaction') ?>" class="filter-tab <?= $filterStatus===''?'active':'' ?>">
+        <a href="<?= $buildTabUrl('') ?>" class="filter-tab <?= $filterStatus===''?'active':'' ?>">
             Tất cả <span class="count"><?= (int)($summary['borrowed']??0)+(int)($summary['returned']??0)+(int)($summary['overdue']??0)+(int)($summary['pending']??0) ?></span>
         </a>
-        <a href="<?= $this->url($routePrefix . '/transaction',[],['query'=>['status'=>'borrowed']]) ?>" class="filter-tab <?= $filterStatus==='borrowed'?'active':'' ?>">
+        <a href="<?= $buildTabUrl('borrowed') ?>" class="filter-tab <?= $filterStatus==='borrowed'?'active':'' ?>">
             Đang mượn <span class="count"><?= (int)($summary['borrowed']??0) ?></span>
         </a>
-        <a href="<?= $this->url($routePrefix . '/transaction',[],['query'=>['status'=>'pending']]) ?>" class="filter-tab <?= $filterStatus==='pending'?'active':'' ?>">
+        <a href="<?= $buildTabUrl('pending') ?>" class="filter-tab <?= $filterStatus==='pending'?'active':'' ?>">
             Chờ duyệt <span class="count"><?= (int)($summary['pending']??0) ?></span>
         </a>
-        <a href="<?= $this->url($routePrefix . '/transaction',[],['query'=>['status'=>'returned']]) ?>" class="filter-tab <?= $filterStatus==='returned'?'active':'' ?>">
+        <a href="<?= $buildTabUrl('returned') ?>" class="filter-tab <?= $filterStatus==='returned'?'active':'' ?>">
             Đã trả <span class="count"><?= (int)($summary['returned']??0) ?></span>
         </a>
-        <a href="<?= $this->url($routePrefix . '/transaction',[],['query'=>['status'=>'overdue']]) ?>" class="filter-tab <?= $filterStatus==='overdue'?'active':'' ?>">
+        <a href="<?= $buildTabUrl('overdue') ?>" class="filter-tab <?= $filterStatus==='overdue'?'active':'' ?>">
             Quá hạn <span class="count"><?= (int)($summary['overdue']??0) ?></span>
         </a>
     </div>
-    <form method="GET" class="tx-filter-form">
+    <form method="GET" class="tx-filter-form" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+        <!-- Preserve selected status -->
+        <input type="hidden" name="status" value="<?= htmlspecialchars($filterStatus) ?>">
+        <?php if (!empty($filters['user_id'])): ?>
+            <input type="hidden" name="user_id" value="<?= htmlspecialchars((string)$filters['user_id']) ?>">
+        <?php endif; ?>
+        <input type="hidden" name="sort" value="<?= htmlspecialchars((string)($filters['sort'] ?? '')) ?>">
+        <input type="hidden" name="direction" value="<?= htmlspecialchars((string)($filters['direction'] ?? '')) ?>">
+
+        <!-- Year Filter -->
+        <div class="topbar-search" style="max-width: 130px; padding: 8px 12px; gap: 6px;">
+            <i class="bi bi-calendar-event" style="color: var(--text-muted);"></i>
+            <select name="year" onchange="this.form.submit()" style="background: none; border: none; outline: none; color: var(--text-primary); font-size: 13px; width: 100%; cursor: pointer;">
+                <option value="all" <?= $filters['year'] === 'all' ? 'selected' : '' ?> style="background: var(--bg-card);">Tất cả năm</option>
+                <?php 
+                $currYear = (int)date('Y');
+                for($y = $currYear - 5; $y <= $currYear; $y++): 
+                ?>
+                    <option value="<?= $y ?>" <?= $y === (int)$filters['year'] ? 'selected' : '' ?> style="background: var(--bg-card);"><?= $y ?></option>
+                <?php endfor; ?>
+            </select>
+        </div>
+
+        <!-- Period Filter -->
+        <div class="topbar-search" style="max-width: 170px; padding: 8px 12px; gap: 6px;">
+            <i class="bi bi-calendar3" style="color: var(--text-muted);"></i>
+            <select name="period" id="periodSelect" onchange="onPeriodChange()" style="background: none; border: none; outline: none; color: var(--text-primary); font-size: 13px; width: 100%; cursor: pointer;">
+                <option value="year" <?= $filters['period'] === 'year' ? 'selected' : '' ?> style="background: var(--bg-card);">Cả năm</option>
+                <optgroup label="Theo Quý" style="background: var(--bg-card); color: var(--text-muted); font-style: normal;">
+                    <option value="q1" <?= $filters['period'] === 'q1' ? 'selected' : '' ?> style="background: var(--bg-card); color: var(--text-primary);">Quý I</option>
+                    <option value="q2" <?= $filters['period'] === 'q2' ? 'selected' : '' ?> style="background: var(--bg-card); color: var(--text-primary);">Quý II</option>
+                    <option value="q3" <?= $filters['period'] === 'q3' ? 'selected' : '' ?> style="background: var(--bg-card); color: var(--text-primary);">Quý III</option>
+                    <option value="q4" <?= $filters['period'] === 'q4' ? 'selected' : '' ?> style="background: var(--bg-card); color: var(--text-primary);">Quý IV</option>
+                </optgroup>
+                <optgroup label="Theo Tháng" style="background: var(--bg-card); color: var(--text-muted); font-style: normal;">
+                    <?php for ($m = 1; $m <= 12; $m++): ?>
+                        <option value="m<?= $m ?>" <?= $filters['period'] === 'm' . $m ? 'selected' : '' ?> style="background: var(--bg-card); color: var(--text-primary);">Tháng <?= $m ?></option>
+                    <?php endfor; ?>
+                </optgroup>
+            </select>
+        </div>
+
+        <!-- Week Filter -->
+        <div class="topbar-search" style="max-width: 140px; padding: 8px 12px; gap: 6px;">
+            <i class="bi bi-calendar-week" style="color: var(--text-muted);"></i>
+            <select name="week" id="weekSelect" onchange="this.form.submit()" style="background: none; border: none; outline: none; color: var(--text-primary); font-size: 13px; width: 100%; cursor: pointer;">
+                <option value="all" <?= ($filters['week'] ?? 'all') === 'all' ? 'selected' : '' ?> style="background: var(--bg-card);">Tất cả tuần</option>
+                <?php for ($w = 1; $w <= 53; $w++): ?>
+                    <option value="<?= $w ?>" <?= (string)($filters['week'] ?? '') === (string)$w ? 'selected' : '' ?> style="background: var(--bg-card);" data-week="<?= $w ?>">Tuần <?= $w ?></option>
+                <?php endfor; ?>
+            </select>
+        </div>
+
         <div class="topbar-search tx-search-wrap">
             <i class="bi bi-search"></i>
             <input type="text" name="search" value="<?= htmlspecialchars($filters['search']??'') ?>" placeholder="Tìm theo sách, thành viên...">
         </div>
-        <input type="hidden" name="status" value="<?= htmlspecialchars($filterStatus) ?>">
         <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-search"></i>Tìm</button>
     </form>
 </div>
@@ -145,12 +245,36 @@ $buildPageUrl = function(int $p) use ($queryBase, $routePrefix): string {
         <table class="data-table">
             <thead>
                 <tr>
-                    <th>Thành viên</th>
-                    <th>Sách</th>
-                    <th>Ngày mượn</th>
-                    <th>Hạn trả</th>
-                    <th>Trạng thái</th>
-                    <th>Thao tác</th>
+                    <th>
+                        <?php if ($isAdmin): ?>
+                            <a href="<?= $buildSortUrl('member') ?>" style="text-decoration: none; color: inherit; display: inline-flex; align-items: center;">
+                                Thành viên <?= $renderSortIcon('member') ?>
+                            </a>
+                        <?php else: ?>
+                            Thành viên
+                        <?php endif; ?>
+                    </th>
+                    <th>
+                        <a href="<?= $buildSortUrl('book') ?>" style="text-decoration: none; color: inherit; display: inline-flex; align-items: center;">
+                            Sách <?= $renderSortIcon('book') ?>
+                        </a>
+                    </th>
+                    <th>
+                        <a href="<?= $buildSortUrl('borrow_date') ?>" style="text-decoration: none; color: inherit; display: inline-flex; align-items: center;">
+                            Ngày mượn <?= $renderSortIcon('borrow_date') ?>
+                        </a>
+                    </th>
+                    <th>
+                        <a href="<?= $buildSortUrl('return_date') ?>" style="text-decoration: none; color: inherit; display: inline-flex; align-items: center;">
+                            Hạn trả <?= $renderSortIcon('return_date') ?>
+                        </a>
+                    </th>
+                    <th>
+                        <a href="<?= $buildSortUrl('status') ?>" style="text-decoration: none; color: inherit; display: inline-flex; align-items: center;">
+                            Trạng thái <?= $renderSortIcon('status') ?>
+                        </a>
+                    </th>
+                    <th style="color: var(--text-muted);">Thao tác</th>
                 </tr>
             </thead>
             <tbody>
@@ -350,3 +474,71 @@ function closeApproveModal() {
 }
 </script>
 <?php endif; ?>
+
+<script>
+// Period to week numbers mapping
+const periodToWeeks = {
+    'year': { min: 1, max: 53 },
+    'q1': { min: 1, max: 13 },
+    'q2': { min: 14, max: 26 },
+    'q3': { min: 27, max: 39 },
+    'q4': { min: 40, max: 53 },
+    'm1': { min: 1, max: 5 },
+    'm2': { min: 5, max: 9 },
+    'm3': { min: 9, max: 14 },
+    'm4': { min: 14, max: 18 },
+    'm5': { min: 18, max: 22 },
+    'm6': { min: 22, max: 27 },
+    'm7': { min: 27, max: 31 },
+    'm8': { min: 31, max: 36 },
+    'm9': { min: 36, max: 40 },
+    'm10': { min: 40, max: 44 },
+    'm11': { min: 44, max: 49 },
+    'm12': { min: 49, max: 53 }
+};
+
+function updateWeekOptions(selectedPeriod, currentWeekVal) {
+    const weekSelect = document.getElementById('weekSelect');
+    if (!weekSelect) return;
+    
+    const range = periodToWeeks[selectedPeriod] || { min: 1, max: 53 };
+    const options = weekSelect.querySelectorAll('option[data-week]');
+    
+    let isCurrentWeekValid = (currentWeekVal === 'all');
+    
+    options.forEach(opt => {
+        const w = parseInt(opt.getAttribute('data-week'), 10);
+        if (w >= range.min && w <= range.max) {
+            opt.style.display = '';
+            opt.disabled = false;
+            opt.hidden = false;
+            if (String(w) === String(currentWeekVal)) {
+                isCurrentWeekValid = true;
+            }
+        } else {
+            opt.style.display = 'none';
+            opt.disabled = true;
+            opt.hidden = true;
+        }
+    });
+    
+    if (!isCurrentWeekValid) {
+        weekSelect.value = 'all';
+    }
+}
+
+function onPeriodChange() {
+    const periodSelect = document.getElementById('periodSelect');
+    const weekSelect = document.getElementById('weekSelect');
+    updateWeekOptions(periodSelect.value, weekSelect.value);
+    periodSelect.form.submit();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const periodSelect = document.getElementById('periodSelect');
+    const weekSelect = document.getElementById('weekSelect');
+    if (periodSelect && weekSelect) {
+        updateWeekOptions(periodSelect.value, weekSelect.value);
+    }
+});
+</script>

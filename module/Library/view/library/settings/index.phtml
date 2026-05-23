@@ -1,315 +1,103 @@
 <?php
 $this->headTitle('Cài đặt hệ thống thư viện');
-$currentLogoUrl = $logoFile ? '/img/uploads/' . $logoFile : null;
-
-$typeMeta = [
-    'general' => ['📢', 'Chung',    'linear-gradient(135deg,#6366f1,#8b5cf6)', '#6366f1'],
-    'event'   => ['🎉', 'Sự kiện', 'linear-gradient(135deg,#ec4899,#f43f5e)', '#ec4899'],
-    'contest' => ['🏆', 'Cuộc thi','linear-gradient(135deg,#f59e0b,#f97316)', '#f59e0b'],
-    'holiday' => ['🌴', 'Nghỉ lễ', 'linear-gradient(135deg,#10b981,#06b6d4)', '#10b981'],
-];
-
-$queryBase = [
-    'search' => (string) ($filters['search'] ?? ''),
-    'type'   => (string) ($filters['type'] ?? ''),
-];
-
-$buildPageUrl = function(int $p) use ($queryBase): string {
-    $q = $queryBase;
-    $q['page'] = $p;
-    $q = array_filter($q, fn($v, $k) => $k === 'page' || $v !== '', ARRAY_FILTER_USE_BOTH);
-    return $this->url('library/settings', [], ['query' => $q]);
-};
+$currentLogoUrl = $logoFile ? 'img/uploads/' . $logoFile : null;
 ?>
 
 <div class="page-header align-items-center">
     <div>
-        <h1 class="page-title"><i class="bi bi-gear-fill settings-header-icon"></i>Cài đặt hệ thống</h1>
-        <p class="text-muted settings-header-desc">Quản lý logo thư viện và bảng tin thông báo tới sinh viên.</p>
-    </div>
-    <div class="settings-header-badges">
-        <span class="settings-badge-active">
-            <i class="bi bi-eye"></i> <?= $activeCount ?> đang hiện
-        </span>
-        <?php if ($hiddenCount > 0): ?>
-        <span class="settings-badge-hidden">
-            <i class="bi bi-eye-slash"></i> <?= $hiddenCount ?> đã ẩn
-        </span>
-        <?php endif; ?>
+        <h1 class="page-title"><i class="bi bi-gear-fill settings-header-icon" style="color: var(--accent-purple); margin-right: 12px;"></i>Cài đặt hệ thống</h1>
+        <p class="text-muted settings-header-desc">Quản lý logo thư viện và chế độ bảo trì hệ thống.</p>
     </div>
 </div>
 
-<div class="settings-grid">
+<div class="settings-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start;">
 
-    <!-- ══ CỘT TRÁI ══════════════════════════════════════════ -->
-    <div class="settings-col-left">
-
-        <!-- LOGO CARD -->
-        <div class="card">
-            <div class="card-header">
-                <div class="card-title"><i class="bi bi-image settings-title-icon"></i>Logo thư viện</div>
+    <!-- ══ CỘT TRÁI: LOGO THƯ VIỆN ════════════════════════════ -->
+    <div class="card">
+        <div class="card-header" style="border-bottom: 2px solid rgba(139,92,246,.15);">
+            <div class="card-title" style="font-size: 16px; font-weight: 700;">
+                <i class="bi bi-image" style="color: var(--accent-purple); margin-right: 8px;"></i>Logo thư viện
             </div>
-            <div class="card-body settings-logo-body">
-                <div id="logo-preview-wrap">
-                    <?php if ($currentLogoUrl): ?>
-                        <img id="logo-preview-img" src="<?= $currentLogoUrl ?>?t=<?= time() ?>"
-                             class="settings-logo-img" alt="Logo">
-                    <?php else: ?>
-                        <div id="logo-placeholder">
-                            <i class="bi bi-book-half settings-logo-placeholder-icon"></i>
-                            <div class="settings-logo-placeholder-subtext">Chưa có logo</div>
-                        </div>
-                        <img id="logo-preview-img" src="" class="settings-logo-img" style="display:none" alt="Preview">
-                    <?php endif; ?>
-                </div>
-
-                <form method="post" enctype="multipart/form-data"
-                      action="<?= $this->url('library/settings', ['action' => 'logo']) ?>" id="logo-form">
-                    <label for="logo-input" id="logo-drop-zone">
-                        <i class="bi bi-cloud-arrow-up settings-drop-zone-icon"></i>
-                        Kéo thả hoặc <span class="settings-drop-zone-highlight">chọn ảnh</span><br>
-                        <span class="settings-drop-zone-subtext">PNG · JPG · SVG · WEBP · Tối đa 2MB</span>
-                    </label>
-                    <input type="file" id="logo-input" name="logo" accept=".png,.jpg,.jpeg,.svg,.webp"
-                           class="d-none" onchange="previewLogo(this)">
-                    <button type="submit" id="logo-submit-btn" class="btn btn-primary" style="display:none">
-                        <i class="bi bi-check2-circle settings-submit-btn-icon"></i>Lưu logo mới
-                    </button>
-                    <?php if ($currentLogoUrl): ?>
-                    <div class="settings-logo-active-info">
-                        <i class="bi bi-check-circle settings-logo-active-icon"></i>
-                        Đang dùng: <code class="settings-logo-active-code"><?= htmlspecialchars($logoFile) ?></code>
+        </div>
+        <div class="card-body settings-logo-body" style="padding: 24px; text-align: center;">
+            <div id="logo-preview-wrap" style="width: 180px; height: 180px; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.1); border-radius: 50%; margin: 0 auto 20px; overflow: hidden; padding: 0; border: 1px solid var(--border-color);">
+                <?php if ($currentLogoUrl): ?>
+                    <img id="logo-preview-img" src="<?= $this->basePath($currentLogoUrl) ?>?t=<?= time() ?>"
+                         class="settings-logo-img" alt="Logo" style="width: 100%; height: 100%; object-fit: cover;">
+                <?php else: ?>
+                    <div id="logo-placeholder">
+                        <i class="bi bi-book-half settings-logo-placeholder-icon" style="font-size: 48px; color: var(--accent-purple);"></i>
+                        <div class="settings-logo-placeholder-subtext" style="font-size: 11px; opacity: 0.6; margin-top: 6px;">Chưa có logo</div>
                     </div>
-                    <?php endif; ?>
-                </form>
-            </div>
-        </div>
-
-        <!-- THÊM BẢN TIN -->
-        <div class="card">
-            <div class="card-header settings-ann-card-header">
-                <div class="card-title">
-                    <i class="bi bi-megaphone-fill settings-ann-title-icon"></i>Đăng bản tin mới
-                </div>
-            </div>
-            <div class="card-body settings-ann-body">
-                <form method="post" action="<?= $this->url('library/settings', ['action' => 'announcement']) ?>">
-                    <div class="settings-ann-form-fields">
-
-                        <div>
-                            <label class="form-label settings-label-required">Tiêu đề *</label>
-                            <input type="text" name="title" class="form-control"
-                                   placeholder="Ví dụ: Thư viện mở cửa Tết Nguyên Đán" required>
-                        </div>
-
-                        <div>
-                            <label class="form-label settings-label-required">Nội dung *</label>
-                            <textarea name="content" class="form-control" rows="4"
-                                      placeholder="Nhập nội dung thông báo..." required></textarea>
-                        </div>
-
-                        <!-- Type selector -->
-                        <div>
-                            <label class="form-label settings-label-required">Loại bản tin</label>
-                            <div class="settings-ann-type-grid">
-                                <?php foreach ($typeMeta as $typeKey => [$emoji, $label, $grad, $clr]): ?>
-                                <label class="ann-type-option" style="--tc:<?= $clr ?>">
-                                    <input type="radio" name="type" value="<?= $typeKey ?>"
-                                           <?= $typeKey === 'general' ? 'checked' : '' ?>>
-                                    <span class="ann-type-label">
-                                        <span class="ann-type-swatch" style="background:<?= $grad ?>"></span>
-                                        <?= $emoji ?> <?= $label ?>
-                                    </span>
-                                </label>
-                                <?php endforeach; ?>
-                            </div>
-                        </div>
-
-                        <!-- Dates -->
-                        <div class="settings-ann-date-grid">
-                            <div>
-                                <label class="form-label settings-label-required">
-                                    <i class="bi bi-calendar-event settings-ann-date-icon-start"></i>Từ ngày
-                                </label>
-                                <input type="date" name="start_date" class="form-control">
-                            </div>
-                            <div>
-                                <label class="form-label settings-label-required">
-                                    <i class="bi bi-calendar-x settings-ann-date-icon-end"></i>Đến ngày
-                                </label>
-                                <input type="date" name="end_date" class="form-control">
-                            </div>
-                        </div>
-
-                        <!-- Active toggle -->
-                        <div class="settings-toggle-row">
-                            <span class="settings-toggle-label">Hiển thị ngay sau khi đăng</span>
-                            <label class="toggle-switch">
-                                <input type="checkbox" name="is_active" value="1" checked>
-                                <span class="toggle-slider"></span>
-                            </label>
-                        </div>
-
-                        <button type="submit" class="btn btn-primary settings-submit-btn">
-                            <i class="bi bi-send-fill settings-submit-btn-icon"></i>Đăng bản tin
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <!-- ══ CỘT PHẢI: Card list ════════════════════════════════ -->
-    <div>
-        <div class="settings-list-header">
-            <div class="settings-list-title">
-                <i class="bi bi-newspaper settings-list-title-icon"></i>Quản lý bản tin
-            </div>
-            <span class="settings-list-count">
-                <?= $totalCount ?> bản tin
-            </span>
-        </div>
-
-        <!-- FILTER TABS & SEARCH -->
-        <div class="user-filters-bar" style="margin-bottom: 16px;">
-            <div class="filter-tabs user-filter-tabs">
-                <a href="<?= $this->url('library/settings', [], ['query' => array_filter(['search' => $filters['search'] ?? ''])]) ?>" class="filter-tab <?= !($filters['type'] ?? '') ? 'active' : '' ?>">
-                    Tất cả <span class="count"><?= $totalFilteredCount ?></span>
-                </a>
-                <a href="<?= $this->url('library/settings', [], ['query' => array_filter(['type' => 'general', 'search' => $filters['search'] ?? ''])]) ?>" class="filter-tab <?= ($filters['type'] ?? '') === 'general' ? 'active' : '' ?>">
-                    📢 Chung <span class="count"><?= $typeCounts['general'] ?></span>
-                </a>
-                <a href="<?= $this->url('library/settings', [], ['query' => array_filter(['type' => 'event', 'search' => $filters['search'] ?? ''])]) ?>" class="filter-tab <?= ($filters['type'] ?? '') === 'event' ? 'active' : '' ?>">
-                    🎉 Sự kiện <span class="count"><?= $typeCounts['event'] ?></span>
-                </a>
-                <a href="<?= $this->url('library/settings', [], ['query' => array_filter(['type' => 'contest', 'search' => $filters['search'] ?? ''])]) ?>" class="filter-tab <?= ($filters['type'] ?? '') === 'contest' ? 'active' : '' ?>">
-                    🏆 Cuộc thi <span class="count"><?= $typeCounts['contest'] ?></span>
-                </a>
-                <a href="<?= $this->url('library/settings', [], ['query' => array_filter(['type' => 'holiday', 'search' => $filters['search'] ?? ''])]) ?>" class="filter-tab <?= ($filters['type'] ?? '') === 'holiday' ? 'active' : '' ?>">
-                    🌴 Nghỉ lễ <span class="count"><?= $typeCounts['holiday'] ?></span>
-                </a>
-            </div>
-            <form method="GET" class="user-search-form">
-                <?php if (!empty($filters['type'])): ?>
-                    <input type="hidden" name="type" value="<?= htmlspecialchars($filters['type']) ?>">
+                    <img id="logo-preview-img" src="" class="settings-logo-img" style="display:none; width: 100%; height: 100%; object-fit: cover;" alt="Preview">
                 <?php endif; ?>
-                <div class="topbar-search user-search-wrap">
-                    <i class="bi bi-search"></i>
-                    <input type="text" name="search" value="<?= htmlspecialchars($filters['search'] ?? '') ?>" placeholder="Tìm theo tiêu đề, nội dung...">
+            </div>
+
+            <form method="post" enctype="multipart/form-data"
+                  action="<?= $this->url('library/settings', ['action' => 'logo']) ?>" id="logo-form">
+                <label for="logo-input" id="logo-drop-zone" style="display: flex; flex-direction: column; align-items: center; justify-content: center; border: 2px dashed var(--border-color); border-radius: 12px; padding: 20px; cursor: pointer; transition: all 0.2s ease;">
+                    <i class="bi bi-cloud-arrow-up settings-drop-zone-icon" style="font-size: 24px; color: var(--accent-purple); margin-bottom: 6px;"></i>
+                    Kéo thả hoặc <span class="settings-drop-zone-highlight" style="color: var(--accent-purple); font-weight: 600;">chọn ảnh</span><br>
+                    <span class="settings-drop-zone-subtext" style="font-size: 10px; opacity: 0.6; margin-top: 4px;">PNG · JPG · SVG · WEBP · Tối đa 2MB</span>
+                </label>
+                <input type="file" id="logo-input" name="logo" accept=".png,.jpg,.jpeg,.svg,.webp"
+                       class="d-none" onchange="previewLogo(this)" style="display: none;">
+                <button type="submit" id="logo-submit-btn" class="btn btn-primary" style="display:none; width: 100%; margin-top: 14px;">
+                    <i class="bi bi-check2-circle settings-submit-btn-icon" style="margin-right: 6px;"></i>Lưu logo mới
+                </button>
+                <?php if ($currentLogoUrl): ?>
+                <div class="settings-logo-active-info" style="margin-top: 12px; font-size: 12px; opacity: 0.7;">
+                    <i class="bi bi-check-circle" style="color: #10b981; margin-right: 4px;"></i>
+                    Đang dùng: <code class="settings-logo-active-code" style="font-size: 11px; background: rgba(255,255,255,0.05); padding: 2px 6px; border-radius: 4px;"><?= htmlspecialchars($logoFile) ?></code>
                 </div>
-                <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-search"></i>Tìm</button>
+                <?php endif; ?>
             </form>
         </div>
-
-        <?php if (empty($announcements)): ?>
-            <div class="card settings-empty-card">
-                <i class="bi bi-inbox settings-empty-icon"></i>
-                <?php if ($filters['search'] !== '' || $filters['type'] !== ''): ?>
-                    <div class="settings-empty-title">Không tìm thấy bản tin phù hợp</div>
-                    <div class="settings-empty-desc">Thử thay đổi từ khóa tìm kiếm hoặc bộ lọc loại bản tin.</div>
-                <?php else: ?>
-                    <div class="settings-empty-title">Chưa có bản tin nào</div>
-                    <div class="settings-empty-desc">Hãy tạo bản tin đầu tiên ở cột bên trái.</div>
-                <?php endif; ?>
-            </div>
-        <?php else: ?>
-        <div class="settings-ann-list">
-            <?php foreach ($announcements as $ann):
-                [$emoji, $tLabel, $grad, $clr] = $typeMeta[$ann['type']] ?? $typeMeta['general'];
-                $isExpired = $ann['end_date'] && strtotime($ann['end_date']) < strtotime('today');
-                $isActive  = (bool)$ann['is_active'];
-
-                $dateStr = '';
-                if ($ann['start_date'] && $ann['end_date'])
-                    $dateStr = date('d/m/Y', strtotime($ann['start_date'])) . ' → ' . date('d/m/Y', strtotime($ann['end_date']));
-                elseif ($ann['start_date'])
-                    $dateStr = 'Từ ' . date('d/m/Y', strtotime($ann['start_date']));
-                elseif ($ann['end_date'])
-                    $dateStr = 'Đến ' . date('d/m/Y', strtotime($ann['end_date']));
-            ?>
-            <div class="ann-admin-card <?= !$isActive ? 'ann-admin-card--hidden' : '' ?> <?= $isExpired ? 'ann-admin-card--expired' : '' ?>"
-                 style="--card-clr:<?= $clr ?>;--card-grad:<?= $grad ?>">
-
-                <!-- Left gradient strip -->
-                <div class="ann-admin-strip" style="background:<?= $grad ?>">
-                    <span class="ann-admin-emoji"><?= $emoji ?></span>
-                </div>
-
-                <!-- Content -->
-                <div class="ann-admin-body">
-                    <div class="ann-admin-top">
-                        <div class="ann-admin-content-main">
-                            <div class="settings-ann-card-title"><?= htmlspecialchars($ann['title']) ?></div>
-                            <div class="settings-ann-card-excerpt"><?= htmlspecialchars(mb_substr($ann['content'], 0, 130)) ?><?= mb_strlen($ann['content']) > 130 ? '…' : '' ?></div>
-                        </div>
-                        <div class="settings-ann-card-badges">
-                            <span class="settings-ann-card-badge-type"
-                                  style="background:<?= $clr ?>1a;color:<?= $clr ?>;border:1px solid <?= $clr ?>33">
-                                <?= $tLabel ?>
-                            </span>
-                            <?php if ($isExpired): ?>
-                                <span class="settings-ann-card-status-expired">
-                                    <i class="bi bi-archive"></i> Hết hạn
-                                </span>
-                            <?php elseif ($isActive): ?>
-                                <span class="settings-ann-card-status-active">
-                                    <i class="bi bi-broadcast"></i> Đang hiện
-                                </span>
-                            <?php else: ?>
-                                <span class="settings-ann-card-status-hidden">
-                                    <i class="bi bi-eye-slash"></i> Đã ẩn
-                                </span>
-                            <?php endif; ?>
-                        </div>
-                    </div>
-
-                    <!-- Footer -->
-                    <div class="ann-admin-footer">
-                        <div class="ann-admin-meta">
-                            <?php if ($dateStr): ?>
-                            <span><i class="bi bi-calendar-range" style="color:<?= $clr ?>"></i> <?= $dateStr ?></span>
-                            <?php endif; ?>
-                            <span><i class="bi bi-clock"></i> <?= date('d/m/Y H:i', strtotime($ann['created_at'])) ?></span>
-                            <?php if ($ann['creator_name']): ?>
-                            <span><i class="bi bi-person"></i> <?= htmlspecialchars($ann['creator_name']) ?></span>
-                            <?php endif; ?>
-                        </div>
-                        <div class="ann-admin-actions">
-                            <a href="<?= $this->url('library/settings', ['action' => 'toggle', 'id' => $ann['id']]) ?>"
-                               class="btn btn-outline btn-sm settings-ann-card-action-btn-toggle"
-                               title="<?= $isActive ? 'Ẩn bản tin' : 'Hiện bản tin' ?>">
-                                <i class="bi bi-<?= $isActive ? 'eye-slash' : 'eye' ?>"></i>
-                                <?= $isActive ? 'Ẩn' : 'Hiện' ?>
-                            </a>
-                            <a href="<?= $this->url('library/settings', ['action' => 'delete-announcement', 'id' => $ann['id']]) ?>"
-                               class="btn btn-sm settings-ann-card-action-btn-delete"
-                               onclick="return confirm('Xóa bản tin này?')">
-                                <i class="bi bi-trash3"></i> Xóa
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <?php endforeach; ?>
-        </div>
-
-        <!-- PAGINATION -->
-        <?php if ($totalPages > 1): ?>
-        <div class="catalog-pagination-bar" style="margin-top:20px; width: 100%;">
-            <div class="catalog-pagination-info">
-                Hiển thị <?= min(($page-1)*$perPage+1,$totalCount) ?> – <?= min($page*$perPage,$totalCount) ?> / <?= $totalCount ?> bản tin
-            </div>
-            <div class="pagination">
-                <a class="page-btn <?= $page<=1?'disabled':'' ?>" href="<?= $page>1?$buildPageUrl($page-1):'#' ?>"><i class="bi bi-chevron-left"></i></a>
-                <?php for ($p=max(1,$page-2); $p<=min($totalPages,$page+2); $p++): ?>
-                <a class="page-btn <?= $p===$page?'active':'' ?>" href="<?= $buildPageUrl($p) ?>"><?= $p ?></a>
-                <?php endfor; ?>
-                <a class="page-btn <?= $page>=$totalPages?'disabled':'' ?>" href="<?= $page<$totalPages?$buildPageUrl($page+1):'#' ?>"><i class="bi bi-chevron-right"></i></a>
-            </div>
-        </div>
-        <?php endif; ?>
-        <?php endif; ?>
     </div>
+
+    <!-- ══ CỘT PHẢI: CHẾ ĐỘ BẢO TRÌ ═══════════════════════════ -->
+    <div class="card">
+        <div class="card-header" style="border-bottom: 2px solid rgba(236,72,153,0.15);">
+            <div class="card-title" style="font-size: 16px; font-weight: 700;">
+                <i class="bi bi-shield-slash" style="color: #ec4899; margin-right: 8px;"></i>Chế độ bảo trì
+            </div>
+        </div>
+        <div class="card-body" style="padding: 24px;">
+            <form method="post" action="<?= $this->url('library/settings', ['action' => 'maintenance']) ?>" id="maintenance-form">
+                <div style="display: flex; flex-direction: column; gap: 20px;">
+                    <p class="text-secondary" style="font-size: 13px; line-height: 1.5; opacity: 0.8;">
+                        Khi kích hoạt chế độ bảo trì, toàn bộ trang web sẽ tạm khóa đối với người dùng thông thường và khách. Chỉ có Quản trị viên (Admin) được quyền truy cập hệ thống.
+                    </p>
+
+                    <!-- Toggle maintenance switch -->
+                    <div class="settings-toggle-row" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: rgba(255,255,255,.02); border: 1px solid var(--border-color); border-radius: 12px;">
+                        <span class="settings-toggle-label" style="font-size: 14px; font-weight: 600;">Trạng thái chế độ bảo trì</span>
+                        <div class="form-switch-wrap">
+                            <label class="switch">
+                                <input type="checkbox" name="maintenance_mode" id="maintenance_mode_toggle" value="1" <?= $maintenanceMode === '1' ? 'checked' : '' ?>>
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Maintenance until time picker -->
+                    <div id="maintenance_until_wrap" style="transition: all 0.25s ease; <?= $maintenanceMode === '1' ? '' : 'display: none;' ?>">
+                        <label class="form-label settings-label-required" style="font-weight: 600; font-size: 13px; display: block; margin-bottom: 8px;">
+                            <i class="bi bi-clock-fill" style="color: #ec4899; margin-right: 4px;"></i>Thời gian dự kiến hoàn thành bảo trì *
+                        </label>
+                        <input type="datetime-local" name="maintenance_until" id="maintenance_until" class="form-control" 
+                               value="<?= $maintenanceUntil ? date('Y-m-d\TH:i', strtotime($maintenanceUntil)) : '' ?>" style="width: 100%;">
+                        <div style="font-size: 11px; opacity: 0.6; margin-top: 6px;">Sau mốc thời gian này, hệ thống sẽ tự động mở lại cho người dùng.</div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary" style="width: 100%; padding: 10px; margin-top: 10px;">
+                        <i class="bi bi-save2-fill" style="margin-right: 6px;"></i>Lưu cấu hình bảo trì
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
 </div>
 
 <script>
@@ -331,15 +119,59 @@ function previewLogo(input) {
     };
     reader.readAsDataURL(file);
 }
-const dropZone = document.getElementById('logo-drop-zone');
-['dragenter','dragover'].forEach(e => dropZone.addEventListener(e, ev => {
-    ev.preventDefault(); dropZone.style.background = 'rgba(139,92,246,.08)'; dropZone.style.borderColor = 'var(--accent-purple)';
-}));
-['dragleave','drop'].forEach(e => dropZone.addEventListener(e, ev => {
-    ev.preventDefault(); dropZone.style.background = '';
-}));
-dropZone.addEventListener('drop', e => {
-    document.getElementById('logo-input').files = e.dataTransfer.files;
-    previewLogo(document.getElementById('logo-input'));
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Logo Drop Zone events
+    const dropZone = document.getElementById('logo-drop-zone');
+    if (dropZone) {
+        ['dragenter','dragover'].forEach(e => dropZone.addEventListener(e, ev => {
+            ev.preventDefault(); dropZone.style.background = 'rgba(139,92,246,.08)'; dropZone.style.borderColor = 'var(--accent-purple)';
+        }));
+        ['dragleave','drop'].forEach(e => dropZone.addEventListener(e, ev => {
+            ev.preventDefault(); dropZone.style.background = '';
+        }));
+        dropZone.addEventListener('drop', e => {
+            document.getElementById('logo-input').files = e.dataTransfer.files;
+            previewLogo(document.getElementById('logo-input'));
+        });
+    }
+
+    // Maintenance Mode Toggle script
+    const toggle = document.getElementById('maintenance_mode_toggle');
+    const wrap = document.getElementById('maintenance_until_wrap');
+    const picker = document.getElementById('maintenance_until');
+    const mForm = document.getElementById('maintenance-form');
+
+    if (toggle && wrap) {
+        toggle.addEventListener('change', function() {
+            if (this.checked) {
+                wrap.style.display = 'block';
+                picker.required = true;
+                // Set default until to 1 hour from now if empty
+                if (!picker.value) {
+                    const now = new Date();
+                    now.setHours(now.getHours() + 1);
+                    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+                    picker.value = now.toISOString().slice(0, 16);
+                }
+            } else {
+                wrap.style.display = 'none';
+                picker.required = false;
+            }
+        });
+    }
+
+    if (mForm && toggle && picker) {
+        mForm.addEventListener('submit', function(e) {
+            if (toggle.checked && picker.value) {
+                const selectedTime = new Date(picker.value).getTime();
+                const nowTime = new Date().getTime();
+                if (selectedTime <= nowTime) {
+                    e.preventDefault();
+                    alert('Thời gian kết thúc bảo trì phải ở tương lai.');
+                }
+            }
+        });
+    }
 });
 </script>

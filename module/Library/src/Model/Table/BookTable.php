@@ -34,6 +34,7 @@ class BookTable
                 'quantity',
                 'status',
                 'created_at',
+                'cover_image_url',
                 'last_returned_at' => new Expression(
                     '(SELECT MAX(br.returned_at) FROM borrow_records br '
                     . 'WHERE br.book_id = books.book_id '
@@ -65,6 +66,7 @@ class BookTable
                 'quantity',
                 'status',
                 'created_at',
+                'cover_image_url',
                 'last_returned_at' => new Expression(
                     '(SELECT MAX(br.returned_at) FROM borrow_records br '
                     . 'WHERE br.book_id = books.book_id '

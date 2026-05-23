@@ -74,30 +74,63 @@ class ProfileController extends BaseController
             $user->dateOfBirth = trim((string)($post['date_of_birth'] ?? ''));
 
             // Handle Avatar Upload
-            $files = $this->httpRequest()->getFiles();
-            if (isset($files['avatar']) && $files['avatar']['error'] === UPLOAD_ERR_OK) {
-                $tmpName = $files['avatar']['tmp_name'];
-                $fileName = 'avatar_' . $userId . '_' . time() . '.jpg';
-                $destPath = __DIR__ . '/../../../../public/img/avatars/' . $fileName;
+            $file = $_FILES['avatar'] ?? null;
+            if ($file && $file['error'] === UPLOAD_ERR_OK) {
+                $tmpName = $file['tmp_name'];
+                
+                // Get extension
+                $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+                $allowed = ['png', 'jpg', 'jpeg', 'webp', 'gif'];
+                
+                if (in_array($ext, $allowed)) {
+                    $maxSize = 2 * 1024 * 1024; // 2 MB
+                    if ($file['size'] <= $maxSize) {
+                        $fileName = 'avatar_' . $userId . '_' . time() . '.' . $ext;
+                        
+                        $publicDir = getcwd();
+                        if (basename($publicDir) !== 'public') {
+                            $publicDir .= '/public';
+                        }
+                        $uploadDir = $publicDir . '/img/avatars/';
 
-                if (!is_dir(dirname($destPath))) {
-                    mkdir(dirname($destPath), 0777, true);
-                }
+                        if (!is_dir($uploadDir)) {
+                            mkdir($uploadDir, 0777, true);
+                        }
 
-                if (move_uploaded_file($tmpName, $destPath)) {
-                    $user->avatarUrl = '/img/avatars/' . $fileName;
+                        $destPath = $uploadDir . $fileName;
+                        if (move_uploaded_file($tmpName, $destPath)) {
+                            // Delete old avatar if it exists
+                            if ($user->avatarUrl && str_starts_with($user->avatarUrl, '/img/avatars/')) {
+                                $oldPath = $publicDir . $user->avatarUrl;
+                                if (file_exists($oldPath)) {
+                                    @unlink($oldPath);
+                                }
+                            }
+                            $user->avatarUrl = '/img/avatars/' . $fileName;
+                        } else {
+                            $this->flash()->addErrorMessage('Không thể lưu file ảnh đại diện vào thư mục.');
+                        }
+                    } else {
+                        $this->flash()->addErrorMessage('File ảnh đại diện quá lớn. Tối đa 2MB.');
+                    }
+                } else {
+                    $this->flash()->addErrorMessage('Định dạng ảnh đại diện không hỗ trợ. Chấp nhận: png, jpg, jpeg, webp, gif.');
                 }
+            } elseif ($file && $file['error'] !== UPLOAD_ERR_NO_FILE) {
+                $this->flash()->addErrorMessage('Lỗi tải lên ảnh đại diện. Mã lỗi: ' . $file['error']);
             }
 
             $this->userTable->saveUser($user);
             
             // Update session if needed
             $session = $this->authSession();
-            $session->user['full_name'] = $user->fullName; // Keep it simple
+            $session->user['full_name']  = $user->fullName;
+            $session->user['nickname']   = $user->nickname;
+            $session->user['avatar_url'] = $user->avatarUrl;
 
             $this->flash()->addSuccessMessage('Đã cập nhật hồ sơ thành công.');
         }
 
-        return $this->redirect()->toRoute('library/profile');
+        return $this->redirect()->toRoute($this->routeForRole('profile'));
     }
 }

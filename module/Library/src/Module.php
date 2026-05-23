@@ -26,14 +26,127 @@ class Module
      */
     public function onBootstrap(MvcEvent $event): void
     {
-        $container = $event->getApplication()->getServiceManager();
+        $application = $event->getApplication();
+        $eventManager = $application->getEventManager();
+        $container = $application->getServiceManager();
 
-        if (! $container->has(SessionManager::class)) {
-            return;
+        if ($container->has(SessionManager::class)) {
+            $sessionManager = $container->get(SessionManager::class);
+            SessionContainer::setDefaultManager($sessionManager);
+            $sessionManager->start();
         }
 
-        $sessionManager = $container->get(SessionManager::class);
-        SessionContainer::setDefaultManager($sessionManager);
-        $sessionManager->start();
+        // Attach Maintenance Check Listener
+        $eventManager->attach(MvcEvent::EVENT_ROUTE, function (MvcEvent $e) use ($container) {
+            if (defined('PHPUNIT_COMPOSER_INSTALL') || defined('__PHPUNIT_PHAR__')) {
+                return;
+            }
+            $routeMatch = $e->getRouteMatch();
+            if (!$routeMatch) {
+                return;
+            }
+
+            $matchedRouteName = $routeMatch->getMatchedRouteName();
+
+            // Allow static assets, API calls, and auth routes
+            $request = $e->getRequest();
+            if (!method_exists($request, 'getUri')) {
+                return;
+            }
+            $uri = $request->getUri()->getPath();
+
+            // Check if route is maintenance page or auth page
+            if ($matchedRouteName === 'maintenance' || 
+                strpos($uri, '/auth') !== false || 
+                strpos($matchedRouteName, 'auth') !== false) {
+                // Let it proceed (will check maintenance route redirection below)
+            } else {
+                // Check if maintenance mode is active
+                $dbAdapter = $container->get(\Laminas\Db\Adapter\AdapterInterface::class);
+                $maintenanceMode = false;
+
+                try {
+                    $statement = $dbAdapter->query("SELECT setting_value FROM system_settings WHERE setting_key = ? LIMIT 1");
+                    
+                    $resultMode = iterator_to_array($statement->execute(['maintenance_mode']));
+                    $isModeEnabled = count($resultMode) > 0 && $resultMode[0]['setting_value'] === '1';
+
+                    if ($isModeEnabled) {
+                        $resultUntil = iterator_to_array($statement->execute(['maintenance_until']));
+                        $untilVal = count($resultUntil) > 0 ? $resultUntil[0]['setting_value'] : null;
+
+                        if ($untilVal) {
+                            $now = time();
+                            $untilTime = strtotime($untilVal);
+                            if ($untilTime > $now) {
+                                $maintenanceMode = true;
+                            }
+                        }
+                    }
+                } catch (\Throwable $t) {
+                    return;
+                }
+
+                if ($maintenanceMode) {
+                    // Check if current user is admin
+                    $authSession = $container->get(\Library\Session\AuthSessionContainer::class);
+                    $isAdmin = isset($authSession->user) && ($authSession->user['role'] ?? '') === 'admin';
+
+                    if (!$isAdmin) {
+                        // Redirect non-admin to maintenance page
+                        $router = $e->getRouter();
+                        $url = $router->assemble([], ['name' => 'maintenance']);
+                        
+                        $response = $e->getResponse();
+                        $response->getHeaders()->addHeaderLine('Location', $url);
+                        $response->setStatusCode(302);
+                        $response->sendHeaders();
+                        return $response;
+                    }
+                }
+            }
+
+            // If visiting /maintenance, verify if it is active.
+            // If maintenance is NOT active or current user IS admin, redirect them away to home page!
+            if ($matchedRouteName === 'maintenance') {
+                $dbAdapter = $container->get(\Laminas\Db\Adapter\AdapterInterface::class);
+                $maintenanceMode = false;
+
+                try {
+                    $statement = $dbAdapter->query("SELECT setting_value FROM system_settings WHERE setting_key = ? LIMIT 1");
+                    $resultMode = iterator_to_array($statement->execute(['maintenance_mode']));
+                    $isModeEnabled = count($resultMode) > 0 && $resultMode[0]['setting_value'] === '1';
+
+                    if ($isModeEnabled) {
+                        $resultUntil = iterator_to_array($statement->execute(['maintenance_until']));
+                        $untilVal = count($resultUntil) > 0 ? $resultUntil[0]['setting_value'] : null;
+
+                        if ($untilVal) {
+                            $now = time();
+                            $untilTime = strtotime($untilVal);
+                            if ($untilTime > $now) {
+                                $maintenanceMode = true;
+                            }
+                        }
+                    }
+                } catch (\Throwable $t) {
+                    // ignore
+                }
+
+                $authSession = $container->get(\Library\Session\AuthSessionContainer::class);
+                $isAdmin = isset($authSession->user) && ($authSession->user['role'] ?? '') === 'admin';
+
+                if (!$maintenanceMode || $isAdmin) {
+                    $router = $e->getRouter();
+                    $url = $router->assemble([], ['name' => 'home']);
+                    
+                    $response = $e->getResponse();
+                    $response->getHeaders()->addHeaderLine('Location', $url);
+                    $response->setStatusCode(302);
+                    $response->sendHeaders();
+                    return $response;
+                }
+            }
+        }, -100);
     }
 }

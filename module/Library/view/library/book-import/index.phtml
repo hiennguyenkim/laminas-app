@@ -1,12 +1,15 @@
 <?php
-$this->headTitle('Nhập sách Online & Thống kê chi tiêu');
+$this->headTitle('Nhập sách & Thống kê chi tiêu');
 
-$buildUrlWithFilter = function(array $newParams) use ($selectedYear, $search, $type, $page) {
+$buildUrlWithFilter = function(array $newParams) use ($selectedYear, $search, $type, $period, $page, $sort, $direction) {
     $params = [
-        'year'   => $selectedYear,
-        'search' => $search,
-        'type'   => $type,
-        'page'   => $page,
+        'year'      => $selectedYear,
+        'search'    => $search,
+        'type'      => $type,
+        'period'    => $period,
+        'page'      => $page,
+        'sort'      => $sort,
+        'direction' => $direction,
     ];
     
     foreach ($newParams as $key => $value) {
@@ -17,7 +20,7 @@ $buildUrlWithFilter = function(array $newParams) use ($selectedYear, $search, $t
         }
     }
     
-    if (!isset($newParams['page']) && (isset($newParams['search']) || isset($newParams['type']) || isset($newParams['year']))) {
+    if (!isset($newParams['page']) && (isset($newParams['search']) || isset($newParams['type']) || isset($newParams['year']) || isset($newParams['period']))) {
         $params['page'] = 1;
     }
     
@@ -25,16 +28,35 @@ $buildUrlWithFilter = function(array $newParams) use ($selectedYear, $search, $t
         return $val !== null && $val !== '';
     })]);
 };
+
+$buildSortUrl = function(string $col) use ($buildUrlWithFilter, $sort, $direction) {
+    if ($sort === $col) {
+        $newDir = ($direction === 'asc') ? 'desc' : 'asc';
+    } else {
+        $newDir = in_array($col, ['price', 'quantity', 'total', 'id']) ? 'desc' : 'asc';
+    }
+    return $buildUrlWithFilter(['sort' => $col, 'direction' => $newDir]);
+};
+
+$renderSortIcon = function(string $col) use ($sort, $direction) {
+    if ($sort !== $col) {
+        return '<i class="bi bi-arrow-down-up ms-1" style="font-size: 0.75rem; opacity: 0.4;"></i>';
+    }
+    if ($direction === 'asc') {
+        return '<i class="bi bi-sort-down ms-1" style="font-size: 0.85rem; color: var(--accent-purple);"></i>';
+    }
+    return '<i class="bi bi-sort-up ms-1" style="font-size: 0.85rem; color: var(--accent-purple);"></i>';
+};
 ?>
 
 <div class="page-header book-import-header">
     <div>
-        <h1 class="page-title"><i class="bi bi-box-seam book-import-title-icon"></i>Nhập sách trực tiếp</h1>
+        <h1 class="page-title"><i class="bi bi-box-seam book-import-title-icon"></i>Nhập sách</h1>
         <p class="text-muted book-import-subtitle">Quản lý quy trình nhập kho sách và theo dõi chi tiêu ngân sách thư viện.</p>
     </div>
     <div class="book-import-actions-row">
-        <a href="<?= $this->url('library/books-import', ['action' => 'export'], ['query' => array_filter(['year' => $selectedYear, 'search' => $search, 'type' => $type], function($val) { return $val !== null && $val !== ''; })]) ?>" class="btn btn-outline"><i class="bi bi-file-earmark-spreadsheet book-import-btn-report-icon"></i>Xuất báo cáo</a>
-        <button class="btn btn-primary" onclick="toggleAddModal()"><i class="bi bi-plus-circle book-import-btn-new-icon"></i>Nhập kho mới</button>
+        <a href="<?= $this->url('library/books-import', ['action' => 'export'], ['query' => array_filter(['year' => $selectedYear, 'search' => $search, 'type' => $type, 'period' => $period, 'sort' => $sort, 'direction' => $direction], function($val) { return $val !== null && $val !== ''; })]) ?>" class="btn btn-outline d-flex align-items-center gap-2" title="Xuất Excel (.xlsx)"><i class="bi bi-file-earmark-excel" style="color:#1d6f42;"></i>Xuất .xlsx</a>
+        <button class="btn btn-primary" onclick="toggleAddModal()"><i class="bi bi-plus-circle book-import-btn-new-icon"></i>Nhập sách mới</button>
     </div>
 </div>
 
@@ -42,14 +64,6 @@ $buildUrlWithFilter = function(array $newParams) use ($selectedYear, $search, $t
 <div class="card book-import-card-margin">
     <div class="card-header book-import-card-header">
         <div class="card-title"><i class="bi bi-bar-chart book-import-card-title-icon"></i>Thống kê chi tiêu theo Quý</div>
-        <form method="get" id="year-filter-form" class="book-import-filter-form">
-            <label for="year-select" class="book-import-filter-label">Năm thống kê:</label>
-            <select id="year-select" name="year" class="form-control book-import-filter-select" onchange="this.form.submit()">
-                <?php for($y = date('Y') - 5; $y <= date('Y'); $y++): ?>
-                    <option value="<?= $y ?>" <?= $y === $selectedYear ? 'selected' : '' ?>><?= $y ?></option>
-                <?php endfor; ?>
-            </select>
-        </form>
     </div>
     <div class="card-body book-import-card-body">
         <div class="book-import-stats-grid">
@@ -108,17 +122,47 @@ $buildUrlWithFilter = function(array $newParams) use ($selectedYear, $search, $t
 
     <!-- Search Form -->
     <form method="get" class="book-import-search-form">
-        <!-- Preserve selected year and type -->
-        <input type="hidden" name="year" value="<?= htmlspecialchars((string)$selectedYear) ?>">
+        <!-- Preserve selected type -->
         <input type="hidden" name="type" value="<?= htmlspecialchars((string)$type) ?>">
+        <input type="hidden" name="sort" value="<?= htmlspecialchars((string)$sort) ?>">
+        <input type="hidden" name="direction" value="<?= htmlspecialchars((string)$direction) ?>">
+
+        <!-- Year Filter -->
+        <div class="topbar-search" style="max-width: 120px; padding: 8px 12px; gap: 6px;">
+            <i class="bi bi-calendar-event" style="color: var(--text-muted);"></i>
+            <select name="year" onchange="this.form.submit()" style="background: none; border: none; outline: none; color: var(--text-primary); font-size: 13px; width: 100%; cursor: pointer;">
+                <?php for($y = date('Y') - 5; $y <= date('Y'); $y++): ?>
+                    <option value="<?= $y ?>" <?= $y === $selectedYear ? 'selected' : '' ?> style="background: var(--bg-card);"><?= $y ?></option>
+                <?php endfor; ?>
+            </select>
+        </div>
+
+        <!-- Period Filter -->
+        <div class="topbar-search" style="max-width: 160px; padding: 8px 12px; gap: 6px;">
+            <i class="bi bi-calendar3" style="color: var(--text-muted);"></i>
+            <select name="period" onchange="this.form.submit()" style="background: none; border: none; outline: none; color: var(--text-primary); font-size: 13px; width: 100%; cursor: pointer;">
+                <option value="year" <?= $period === 'year' ? 'selected' : '' ?> style="background: var(--bg-card);">Cả năm</option>
+                <optgroup label="Theo Quý" style="background: var(--bg-card); color: var(--text-muted); font-style: normal;">
+                    <option value="q1" <?= $period === 'q1' ? 'selected' : '' ?> style="background: var(--bg-card); color: var(--text-primary);">Quý I</option>
+                    <option value="q2" <?= $period === 'q2' ? 'selected' : '' ?> style="background: var(--bg-card); color: var(--text-primary);">Quý II</option>
+                    <option value="q3" <?= $period === 'q3' ? 'selected' : '' ?> style="background: var(--bg-card); color: var(--text-primary);">Quý III</option>
+                    <option value="q4" <?= $period === 'q4' ? 'selected' : '' ?> style="background: var(--bg-card); color: var(--text-primary);">Quý IV</option>
+                </optgroup>
+                <optgroup label="Theo Tháng" style="background: var(--bg-card); color: var(--text-muted); font-style: normal;">
+                    <?php for ($m = 1; $m <= 12; $m++): ?>
+                        <option value="m<?= $m ?>" <?= $period === 'm' . $m ? 'selected' : '' ?> style="background: var(--bg-card); color: var(--text-primary);">Tháng <?= $m ?></option>
+                    <?php endfor; ?>
+                </optgroup>
+            </select>
+        </div>
 
         <!-- Search Input -->
-        <div class="book-import-search-input-wrap">
+        <div class="topbar-search">
             <i class="bi bi-search"></i>
             <input type="text" name="search" value="<?= htmlspecialchars($search) ?>" placeholder="Tìm tên sách, tác giả, ISBN, hóa đơn...">
         </div>
 
-        <button type="submit" class="btn btn-primary"><i class="bi bi-search" style="margin-right: 6px;"></i>Tìm kiếm</button>
+        <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-search"></i>Tìm</button>
     </form>
 </div>
 
@@ -131,16 +175,48 @@ $buildUrlWithFilter = function(array $newParams) use ($selectedYear, $search, $t
         <table class="data-table">
             <thead>
                 <tr>
-                    <th>#ID</th>
-                    <th>Hóa đơn</th>
-                    <th>Thông tin sách</th>
-                    <th>Thể loại</th>
-                    <th>Đơn giá (đ)</th>
-                    <th>Số lượng</th>
-                    <th>Tổng tiền (đ)</th>
-                    <th>Hình thức</th>
-                    <th>Trạng thái</th>
-                    <th>Hành động</th>
+                    <th>
+                        <a href="<?= $buildSortUrl('id') ?>" style="text-decoration: none; color: inherit; display: inline-flex; align-items: center;">
+                            #ID <?= $renderSortIcon('id') ?>
+                        </a>
+                    </th>
+                    <th>
+                        <a href="<?= $buildSortUrl('invoice') ?>" style="text-decoration: none; color: inherit; display: inline-flex; align-items: center;">
+                            Hóa đơn <?= $renderSortIcon('invoice') ?>
+                        </a>
+                    </th>
+                    <th>
+                        <a href="<?= $buildSortUrl('book') ?>" style="text-decoration: none; color: inherit; display: inline-flex; align-items: center;">
+                            Thông tin sách <?= $renderSortIcon('book') ?>
+                        </a>
+                    </th>
+                    <th>
+                        <a href="<?= $buildSortUrl('category') ?>" style="text-decoration: none; color: inherit; display: inline-flex; align-items: center;">
+                            Thể loại <?= $renderSortIcon('category') ?>
+                        </a>
+                    </th>
+                    <th>
+                        <a href="<?= $buildSortUrl('price') ?>" style="text-decoration: none; color: inherit; display: inline-flex; align-items: center;">
+                            Đơn giá (đ) <?= $renderSortIcon('price') ?>
+                        </a>
+                    </th>
+                    <th>
+                        <a href="<?= $buildSortUrl('quantity') ?>" style="text-decoration: none; color: inherit; display: inline-flex; align-items: center;">
+                            Số lượng <?= $renderSortIcon('quantity') ?>
+                        </a>
+                    </th>
+                    <th>
+                        <a href="<?= $buildSortUrl('total') ?>" style="text-decoration: none; color: inherit; display: inline-flex; align-items: center;">
+                            Tổng tiền (đ) <?= $renderSortIcon('total') ?>
+                        </a>
+                    </th>
+                    <th style="color: var(--text-muted);">Hình thức</th>
+                    <th>
+                        <a href="<?= $buildSortUrl('status') ?>" style="text-decoration: none; color: inherit; display: inline-flex; align-items: center;">
+                            Trạng thái <?= $renderSortIcon('status') ?>
+                        </a>
+                    </th>
+                    <th style="color: var(--text-muted);">Hành động</th>
                 </tr>
             </thead>
             <tbody>
@@ -358,33 +434,5 @@ function toggleAddModal() {
     gap: 10px;
     align-items: center;
     flex-wrap: wrap;
-}
-.book-import-search-input-wrap {
-    position: relative;
-    width: 280px;
-}
-.book-import-search-input-wrap i {
-    position: absolute;
-    left: 14px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--text-muted);
-    font-size: 14px;
-}
-.book-import-search-input-wrap input {
-    padding-left: 38px;
-    border-radius: 40px;
-    background: var(--bg-card);
-    border: 1px solid var(--border-color);
-    color: var(--text-primary);
-    width: 100%;
-}
-.book-import-search-input-wrap input:focus {
-    border-color: var(--accent-purple);
-    box-shadow: 0 0 0 3px rgba(124,106,255,0.12);
-}
-.book-import-search-form button {
-    border-radius: 40px;
-    padding: 8px 20px;
 }
 </style>

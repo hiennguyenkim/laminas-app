@@ -53,11 +53,13 @@ class AuthController extends BaseController
 
                 if ($user && password_verify($data['password'], $user->password)) {
                     $this->authSession()->user = [
-                        'id'        => $user->id,
-                        'username'  => $user->username,
-                        'email'     => $user->email,
-                        'full_name' => $user->fullName,
-                        'role'      => $user->role,
+                        'id'         => $user->id,
+                        'username'   => $user->username,
+                        'email'      => $user->email,
+                        'full_name'  => $user->fullName,
+                        'role'       => $user->role,
+                        'avatar_url' => $user->avatarUrl,
+                        'nickname'   => $user->nickname,
                     ];
                     $this->flash()->addSuccessMessage('Chào mừng ' . $user->fullName . '!');
                     return $this->redirectToRoleHome($user->role);
@@ -121,7 +123,7 @@ class AuthController extends BaseController
     {
         $this->sessionManager->destroy();
         $this->flash()->addInfoMessage('Bạn đã đăng xuất.');
-        return $this->redirect()->toRoute('catalog');
+        return $this->redirect()->toRoute('announcements');
     }
 
     private function redirectToRoleHome(string $role): Response
@@ -133,6 +135,6 @@ class AuthController extends BaseController
             return $this->redirect()->toRoute('student/dashboard');
         }
 
-        return $this->redirect()->toRoute('catalog');
+        return $this->redirect()->toRoute('announcements');
     }
 }

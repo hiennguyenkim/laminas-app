@@ -1,6 +1,6 @@
 <?php
 $isEdit    = ($mode === 'edit');
-$title     = $isEdit ? 'Cập nhật sách' : 'Thêm sách mới';
+$title     = $isEdit ? 'Cập nhật thông tin sách' : 'Thêm sách mới vào thư viện';
 $actionUrl = $isEdit
     ? $this->url('library/book', ['action' => 'edit', 'id' => $book->id])
     : $this->url('library/book', ['action' => 'add']);
@@ -8,6 +8,443 @@ $statusValue = $form->get('status')->getValue() === 'unavailable' ? 'unavailable
 $this->headTitle($title);
 $this->layout('layout/library-layout');
 ?>
+
+<style>
+/* Tối ưu kích thước container tổng thể để chiếm toàn bộ chiều rộng màn hình */
+.book-form-container {
+    max-width: 100% !important;
+    width: 100%;
+}
+
+.book-form-grid-layout {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 20px;
+    align-items: start;
+    margin-top: 20px;
+}
+
+@media (max-width: 900px) {
+    .book-form-grid-layout {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+}
+
+.premium-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+}
+
+.premium-card-header {
+    background: rgba(255, 255, 255, 0.01);
+    border-bottom: 1px solid var(--border-color);
+    padding: 14px 20px;
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.premium-card-header i {
+    color: var(--accent-purple);
+    font-size: 16px;
+}
+
+.premium-card-body {
+    padding: 20px;
+}
+
+.sticky-card {
+    position: sticky;
+    top: 20px;
+}
+
+/* Book Cover Preview - Thu nhỏ kích thước gọn gàng hơn */
+.book-cover-mockup-wrapper {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+
+.book-cover-preview-premium {
+    width: 154px;
+    height: 216px;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.04);
+    transition: var(--transition);
+    text-align: center;
+    padding: 12px;
+}
+
+.book-cover-preview-premium::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: linear-gradient(90deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0) 8%, rgba(255,255,255,0.03) 12%, rgba(255,255,255,0) 100%);
+    z-index: 2;
+    pointer-events: none;
+}
+
+.placeholder-icon {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    color: var(--text-secondary);
+}
+
+.placeholder-icon i {
+    font-size: 38px;
+    color: var(--text-muted);
+    opacity: 0.7;
+}
+
+.placeholder-icon span {
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.upload-actions-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-upload-trigger {
+    background: rgba(124, 106, 255, 0.08);
+    border: 1px solid rgba(124, 106, 255, 0.25);
+    color: var(--text-primary);
+    padding: 9px 18px;
+    border-radius: var(--radius-sm);
+    font-weight: 600;
+    font-size: 12.5px;
+    transition: var(--transition);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.btn-upload-trigger:hover {
+    background: var(--accent-purple);
+    border-color: var(--accent-purple);
+    color: #fff;
+    box-shadow: 0 0 12px rgba(124, 106, 255, 0.3);
+}
+
+.file-info-text {
+    font-size: 10.5px;
+    color: var(--text-muted);
+}
+
+.url-input-divider {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 10px;
+    font-weight: 700;
+    margin: 16px 0;
+}
+
+.url-input-divider::before,
+.url-input-divider::after {
+    content: '';
+    flex: 1;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.url-input-divider span {
+    padding: 0 8px;
+    letter-spacing: 1px;
+}
+
+/* 12-Column Grid cho Form */
+.form-grid-compact {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap: 16px;
+}
+
+.col-12 { grid-column: span 12; }
+.col-8 { grid-column: span 8; }
+.col-6 { grid-column: span 6; }
+.col-4 { grid-column: span 4; }
+.col-3 { grid-column: span 3; }
+
+@media (max-width: 768px) {
+    .col-8, .col-6, .col-4, .col-3 {
+        grid-column: span 12;
+    }
+}
+
+.form-group-custom {
+    display: flex;
+    flex-direction: column;
+}
+
+.form-label-custom {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+}
+
+.form-label-custom .required {
+    color: #ef4444;
+    margin-left: 2px;
+}
+
+.input-with-icon {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.input-with-icon i {
+    position: absolute;
+    left: 12px;
+    color: var(--text-secondary);
+    font-size: 14px;
+    pointer-events: none;
+    opacity: 0.85;
+}
+
+.form-control-custom,
+.form-select-custom {
+    width: 100%;
+    padding: 10px 14px 10px 38px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-size: 13.5px;
+    outline: none;
+    transition: var(--transition);
+}
+
+.form-select-custom {
+    appearance: none;
+    cursor: pointer;
+}
+
+.select-wrapper::after {
+    content: '\F2E5';
+    font-family: 'bootstrap-icons';
+    position: absolute;
+    right: 12px;
+    color: var(--text-muted);
+    font-size: 11px;
+    pointer-events: none;
+}
+
+/* Searchable Select Dropdown Custom Styles */
+.searchable-select-wrapper {
+    position: relative;
+    width: 100%;
+}
+
+.searchable-select-wrapper .select-dropdown-arrow {
+    position: absolute;
+    right: 12px;
+    color: var(--text-muted);
+    font-size: 12px;
+    pointer-events: none;
+    transition: transform 0.2s ease;
+}
+
+.searchable-select-wrapper.open .select-dropdown-arrow {
+    transform: rotate(180deg);
+}
+
+.searchable-select-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+    z-index: 1000;
+    max-height: 200px;
+    overflow-y: auto;
+    margin-top: 4px;
+    display: none;
+}
+
+.searchable-select-wrapper.open .searchable-select-dropdown {
+    display: block;
+}
+
+.dropdown-option {
+    padding: 10px 14px;
+    font-size: 13.5px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.dropdown-option:hover {
+    background: rgba(124, 106, 255, 0.08);
+    color: var(--text-primary);
+}
+
+.dropdown-option.selected {
+    background: var(--accent-purple);
+    color: #fff;
+}
+
+.dropdown-option.hidden {
+    display: none;
+}
+
+.dropdown-no-results {
+    padding: 10px 14px;
+    font-size: 13px;
+    color: var(--text-muted);
+    text-align: center;
+    font-style: italic;
+}
+
+.textarea-custom {
+    padding: 10px 12px;
+    resize: vertical;
+    min-height: 80px;
+}
+
+.form-control-custom:focus,
+.form-select-custom:focus {
+    border-color: var(--accent-purple);
+    box-shadow: 0 0 0 3px rgba(124, 106, 255, 0.12);
+}
+
+.form-section-divider {
+    grid-column: span 12;
+    font-size: 12.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--accent-purple);
+    letter-spacing: 0.5px;
+    margin-top: 12px;
+    margin-bottom: 4px;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.form-info-note {
+    grid-column: span 12;
+    background: rgba(124, 106, 255, 0.04);
+    border: 1px dashed rgba(124, 106, 255, 0.2);
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    font-size: 12.5px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin-top: 4px;
+}
+
+.form-info-note i {
+    color: var(--accent-purple);
+    font-size: 15px;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.form-validation-error {
+    color: #ef4444;
+    font-size: 12px;
+    margin-top: 5px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-weight: 500;
+}
+
+.form-validation-error-csrf {
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.06);
+    border: 1px solid rgba(239, 68, 68, 0.15);
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+    font-size: 12.5px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 500;
+}
+
+.form-actions-compact {
+    display: flex;
+    gap: 12px;
+    margin-top: 20px;
+    border-top: 1px solid var(--border-color);
+    padding-top: 16px;
+}
+
+.btn-premium {
+    padding: 10px 22px;
+    border-radius: var(--radius-sm);
+    font-weight: 600;
+    font-size: 13.5px;
+    transition: var(--transition);
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    outline: none;
+}
+
+.btn-submit-premium {
+    background: var(--accent-purple);
+    border: 1px solid var(--accent-purple);
+    color: #fff;
+    flex: 1.3;
+}
+
+.btn-submit-premium:hover {
+    background: #6e5cff;
+    border-color: #6e5cff;
+    box-shadow: 0 0 16px rgba(124, 106, 255, 0.4);
+}
+
+.btn-cancel-premium {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    flex: 1;
+}
+
+.btn-cancel-premium:hover {
+    background: rgba(255, 255, 255, 0.02);
+    border-color: var(--text-secondary);
+    color: var(--text-primary);
+}
+</style>
+
 <div class="page-header">
     <div class="d-flex align-center gap-3">
         <a href="<?= $this->url('library/book') ?>" class="btn btn-outline btn-icon"><i class="bi bi-arrow-left"></i></a>
@@ -19,120 +456,246 @@ $this->layout('layout/library-layout');
 </div>
 
 <?php if ($isEdit && isset($book) && $book->status === 'borrowed'): ?>
-<div class="alert alert-info book-form-alert"><i class="bi bi-info-circle"></i>Sách này hiện hết bản khả dụng — trạng thái đang mượn.</div>
+<div class="form-info-note" style="margin-bottom: 16px; background: rgba(59, 130, 246, 0.05); border: 1px dashed rgba(59, 130, 246, 0.2);">
+    <i class="bi bi-info-circle-fill" style="color: var(--accent-blue);"></i>
+    <div style="color: var(--text-primary);">Sách này hiện hết bản khả dụng — tất cả các cuốn đều đang được sinh viên mượn.</div>
+</div>
 <?php endif; ?>
 
 <div class="book-form-container">
-<div class="card">
-    <div class="card-body">
-        <form method="POST" action="<?= $actionUrl ?>" enctype="multipart/form-data">
-            <?= $this->formHidden($form->get('id')) ?>
-            <div class="book-form-grid-2-1">
-                <div class="form-group book-form-group-compact">
-                    <label class="form-label">Nhan đề *</label>
-                    <input type="text" name="title" class="form-control"
-                           value="<?= htmlspecialchars((string)($form->get('title')->getValue() ?? '')) ?>"
-                           maxlength="255" required>
-                    <?php $msgs = $form->get('title')->getMessages(); if ($msgs): ?>
-                    <div class="book-form-error"><?= htmlspecialchars(implode(', ', $msgs)) ?></div>
-                    <?php endif; ?>
-                </div>
-                <div class="form-group book-form-group-compact">
-                    <label class="form-label">ISBN</label>
-                    <input type="text" name="isbn" class="form-control"
-                           value="<?= htmlspecialchars((string)($form->get('isbn')->getValue() ?? '')) ?>"
-                           placeholder="978-..." maxlength="30">
-                </div>
-            </div>
-            <div class="book-form-grid-1-1-1">
-                <div class="form-group book-form-group-compact">
-                    <label class="form-label">Tác giả *</label>
-                    <input type="text" name="author" class="form-control"
-                           value="<?= htmlspecialchars((string)($form->get('author')->getValue() ?? '')) ?>" required>
-                    <?php $msgs = $form->get('author')->getMessages(); if ($msgs): ?>
-                    <div class="book-form-error"><?= htmlspecialchars(implode(', ', $msgs)) ?></div>
-                    <?php endif; ?>
-                </div>
-                <div class="form-group book-form-group-compact">
-                    <label class="form-label">Thể loại *</label>
-                    <?= $this->formSelect($form->get('category')->setAttribute('class', 'form-select')) ?>
-                </div>
-                <div class="form-group book-form-group-compact">
-                    <label class="form-label">Số lượng *</label>
-                    <input type="number" name="quantity" class="form-control" min="1" max="999"
-                           value="<?= htmlspecialchars((string)($form->get('quantity')->getValue() ?: 1)) ?>" required>
-                </div>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Mô tả sách</label>
-                <textarea name="description" class="form-control" rows="3"><?= htmlspecialchars((string)($form->get('description')->getValue() ?? '')) ?></textarea>
-            </div>
-
-            <div class="book-form-grid-1-1-1">
-                <div class="form-group book-form-group-compact">
-                    <label class="form-label">Nhà xuất bản</label>
-                    <input type="text" name="publisher" class="form-control" value="<?= htmlspecialchars((string)($form->get('publisher')->getValue() ?? '')) ?>">
-                </div>
-                <div class="form-group book-form-group-compact">
-                    <label class="form-label">Năm xuất bản</label>
-                    <input type="text" name="published_year" class="form-control" value="<?= htmlspecialchars((string)($form->get('published_year')->getValue() ?? '')) ?>">
-                </div>
-                <div class="form-group book-form-group-compact">
-                    <label class="form-label">Ngày nhập kho</label>
-                    <input type="date" name="import_date" class="form-control" value="<?= htmlspecialchars((string)($form->get('import_date')->getValue() ?? '')) ?>">
-                </div>
-            </div>
-
-            <div class="form-group">
-                <label class="form-label">Ảnh bìa sách</label>
-                <div class="book-cover-upload-container book-cover-upload">
-                    <?php
-                    $currentCover = $form->get('cover_image_url')->getValue();
-                    $previewStyle = $currentCover
-                        ? 'background: url(' . htmlspecialchars($currentCover) . ') center/cover no-repeat'
-                        : 'background: linear-gradient(135deg,#7c6aff,#5b4fcf)';
-                    ?>
-                    <div class="book-cover-preview book-cover-preview-static" id="coverPreview" style="<?= $previewStyle ?>">
-                        <?php if (!$currentCover): ?>
-                            <i class="bi bi-image"></i>
-                        <?php endif; ?>
+    <form method="POST" action="<?= $actionUrl ?>" enctype="multipart/form-data">
+        <?= $this->formHidden($form->get('id')) ?>
+        
+        <div class="book-form-grid-layout">
+            <!-- LEFT COLUMN: Book Cover Management -->
+            <div class="book-form-left-col">
+                <div class="premium-card sticky-card">
+                    <div class="premium-card-header">
+                        <i class="bi bi-image"></i> Ảnh bìa sách
                     </div>
-                    <div class="book-cover-info">
-                        <div class="book-cover-title">Chọn tệp ảnh bìa</div>
-                        <div class="book-cover-desc">Hỗ trợ JPG, PNG, WEBP. Dung lượng tối đa 2MB.</div>
-                        <input type="file" name="cover_image" id="coverImageInput" accept="image/*" class="d-none">
-                        <button type="button" class="btn btn-sm btn-outline" onclick="document.getElementById('coverImageInput').click()"><i class="bi bi-upload book-form-btn-icon"></i>Tải lên file mới</button>
-                        
-                        <div class="book-cover-url-wrap">
-                            <span class="book-cover-url-label">Hoặc nhập URL liên kết:</span>
-                            <input type="text" name="cover_image_url" id="coverImageUrlInput" class="form-control form-control-sm book-cover-url-input" value="<?= htmlspecialchars((string)($currentCover ?? '')) ?>" placeholder="https://example.com/cover.jpg">
+                    <div class="premium-card-body" style="padding: 16px;">
+                        <?php
+                        $currentCover = $form->get('cover_image_url')->getValue();
+                        $previewCoverUrl = $currentCover;
+                        if ($currentCover && !str_starts_with($currentCover, 'http://') && !str_starts_with($currentCover, 'https://')) {
+                            $previewCoverUrl = $this->basePath(ltrim($currentCover, '/'));
+                        }
+                        $previewStyle = $previewCoverUrl
+                            ? 'background: url(' . htmlspecialchars($previewCoverUrl) . ') center/cover no-repeat'
+                            : 'background: linear-gradient(135deg,#7c6aff,#5b4fcf)';
+                        ?>
+                        <div class="book-cover-mockup-wrapper">
+                            <div class="book-cover-preview-premium" id="coverPreview" style="<?= $previewStyle ?>">
+                                <?php if (!$previewCoverUrl): ?>
+                                    <div class="placeholder-icon">
+                                        <i class="bi bi-journal-album"></i>
+                                        <span>Chưa có ảnh bìa</span>
+                                    </div>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+
+                        <div class="upload-actions-wrapper">
+                            <input type="file" name="cover_image" id="coverImageInput" accept="image/*" class="d-none">
+                            <button type="button" class="btn-upload-trigger" onclick="document.getElementById('coverImageInput').click()">
+                                <i class="bi bi-cloud-arrow-up-fill"></i> Tải lên tệp ảnh
+                            </button>
+                            <span class="file-info-text">JPG, PNG, WEBP (Tối đa 2MB)</span>
+                        </div>
+
+                        <div class="url-input-divider">
+                            <span>HOẶC</span>
+                        </div>
+
+                        <div class="form-group-custom">
+                            <label class="form-label-custom">Nhập đường dẫn URL ảnh</label>
+                            <div class="input-with-icon">
+                                <i class="bi bi-link-45deg"></i>
+                                <input type="text" name="cover_image_url" id="coverImageUrlInput" 
+                                       class="form-control-custom" 
+                                       style="padding-left: 36px; padding-top: 8px; padding-bottom: 8px; font-size: 12.5px;"
+                                       value="<?= htmlspecialchars((string)($currentCover ?? '')) ?>" 
+                                       placeholder="https://example.com/cover.jpg">
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div class="form-group">
-                <label class="form-label">Trạng thái vận hành</label>
-                <select name="status" class="form-select book-form-status-select">
-                    <option value="available"   <?= $statusValue==='available'?'selected':'' ?>>Khả dụng</option>
-                    <option value="unavailable" <?= $statusValue==='unavailable'?'selected':'' ?>>Không khả dụng</option>
-                </select>
+            <!-- RIGHT COLUMN: Book Metadata Form (Compact & Dense) -->
+            <div class="book-form-right-col">
+                <div class="premium-card">
+                    <div class="premium-card-header">
+                        <i class="bi bi-book-half"></i> Chi tiết thông tin sách
+                    </div>
+                    <div class="premium-card-body">
+                        <div class="form-grid-compact">
+                            <!-- Section: Thông tin cơ bản -->
+                            <div class="form-section-divider" style="margin-top: 0;">
+                                <i class="bi bi-card-text"></i> Thông tin cơ bản
+                            </div>
+
+                            <div class="form-group-custom col-8">
+                                <label class="form-label-custom">Nhan đề sách <span class="required">*</span></label>
+                                <div class="input-with-icon">
+                                    <i class="bi bi-bookmark-fill"></i>
+                                    <input type="text" name="title" class="form-control-custom"
+                                           value="<?= htmlspecialchars((string)($form->get('title')->getValue() ?? '')) ?>"
+                                           maxlength="255" placeholder="Nhập nhan đề chính thức..." required>
+                                </div>
+                                <?php $msgs = $form->get('title')->getMessages(); if ($msgs): ?>
+                                    <div class="form-validation-error"><i class="bi bi-exclamation-circle-fill"></i> <?= htmlspecialchars(implode(', ', $msgs)) ?></div>
+                                <?php endif; ?>
+                            </div>
+
+                            <div class="form-group-custom col-4">
+                                <label class="form-label-custom">Thể loại thư mục <span class="required">*</span></label>
+                                <div class="searchable-select-wrapper" id="categorySelectWrapper">
+                                    <div class="input-with-icon">
+                                        <i class="bi bi-tags-fill"></i>
+                                        <input type="text" id="categorySearchInput" class="form-control-custom"
+                                               placeholder="Tìm kiếm thể loại..." autocomplete="off">
+                                        <i class="bi bi-chevron-down select-dropdown-arrow"></i>
+                                    </div>
+                                    <input type="hidden" name="category" id="categoryHiddenInput" 
+                                           value="<?= htmlspecialchars((string)($form->get('category')->getValue() ?? '')) ?>" required>
+                                    
+                                    <div class="searchable-select-dropdown" id="categoryDropdown">
+                                        <?php
+                                        $categoryElement = $form->get('category');
+                                        $valueOptions = $categoryElement->getValueOptions() ?? [];
+                                        foreach ($valueOptions as $val => $label):
+                                        ?>
+                                            <div class="dropdown-option" data-value="<?= htmlspecialchars((string)$val) ?>"><?= htmlspecialchars((string)$label) ?></div>
+                                        <?php endforeach; ?>
+                                        <div class="dropdown-no-results" id="categoryNoResults" style="display: none;">Không tìm thấy thể loại phù hợp</div>
+                                    </div>
+                                </div>
+                                <?php $msgs = $form->get('category')->getMessages(); if ($msgs): ?>
+                                    <div class="form-validation-error"><i class="bi bi-exclamation-circle-fill"></i> <?= htmlspecialchars(implode(', ', $msgs)) ?></div>
+                                <?php endif; ?>
+                            </div>
+
+                            <div class="form-group-custom col-6">
+                                <label class="form-label-custom">Tác giả chính <span class="required">*</span></label>
+                                <div class="input-with-icon">
+                                    <i class="bi bi-person-fill"></i>
+                                    <input type="text" name="author" class="form-control-custom"
+                                           value="<?= htmlspecialchars((string)($form->get('author')->getValue() ?? '')) ?>" 
+                                           placeholder="Tên tác giả..." required>
+                                </div>
+                                <?php $msgs = $form->get('author')->getMessages(); if ($msgs): ?>
+                                    <div class="form-validation-error"><i class="bi bi-exclamation-circle-fill"></i> <?= htmlspecialchars(implode(', ', $msgs)) ?></div>
+                                <?php endif; ?>
+                            </div>
+
+                            <div class="form-group-custom col-6">
+                                <label class="form-label-custom">Mã số quốc tế ISBN</label>
+                                <div class="input-with-icon">
+                                    <i class="bi bi-upc-scan"></i>
+                                    <input type="text" name="isbn" class="form-control-custom"
+                                           value="<?= htmlspecialchars((string)($form->get('isbn')->getValue() ?? '')) ?>"
+                                           placeholder="978-..." maxlength="30">
+                                </div>
+                            </div>
+
+                            <!-- Section: Thông tin xuất bản & Nhập kho -->
+                            <div class="form-section-divider">
+                                <i class="bi bi-journal-check"></i> Thông tin xuất bản & Nhập kho
+                            </div>
+
+                            <div class="form-group-custom col-6">
+                                <label class="form-label-custom">Nhà xuất bản</label>
+                                <div class="input-with-icon">
+                                    <i class="bi bi-building"></i>
+                                    <input type="text" name="publisher" class="form-control-custom" 
+                                           value="<?= htmlspecialchars((string)($form->get('publisher')->getValue() ?? '')) ?>"
+                                           placeholder="Tên nhà xuất bản...">
+                                </div>
+                            </div>
+
+                            <div class="form-group-custom col-3">
+                                <label class="form-label-custom">Năm xuất bản</label>
+                                <div class="input-with-icon">
+                                    <i class="bi bi-calendar-event"></i>
+                                    <input type="text" name="published_year" class="form-control-custom" 
+                                           value="<?= htmlspecialchars((string)($form->get('published_year')->getValue() ?? '')) ?>"
+                                           placeholder="VD: 2024" maxlength="4">
+                                </div>
+                            </div>
+
+                            <div class="form-group-custom col-3">
+                                <label class="form-label-custom">Ngày nhập kho</label>
+                                <div class="input-with-icon">
+                                    <i class="bi bi-calendar-check"></i>
+                                    <input type="date" name="import_date" class="form-control-custom" 
+                                           value="<?= htmlspecialchars((string)($form->get('import_date')->getValue() ?? '')) ?>">
+                                </div>
+                            </div>
+
+                            <!-- Section: Số lượng & Vận hành -->
+                            <div class="form-section-divider">
+                                <i class="bi bi-gear-fill"></i> Quản lý kho & Vận hành
+                            </div>
+
+                            <div class="form-group-custom col-6">
+                                <label class="form-label-custom">Số lượng bản sao nhập <span class="required">*</span></label>
+                                <div class="input-with-icon">
+                                    <i class="bi bi-boxes"></i>
+                                    <input type="number" name="quantity" class="form-control-custom" min="1" max="999"
+                                           value="<?= htmlspecialchars((string)($form->get('quantity')->getValue() ?: 1)) ?>" required>
+                                </div>
+                            </div>
+
+                            <div class="form-group-custom col-6">
+                                <label class="form-label-custom">Trạng thái vận hành <span class="required">*</span></label>
+                                <div class="input-with-icon select-wrapper">
+                                    <i class="bi bi-activity"></i>
+                                    <select name="status" class="form-select-custom">
+                                        <option value="available"   <?= $statusValue==='available'?'selected':'' ?>>Khả dụng (Cho phép mượn)</option>
+                                        <option value="unavailable" <?= $statusValue==='unavailable'?'selected':'' ?>>Không khả dụng (Tạm khoá)</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="form-info-note">
+                                <i class="bi bi-info-circle-fill"></i>
+                                <div>
+                                    Hệ thống tự động chuyển sang <strong>Đang mượn</strong> khi toàn bộ sách đã mượn hết. Dùng trạng thái <strong>Không khả dụng</strong> nếu muốn tạm thời ẩn sách khỏi danh sách mượn.
+                                </div>
+                            </div>
+
+                            <!-- Section: Mô tả tóm tắt -->
+                            <div class="form-section-divider">
+                                <i class="bi bi-pencil-square"></i> Mô tả tóm tắt nội dung
+                            </div>
+
+                            <div class="form-group-custom col-12">
+                                <div class="textarea-wrapper">
+                                    <textarea name="description" class="form-control-custom textarea-custom" rows="3" placeholder="Nhập thông tin mô tả chi tiết nội dung cuốn sách..."><?= htmlspecialchars((string)($form->get('description')->getValue() ?? '')) ?></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Action buttons & CSRF -->
+                        <?= $this->formHidden($form->get('csrf')) ?>
+                        <?php $msgs = $form->get('csrf')->getMessages(); if ($msgs): ?>
+                            <div class="form-validation-error-csrf" style="margin-top: 16px;"><i class="bi bi-shield-fill-exclamation"></i> <?= htmlspecialchars(implode(', ', $msgs)) ?></div>
+                        <?php endif; ?>
+
+                        <div class="form-actions-compact">
+                            <button type="submit" class="btn-premium btn-submit-premium">
+                                <i class="bi bi-check-circle-fill"></i> <?= $isEdit ? 'Lưu thay đổi' : 'Tạo đầu sách' ?>
+                            </button>
+                            <a href="<?= $this->url('library/book') ?>" class="btn-premium btn-cancel-premium">
+                                Hủy bỏ
+                            </a>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="book-form-info-card">
-                <i class="bi bi-info-circle book-form-info-icon"></i>
-                Trạng thái <strong class="book-form-info-text">đang mượn</strong> được hệ thống tự tính. Dùng <strong class="book-form-info-text">không khả dụng</strong> để khoá đầu sách khỏi quy trình mượn trả.
-            </div>
-            <?= $this->formHidden($form->get('csrf')) ?>
-            <?php $msgs = $form->get('csrf')->getMessages(); if ($msgs): ?>
-            <div class="book-form-error-csrf"><?= htmlspecialchars(implode(', ', $msgs)) ?></div>
-            <?php endif; ?>
-            <div class="d-flex gap-2">
-                <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i><?= $isEdit ? 'Lưu thay đổi' : 'Tạo đầu sách' ?></button>
-                <a href="<?= $this->url('library/book') ?>" class="btn btn-outline">Hủy</a>
-            </div>
-        </form>
-    </div>
-</div>
+        </div>
+    </form>
 </div>
 
 <script>
@@ -160,8 +723,131 @@ document.addEventListener('DOMContentLoaded', function() {
             preview.innerHTML = '';
         } else if (!fileInput.files[0]) {
             preview.style.background = 'linear-gradient(135deg,#7c6aff,#5b4fcf)';
-            preview.innerHTML = '<i class="bi bi-image"></i>';
+            preview.innerHTML = `<div class="placeholder-icon">
+                                    <i class="bi bi-journal-album"></i>
+                                    <span>Chưa có ảnh bìa</span>
+                                 </div>`;
         }
     });
+
+    // Searchable Category Dropdown Logic
+    const categoryWrapper = document.getElementById('categorySelectWrapper');
+    const categorySearchInput = document.getElementById('categorySearchInput');
+    const categoryHiddenInput = document.getElementById('categoryHiddenInput');
+    const categoryDropdown = document.getElementById('categoryDropdown');
+    const categoryOptions = categoryDropdown.querySelectorAll('.dropdown-option');
+    const categoryNoResults = document.getElementById('categoryNoResults');
+
+    // Initialize display with the hidden input value
+    const initialVal = categoryHiddenInput.value.trim();
+    if (initialVal) {
+        categorySearchInput.value = initialVal;
+        categoryOptions.forEach(opt => {
+            if (opt.dataset.value === initialVal) {
+                opt.classList.add('selected');
+            }
+        });
+    }
+
+    // Toggle dropdown visibility
+    categorySearchInput.addEventListener('focus', () => {
+        categoryWrapper.classList.add('open');
+        filterCategoryOptions();
+    });
+
+    // Close when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!categoryWrapper.contains(e.target)) {
+            categoryWrapper.classList.remove('open');
+            validateAndSyncCategory();
+        }
+    });
+
+    // Filter categories on type
+    categorySearchInput.addEventListener('input', () => {
+        categoryWrapper.classList.add('open');
+        filterCategoryOptions();
+    });
+
+    // Handle keypresses on input
+    categorySearchInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault(); // Prevent accidental form submission
+            
+            // Find first visible option
+            const visibleOpts = Array.from(categoryOptions).filter(o => !o.classList.contains('hidden'));
+            if (visibleOpts.length > 0) {
+                selectCategory(visibleOpts[0].dataset.value, visibleOpts[0].textContent);
+            } else {
+                validateAndSyncCategory();
+            }
+            categoryWrapper.classList.remove('open');
+        }
+    });
+
+    // Select category on click
+    categoryOptions.forEach(opt => {
+        opt.addEventListener('mousedown', (e) => {
+            // Use mousedown instead of click to fire before blur validation
+            selectCategory(opt.dataset.value, opt.textContent);
+        });
+    });
+
+    function filterCategoryOptions() {
+        const query = categorySearchInput.value.toLowerCase().trim();
+        let matches = 0;
+
+        categoryOptions.forEach(opt => {
+            const text = opt.textContent.toLowerCase();
+            if (text.includes(query)) {
+                opt.classList.remove('hidden');
+                matches++;
+            } else {
+                opt.classList.add('hidden');
+            }
+        });
+
+        if (matches === 0) {
+            categoryNoResults.style.display = 'block';
+        } else {
+            categoryNoResults.style.display = 'none';
+        }
+    }
+
+    function selectCategory(value, text) {
+        categoryHiddenInput.value = value;
+        categorySearchInput.value = text;
+        categoryOptions.forEach(o => o.classList.remove('selected'));
+        const activeOpt = Array.from(categoryOptions).find(o => o.dataset.value === value);
+        if (activeOpt) activeOpt.classList.add('selected');
+        categoryWrapper.classList.remove('open');
+    }
+
+    // Force validation: must match one of the suggestions!
+    function validateAndSyncCategory() {
+        const typed = categorySearchInput.value.trim().toLowerCase();
+        let matchedOpt = null;
+
+        // Try exact case-insensitive match
+        categoryOptions.forEach(opt => {
+            if (opt.textContent.toLowerCase() === typed) {
+                matchedOpt = opt;
+            }
+        });
+
+        if (matchedOpt) {
+            selectCategory(matchedOpt.dataset.value, matchedOpt.textContent);
+        } else {
+            // Revert back to hidden input value if user typed invalid text
+            const currentHiddenVal = categoryHiddenInput.value;
+            const originalOpt = Array.from(categoryOptions).find(o => o.dataset.value === currentHiddenVal);
+            if (originalOpt) {
+                categorySearchInput.value = originalOpt.textContent;
+            } else {
+                categorySearchInput.value = '';
+                categoryHiddenInput.value = '';
+            }
+        }
+    }
 });
 </script>

@@ -1,0 +1,130 @@
+<?php
+$this->headTitle('Chỉnh sửa bản tin');
+$this->layout('layout/library-layout');
+
+$ann = $announcement;
+?>
+
+<div class="page-header">
+    <div>
+        <h1 class="page-title"><i class="bi bi-pencil-square text-purple" style="margin-right: 12px;"></i>Chỉnh sửa bản tin</h1>
+        <p class="text-muted settings-header-desc">Cập nhật nội dung bản tin mã số #<?= $ann['id'] ?>.</p>
+    </div>
+</div>
+
+<div class="card" style="max-width: 800px; margin: 0 auto 24px auto;">
+    <div class="card-header" style="border-bottom: 2px solid rgba(124,106,255,0.2);">
+        <div class="card-title" style="font-size: 16px; font-weight: 700;">
+            <i class="bi bi-info-circle-fill text-purple" style="margin-right: 8px;"></i>Thông tin bản tin
+        </div>
+    </div>
+    <div class="card-body">
+        <form method="post" action="<?= $this->url('library/announcements/edit', ['id' => $ann['id']]) ?>" id="announcement-form">
+            <div class="settings-ann-form-fields" style="display: flex; flex-direction: column; gap: 16px;">
+
+                <div>
+                    <label class="form-label settings-label-required" style="font-weight: 600; font-size: 13px; display: block; margin-bottom: 6px;">Tiêu đề *</label>
+                    <input type="text" name="title" class="form-control"
+                           value="<?= htmlspecialchars($ann['title']) ?>" placeholder="Ví dụ: Thư viện mở cửa Tết Nguyên Đán" required style="width: 100%;">
+                </div>
+
+                <div>
+                    <label class="form-label settings-label-required" style="font-weight: 600; font-size: 13px; display: block; margin-bottom: 6px;">Nội dung bản tin *</label>
+                    <textarea name="content" class="form-control" rows="8"
+                              placeholder="Nhập chi tiết nội dung thông báo, thời gian, thể lệ..." required style="width: 100%; resize: vertical;"><?= htmlspecialchars($ann['content']) ?></textarea>
+                </div>
+
+                <div class="settings-ann-type-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                    <div>
+                        <label class="form-label settings-label-required" style="font-weight: 600; font-size: 13px; display: block; margin-bottom: 6px;">Loại bản tin</label>
+                        <select name="type" class="form-control" style="width: 100%;">
+                            <option value="general" <?= $ann['type'] === 'general' ? 'selected' : '' ?>>📢 Thông báo chung</option>
+                            <option value="event" <?= $ann['type'] === 'event' ? 'selected' : '' ?>>🎉 Sự kiện</option>
+                            <option value="contest" <?= $ann['type'] === 'contest' ? 'selected' : '' ?>>🏆 Cuộc thi đọc</option>
+                            <option value="holiday" <?= $ann['type'] === 'holiday' ? 'selected' : '' ?>>🌴 Lịch nghỉ lễ</option>
+                        </select>
+                    </div>
+
+                    <div class="settings-toggle-row" style="display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; background: rgba(255,255,255,.03); border: 1px solid var(--border-color); border-radius: 8px; margin-top: 24px;">
+                        <span class="settings-toggle-label" style="font-size: 13px; font-weight: 500;">Kích hoạt hiển thị</span>
+                        <div class="form-switch-wrap">
+                            <label class="switch">
+                                <input type="checkbox" name="is_active" value="1" <?= $ann['is_active'] ? 'checked' : '' ?>>
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-ann-date-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                    <div>
+                        <label class="form-label" style="font-weight: 600; font-size: 13px; display: block; margin-bottom: 6px;">
+                            <i class="bi bi-calendar-check settings-ann-date-icon-start"></i>Từ ngày (Bắt đầu hiển thị)
+                        </label>
+                        <input type="date" name="start_date" id="ann_start_date" class="form-control"
+                               value="<?= $ann['start_date'] ? date('Y-m-d', strtotime($ann['start_date'])) : '' ?>" style="width: 100%;">
+                    </div>
+                    <div>
+                        <label class="form-label" style="font-weight: 600; font-size: 13px; display: block; margin-bottom: 6px;">
+                            <i class="bi bi-calendar-x settings-ann-date-icon-end"></i>Đến ngày (Hết hạn hiển thị)
+                        </label>
+                        <input type="date" name="end_date" id="ann_end_date" class="form-control"
+                               value="<?= $ann['end_date'] ? date('Y-m-d', strtotime($ann['end_date'])) : '' ?>" style="width: 100%;">
+                    </div>
+                </div>
+
+                <div class="form-actions" style="display: flex; gap: 12px; margin-top: 10px; justify-content: flex-end;">
+                    <a href="<?= $this->url('library/announcements') ?>" class="btn btn-outline btn-md">
+                        Hủy
+                    </a>
+                    <button type="submit" class="btn btn-primary btn-md">
+                        <i class="bi bi-check-circle-fill" style="margin-right: 6px;"></i>Lưu thay đổi
+                    </button>
+                </div>
+
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const annForm = document.getElementById('announcement-form');
+    const annStartDate = document.getElementById('ann_start_date');
+    const annEndDate = document.getElementById('ann_end_date');
+
+    if (annForm && annStartDate && annEndDate) {
+        const localDate = new Date();
+        const year = localDate.getFullYear();
+        const month = String(localDate.getMonth() + 1).padStart(2, '0');
+        const day = String(localDate.getDate()).padStart(2, '0');
+        const todayStr = `${year}-${month}-${day}`;
+
+        // Set initial min date for end_date to today
+        annEndDate.min = todayStr;
+
+        annStartDate.addEventListener('change', function() {
+            const minVal = (this.value && this.value > todayStr) ? this.value : todayStr;
+            annEndDate.min = minVal;
+            if (annEndDate.value && annEndDate.value < minVal) {
+                annEndDate.value = '';
+            }
+        });
+
+        annForm.addEventListener('submit', function(e) {
+            if (annEndDate.value) {
+                if (annEndDate.value < todayStr) {
+                    e.preventDefault();
+                    alert('Ngày kết thúc (Đến ngày) không được nhỏ hơn ngày hiện tại.');
+                    return;
+                }
+                if (annStartDate.value && annEndDate.value < annStartDate.value) {
+                    e.preventDefault();
+                    alert('Ngày kết thúc (Đến ngày) không được nhỏ hơn ngày bắt đầu (Từ ngày).');
+                    return;
+                }
+            }
+        });
+    }
+});
+</script>

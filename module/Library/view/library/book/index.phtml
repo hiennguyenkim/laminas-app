@@ -11,7 +11,8 @@ $this->layout('layout/library-layout');
 
 $pagination  = is_array($pagination ?? null) ? $pagination : [];
 $page        = (int) ($pagination['page'] ?? 1);
-$perPage     = (int) ($pagination['perPage'] ?? 10);
+$perPageRaw  = $pagination['perPage'] ?? 10;
+$perPage     = $perPageRaw === 'all' ? 999999 : (int) $perPageRaw;
 $totalItems  = (int) ($pagination['totalItems'] ?? 0);
 $totalPages  = (int) ($pagination['totalPages'] ?? 1);
 
@@ -19,6 +20,7 @@ $queryBase = [
     'search'   => (string) ($filters['search'] ?? ''),
     'category' => (string) ($filters['category'] ?? ''),
     'status'   => (string) ($filters['status'] ?? ''),
+    'perPage'  => $perPageRaw,
 ];
 
 $buildPageUrl = function(int $p) use ($queryBase, $indexRoute): string {
@@ -54,9 +56,14 @@ $catBadgeColors = ['Văn học'=>'badge-purple','Khoa học'=>'badge-blue','Lị
         <div class="page-subtitle"><?= number_format((int)($summary['total_titles'] ?? 0)) ?> đầu sách trong thư viện</div>
     </div>
     <?php if ($canManage): ?>
-    <a href="<?= $this->url($routePrefix . '/book', ['action' => 'add']) ?>" class="btn btn-orange">
-        <i class="bi bi-plus-lg"></i>Thêm sách mới
-    </a>
+    <div style="display: flex; gap: 12px; align-items: center;">
+        <button type="button" class="btn btn-outline" id="btn-open-category-modal" style="font-weight: 600; display: inline-flex; align-items: center; gap: 6px; height: 38px; border-color: rgba(124, 106, 255, 0.4); color: var(--text-primary);">
+            <i class="bi bi-tags-fill" style="color: var(--accent-purple); font-size: 14px;"></i>Danh mục
+        </button>
+        <a href="<?= $this->url($routePrefix . '/book', ['action' => 'add']) ?>" class="btn btn-orange" style="display: inline-flex; align-items: center; gap: 6px; height: 38px; font-weight: 600;">
+            <i class="bi bi-plus-lg"></i>Thêm sách mới
+        </a>
+    </div>
     <?php elseif ($canBorrow): ?>
     <a href="<?= $this->url($routePrefix . '/transaction', ['action' => 'borrow']) ?>" class="btn btn-success">
         <i class="bi bi-bookmark-plus"></i>Mượn sách
@@ -83,7 +90,17 @@ $catBadgeColors = ['Văn học'=>'badge-purple','Khoa học'=>'badge-blue','Lị
             </span>
         </div>
     </div>
-    <a href="<?= $this->url('announcements') ?>" class="btn btn-outline btn-sm catalog-teaser-btn">
+    <?php
+    $authUser = $this->currentUser();
+    $role = $authUser['role'] ?? '';
+    $annRoute = 'announcements';
+    if ($role === 'admin') {
+        $annRoute = 'library/announcements';
+    } elseif ($role === 'student') {
+        $annRoute = 'student/announcements';
+    }
+    ?>
+    <a href="<?= $this->url($annRoute) ?>" class="btn btn-outline btn-sm catalog-teaser-btn">
         Xem tất cả bảng tin <i class="bi bi-arrow-right"></i>
     </a>
 </div>
@@ -91,80 +108,244 @@ $catBadgeColors = ['Văn học'=>'badge-purple','Khoa học'=>'badge-blue','Lị
 <?php endif; ?>
 
 
-<!-- KÊNH THẢO LUẬN -->
-<div class="forum-section">
-    <div class="forum-header">
-        <i class="bi bi-chat-quote-fill forum-header-icon"></i>
-        <h2 class="forum-header-title">Kênh Thảo Luận</h2>
-        <span class="forum-online-badge">
-            <span class="forum-online-dot"></span>
-            Trực tuyến
-        </span>
-    </div>
+<style>
+.catalog-filters-left {
+    display: flex;
+    align-items: center;
+}
+.filter-label {
+    font-size: 14.5px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.filter-label i {
+    color: var(--accent-purple);
+    font-size: 16px;
+}
+.catalog-category-select-wrapper {
+    position: relative;
+    width: auto;
+    min-width: 200px;
+}
+.catalog-category-select-wrapper .input-with-icon {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+.catalog-category-select-wrapper .input-with-icon i.bi-tags-fill {
+    position: absolute;
+    left: 12px;
+    color: var(--text-muted);
+    font-size: 14px;
+    pointer-events: none;
+    opacity: 0.85;
+}
+.catalog-category-select-wrapper .input-with-icon i.select-dropdown-arrow {
+    position: absolute;
+    right: 12px;
+    color: var(--text-muted);
+    font-size: 11px;
+    pointer-events: none;
+    transition: transform 0.2s ease;
+}
+.catalog-category-select-wrapper.open .select-dropdown-arrow {
+    transform: rotate(180deg);
+}
+.catalog-category-select-wrapper .catalog-category-select {
+    width: 100%;
+    padding-left: 34px !important;
+    padding-right: 30px !important;
+    cursor: pointer;
+    text-overflow: ellipsis;
+}
+.catalog-category-select-wrapper .searchable-select-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+    z-index: 1000;
+    max-height: 250px;
+    overflow-y: auto;
+    margin-top: 4px;
+    display: none;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+.catalog-category-select-wrapper .searchable-select-dropdown::-webkit-scrollbar {
+    width: 6px;
+}
+.catalog-category-select-wrapper .searchable-select-dropdown::-webkit-scrollbar-track {
+    background: transparent;
+}
+.catalog-category-select-wrapper .searchable-select-dropdown::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+}
+.catalog-category-select-wrapper .searchable-select-dropdown::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+.catalog-category-select-wrapper.open .searchable-select-dropdown {
+    display: block;
+    animation: fadeInDropdown 0.15s ease-out;
+}
+@keyframes fadeInDropdown {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+.catalog-category-select-wrapper .dropdown-option {
+    padding: 10px 14px;
+    font-size: 13.5px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: var(--transition);
+}
+.catalog-category-select-wrapper .dropdown-option:hover {
+    background: rgba(124, 106, 255, 0.08);
+    color: var(--text-primary);
+}
+.catalog-category-select-wrapper .dropdown-option.selected {
+    background: var(--accent-purple);
+    color: #fff;
+    font-weight: 500;
+}
+.catalog-category-select-wrapper .dropdown-option.hidden {
+    display: none;
+}
+.catalog-category-select-wrapper .dropdown-no-results {
+    padding: 12px 14px;
+    font-size: 13px;
+    color: var(--text-muted);
+    text-align: center;
+    font-style: italic;
+}
+@media (max-width: 900px) {
+    .catalog-filters-bar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 16px;
+    }
+    .catalog-filter-form {
+        flex-wrap: wrap;
+        width: 100%;
+        gap: 10px;
+    }
+    .catalog-category-select-wrapper,
+    .catalog-category-select,
+    .catalog-search-wrap,
+    .catalog-status-select,
+    .catalog-perpage-select,
+    .catalog-filter-form button {
+        max-width: 100% !important;
+        width: 100% !important;
+        flex: unset !important;
+    }
+}
+.catalog-perpage-select {
+    width: auto;
+}
+.settings-category-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    max-height: 250px;
+    overflow-y: auto;
+    padding: 8px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: rgba(0,0,0,0.1);
+}
+.settings-cat-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(124, 106, 255, 0.08);
+    border: 1px solid rgba(124, 106, 255, 0.2);
+    border-radius: 20px;
+    padding: 4px 10px;
+    font-size: 12.5px;
+    color: var(--text-primary);
+    transition: var(--transition);
+}
+.settings-cat-pill:hover {
+    background: rgba(124, 106, 255, 0.15);
+    border-color: rgba(124, 106, 255, 0.4);
+}
+.settings-cat-pill a {
+    color: var(--text-muted);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    text-decoration: none;
+}
+.settings-cat-pill a:hover i {
+    color: #ef4444;
+}
+.settings-cat-pill i {
+    font-size: 11px;
+    transition: color 0.2s;
+}
+.settings-category-pills::-webkit-scrollbar {
+    width: 5px;
+}
+.settings-category-pills::-webkit-scrollbar-track {
+    background: transparent;
+}
+.settings-category-pills::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.08);
+    border-radius: 3px;
+}
+.settings-category-pills::-webkit-scrollbar-thumb:hover {
+    background: rgba(255,255,255,0.15);
+}
+</style>
 
-    <div class="forum-card-wrap">
-        <!-- Pinned Banner -->
-        <div class="forum-pinned-banner" id="forum-pinned-banner" style="display:none;">
-            <div class="forum-pinned-content">
-                <i class="bi bi-pin-angle-fill text-purple"></i>
-                <span class="forum-pinned-text" id="forum-pinned-text"></span>
-            </div>
-            <button class="forum-pinned-unpin-btn" id="forum-pinned-unpin-btn" onclick="unpinCatalogMessage()" title="Gỡ ghim" style="display:none;">
-                <i class="bi bi-x-lg"></i>
-            </button>
-        </div>
-
-        <!-- Message area -->
-        <div class="catalog-chat-messages forum-list" id="catalog-chat-body">
-            <div class="forum-empty">
-                Đang tải thảo luận...
-            </div>
-        </div>
-
-        <!-- Input area -->
-        <div class="forum-footer">
-            <?php if ($isGuest): ?>
-                <div class="forum-guest-msg">
-                    Vui lòng
-                    <a href="<?= $this->url('library/auth', ['action' => 'login']) ?>"
-                       class="forum-guest-link">Đăng nhập</a>
-                    để tham gia thảo luận.
-                </div>
-            <?php else: ?>
-                <div class="forum-input-row">
-                    <input type="text" id="catalog-chat-input"
-                           placeholder="Viết thảo luận..."
-                           onkeypress="if(event.key==='Enter') sendCatalogMessage()"
-                           class="forum-input">
-                    <button onclick="sendCatalogMessage()"
-                            class="forum-send-btn">
-                        <i class="bi bi-send-fill"></i> Gửi
-                    </button>
-                </div>
-            <?php endif; ?>
-        </div>
-    </div>
-</div>
-
-<!-- FILTER TABS -->
+<!-- FILTER SELECT DROPDOWN -->
 <?php
-$allCats = ['Tất cả', 'Văn học', 'Khoa học', 'Lịch sử', 'Kỹ thuật', 'Kinh tế', 'Tâm lý'];
+$allCats = $categories ?? [];
 $activeCat = (string) ($filters['category'] ?? '');
 ?>
 <div class="catalog-filters-bar">
-    <div class="filter-tabs catalog-filter-tabs">
-        <?php foreach ($allCats as $cat): ?>
-        <a href="<?= $this->url($indexRoute, [], ['query' => array_merge($queryBase, ['category' => $cat === 'Tất cả' ? '' : $cat, 'page' => 1])]) ?>"
-           class="filter-tab <?= ($cat === 'Tất cả' && $activeCat === '') || $activeCat === $cat ? 'active' : '' ?>">
-            <?= $cat ?>
-        </a>
-        <?php endforeach; ?>
+    <div class="catalog-filters-left">
+        <span class="filter-label"><i class="bi bi-filter-circle-fill"></i> Bộ lọc &amp; Tìm kiếm</span>
     </div>
     <form method="GET" id="book-filter-form" class="catalog-filter-form">
         <div class="topbar-search catalog-search-wrap">
             <i class="bi bi-search"></i>
             <input type="text" id="book-search-input" name="search" value="<?= htmlspecialchars($filters['search'] ?? '') ?>" placeholder="Tìm sách, tác giả...">
         </div>
+
+        <div class="searchable-select-wrapper catalog-category-select-wrapper" id="categorySelectWrapper">
+            <div class="input-with-icon">
+                <i class="bi bi-tags-fill"></i>
+                <input type="text" id="categorySearchInput" class="form-control catalog-category-select"
+                       placeholder="Tất cả thể loại" value="<?= htmlspecialchars($activeCat) ?>" autocomplete="off">
+                <i class="bi bi-chevron-down select-dropdown-arrow"></i>
+            </div>
+            <input type="hidden" name="category" id="book-category-select" value="<?= htmlspecialchars($activeCat) ?>">
+            
+            <div class="searchable-select-dropdown" id="categoryDropdown">
+                <div class="dropdown-option <?= $activeCat === '' ? 'selected' : '' ?>" data-value="">Tất cả thể loại</div>
+                <?php foreach ($allCats as $cat): ?>
+                    <div class="dropdown-option <?= $activeCat === $cat ? 'selected' : '' ?>" data-value="<?= htmlspecialchars($cat) ?>"><?= htmlspecialchars($cat) ?></div>
+                <?php endforeach; ?>
+                <div class="dropdown-no-results" id="categoryNoResults" style="display: none;">Không tìm thấy thể loại phù hợp</div>
+            </div>
+        </div>
+
         <?php if ($canManage): ?>
         <select id="book-status-select" name="status" class="form-select catalog-status-select">
             <option value="">Tất cả trạng thái</option>
@@ -175,13 +356,22 @@ $activeCat = (string) ($filters['category'] ?? '');
         <?php else: ?>
         <input type="hidden" name="status" value="<?= htmlspecialchars($filters['status'] ?? '') ?>">
         <?php endif; ?>
+
+        <select id="book-perpage-select" name="perPage" class="form-select catalog-perpage-select">
+            <option value="10" <?= (string)$perPageRaw === '10' ? 'selected' : '' ?>>10 sách / trang</option>
+            <option value="20" <?= (string)$perPageRaw === '20' ? 'selected' : '' ?>>20 sách / trang</option>
+            <option value="50" <?= (string)$perPageRaw === '50' ? 'selected' : '' ?>>50 sách / trang</option>
+            <option value="all" <?= (string)$perPageRaw === 'all' ? 'selected' : '' ?>>Tất cả</option>
+        </select>
+
         <button type="submit" class="btn btn-primary"><i class="bi bi-search"></i>Tìm kiếm</button>
     </form>
 </div>
 
 
 <div class="catalog-layout catalog-layout-wrap">
-    <div class="catalog-main catalog-main-panel">
+    <div style="display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap; width: 100%;">
+        <div class="catalog-main catalog-main-panel" style="flex: 1; min-width: 0;">
         <div id="book-list-container" class="catalog-list-container">
     <!-- BOOK GRID -->
     <div class="book-grid">
@@ -274,6 +464,65 @@ $activeCat = (string) ($filters['category'] ?? '');
     </div>
     <?php endif; ?>
         </div>
+
+        <?php if ($canManage): ?>
+        <!-- CATEGORY CRUD MODAL -->
+        <div class="category-modal-overlay" id="categoryModalOverlay">
+            <div class="category-modal-card">
+                <div class="category-modal-header">
+                    <h3 class="category-modal-title"><i class="bi bi-tags-fill"></i> Quản lý danh mục sách</h3>
+                    <button type="button" class="category-modal-close" id="categoryModalCloseBtn">&times;</button>
+                </div>
+                <div class="category-modal-body">
+                    <form method="POST" action="<?= $this->url('library/settings', ['action' => 'add-category']) ?>" id="category-add-form" style="margin-bottom: 20px;">
+                        <div class="category-modal-input-group">
+                            <input type="text" name="category_name" class="form-control" placeholder="Tên danh mục mới..." required autocomplete="off">
+                            <button type="submit" class="btn btn-primary" style="display: inline-flex; align-items: center; gap: 4px; font-weight: 600;">
+                                <i class="bi bi-plus-lg"></i>Thêm
+                            </button>
+                        </div>
+                    </form>
+
+                    <div class="category-modal-list-title">Danh sách danh mục hiện tại:</div>
+                    <div class="category-modal-list">
+                        <?php if (empty($categoriesWithId)): ?>
+                            <div class="category-empty-text">Chưa có danh mục nào.</div>
+                        <?php else: ?>
+                            <?php foreach ($categoriesWithId as $cat): ?>
+                                <div class="category-modal-item" id="cat-item-<?= $cat['id'] ?>">
+                                    <!-- View mode -->
+                                    <div class="cat-item-view-mode" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                                        <span class="category-item-name"><?= htmlspecialchars($cat['name']) ?></span>
+                                        <div style="display: flex; gap: 12px; align-items: center;">
+                                            <button type="button" class="category-item-edit-trigger-btn" title="Sửa tên" onclick="enableEditMode(<?= $cat['id'] ?>)" style="background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 0; display: inline-flex; align-items: center; transition: var(--transition);">
+                                                <i class="bi bi-pencil" style="font-size: 13px;"></i>
+                                            </button>
+                                            <a href="<?= $this->url('library/settings', ['action' => 'delete-category', 'id' => $cat['id']]) ?>" 
+                                               class="category-item-delete-btn"
+                                               title="Xóa danh mục"
+                                               onclick="return confirm('Bạn có chắc chắn muốn xóa danh mục này?')">
+                                                <i class="bi bi-trash"></i>
+                                            </a>
+                                        </div>
+                                    </div>
+                                    <!-- Edit mode (hidden by default) -->
+                                    <form method="POST" action="<?= $this->url('library/settings', ['action' => 'edit-category', 'id' => $cat['id']]) ?>" class="cat-item-edit-mode" style="display: none; width: 100%; gap: 8px; align-items: center;">
+                                        <input type="text" name="category_name" class="form-control" value="<?= htmlspecialchars($cat['name']) ?>" required style="flex: 1; height: 32px; font-size: 13px; padding: 4px 8px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-primary);">
+                                        <button type="submit" class="btn btn-success btn-sm" style="padding: 0 10px; height: 32px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 4px; border-radius: var(--radius-sm); border: none;" title="Lưu">
+                                            <i class="bi bi-check-lg"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-secondary btn-sm" style="padding: 0 10px; height: 32px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 4px; border-radius: var(--radius-sm); border: none; background: rgba(255,255,255,0.08); color: var(--text-secondary);" title="Hủy" onclick="disableEditMode(<?= $cat['id'] ?>)">
+                                            <i class="bi bi-x-lg"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <?php endif; ?>
     </div>
 </div>
 
@@ -289,6 +538,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const filterForm = document.getElementById('book-filter-form');
     const searchInput = document.getElementById('book-search-input');
     const statusSelect = document.getElementById('book-status-select');
+    const categorySelect = document.getElementById('book-category-select');
+    const perPageSelect = document.getElementById('book-perpage-select');
+    
+    // Custom searchable dropdown elements
+    const categoryWrapper = document.getElementById('categorySelectWrapper');
+    const categorySearchInput = document.getElementById('categorySearchInput');
+    const categoryDropdown = document.getElementById('categoryDropdown');
+    const categoryOptions = categoryDropdown ? categoryDropdown.querySelectorAll('.dropdown-option') : [];
+    const categoryNoResults = document.getElementById('categoryNoResults');
 
     let debounceTimer;
     function debounce(func, delay) {
@@ -345,11 +603,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function reloadFromForm() {
         const params = new URLSearchParams();
         
-        const activeTab = document.querySelector('.filter-tab.active');
-        if (activeTab) {
-            const catUrl = new URL(activeTab.href);
-            const cat = catUrl.searchParams.get('category');
-            if (cat) params.set('category', cat);
+        if (categorySelect && categorySelect.value !== '') {
+            params.set('category', categorySelect.value);
         }
 
         if (searchInput && searchInput.value.trim() !== '') {
@@ -357,6 +612,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (statusSelect && statusSelect.value !== '') {
             params.set('status', statusSelect.value);
+        }
+        if (perPageSelect && perPageSelect.value !== '') {
+            params.set('perPage', perPageSelect.value);
         }
         
         const newUrl = window.location.pathname + '?' + params.toString();
@@ -375,6 +633,136 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    if (perPageSelect) {
+        perPageSelect.addEventListener('change', () => {
+            reloadFromForm();
+        });
+    }
+
+    let lastCategoryValue = categorySelect ? categorySelect.value : '';
+
+    if (categorySearchInput && categorySelect && categoryWrapper) {
+        const triggerReload = debounce(() => {
+            if (categorySelect.value !== lastCategoryValue) {
+                lastCategoryValue = categorySelect.value;
+                reloadFromForm();
+            }
+        }, 300);
+
+        function filterCategoryOptions() {
+            const query = categorySearchInput.value.toLowerCase().trim();
+            let matches = 0;
+
+            categoryOptions.forEach(opt => {
+                const text = opt.textContent.toLowerCase();
+                if (text.includes(query) || opt.dataset.value === "") {
+                    opt.classList.remove('hidden');
+                    if (opt.dataset.value !== "") matches++;
+                } else {
+                    opt.classList.add('hidden');
+                }
+            });
+
+            if (matches === 0 && query !== "") {
+                if (categoryNoResults) categoryNoResults.style.display = 'block';
+            } else {
+                if (categoryNoResults) categoryNoResults.style.display = 'none';
+            }
+        }
+
+        function selectCategory(value, text) {
+            categorySelect.value = value;
+            categorySearchInput.value = value === "" ? "" : text;
+            
+            categoryOptions.forEach(o => {
+                if (o.dataset.value === value) {
+                    o.classList.add('selected');
+                } else {
+                    o.classList.remove('selected');
+                }
+            });
+            
+            categoryWrapper.classList.remove('open');
+            triggerReload();
+        }
+
+        function syncCategoryInputAndHidden() {
+            const typed = categorySearchInput.value.trim().toLowerCase();
+            let matchedOpt = null;
+
+            categoryOptions.forEach(opt => {
+                if (opt.dataset.value !== "" && opt.textContent.toLowerCase() === typed) {
+                    matchedOpt = opt;
+                }
+            });
+
+            if (matchedOpt) {
+                selectCategory(matchedOpt.dataset.value, matchedOpt.textContent);
+            } else {
+                categorySelect.value = categorySearchInput.value.trim();
+                triggerReload();
+            }
+        }
+
+        // Toggle dropdown visibility on focus
+        categorySearchInput.addEventListener('focus', () => {
+            categoryWrapper.classList.add('open');
+            filterCategoryOptions();
+        });
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!categoryWrapper.contains(e.target)) {
+                categoryWrapper.classList.remove('open');
+                syncCategoryInputAndHidden();
+            }
+        });
+
+        // Search options as user types
+        categorySearchInput.addEventListener('input', () => {
+            categoryWrapper.classList.add('open');
+            filterCategoryOptions();
+            
+            // Instantly update hidden input so live search triggers
+            categorySelect.value = categorySearchInput.value.trim();
+            triggerReload();
+        });
+
+        // Handle keys inside input
+        categorySearchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                categoryWrapper.classList.remove('open');
+                categorySearchInput.blur();
+            } else if (e.key === 'Enter') {
+                e.preventDefault(); // Prevent submitting form directly
+                
+                // Select first visible option if open, else use typed text
+                if (categoryWrapper.classList.contains('open')) {
+                    const visibleOpts = Array.from(categoryOptions).filter(o => !o.classList.contains('hidden'));
+                    if (visibleOpts.length > 0) {
+                        selectCategory(visibleOpts[0].dataset.value, visibleOpts[0].textContent);
+                    } else {
+                        categorySelect.value = categorySearchInput.value.trim();
+                        categoryWrapper.classList.remove('open');
+                        triggerReload();
+                    }
+                } else {
+                    categorySelect.value = categorySearchInput.value.trim();
+                    triggerReload();
+                }
+                categorySearchInput.blur();
+            }
+        });
+
+        // Option selection
+        categoryOptions.forEach(opt => {
+            opt.addEventListener('mousedown', (e) => {
+                e.preventDefault(); // Prevent focus loss
+                selectCategory(opt.dataset.value, opt.textContent);
+            });
+        });
+    }
+
     if (filterForm) {
         filterForm.addEventListener('submit', (e) => {
             e.preventDefault();
@@ -382,347 +770,129 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    const filterTabs = document.querySelectorAll('.filter-tab');
-    filterTabs.forEach(tab => {
-        tab.addEventListener('click', (e) => {
-            e.preventDefault();
-            filterTabs.forEach(t => t.classList.remove('active'));
-            tab.classList.add('active');
-            
-            const targetUrl = new URL(tab.href);
-            if (searchInput && searchInput.value.trim() !== '') {
-                targetUrl.searchParams.set('search', searchInput.value.trim());
-            }
-            if (statusSelect && statusSelect.value !== '') {
-                targetUrl.searchParams.set('status', statusSelect.value);
-            }
-            
-            loadBooks(targetUrl.toString());
-        });
-    });
-
     window.addEventListener('popstate', (e) => {
         if (e.state && e.state.url) {
             loadBooks(e.state.url, false);
             const urlObj = new URL(e.state.url);
             if (searchInput) searchInput.value = urlObj.searchParams.get('search') || '';
             if (statusSelect) statusSelect.value = urlObj.searchParams.get('status') || '';
-            
-            const cat = urlObj.searchParams.get('category') || '';
-            filterTabs.forEach(t => {
-                const tabUrl = new URL(t.href);
-                const tabCat = tabUrl.searchParams.get('category') || '';
-                if (tabCat === cat) {
-                    t.classList.add('active');
-                } else {
-                    t.classList.remove('active');
+            if (perPageSelect) perPageSelect.value = urlObj.searchParams.get('perPage') || '10';
+            if (categorySelect) {
+                const catVal = urlObj.searchParams.get('category') || '';
+                categorySelect.value = catVal;
+                
+                // Find matching option text
+                let matchingText = catVal;
+                if (categoryOptions) {
+                    categoryOptions.forEach(opt => {
+                        if (opt.dataset.value === catVal) {
+                            opt.classList.add('selected');
+                            if (catVal !== "") {
+                                matchingText = opt.textContent;
+                            }
+                        } else {
+                            opt.classList.remove('selected');
+                        }
+                    });
                 }
-            });
+                
+                if (categorySearchInput) {
+                    categorySearchInput.value = catVal === "" ? "" : matchingText;
+                }
+                lastCategoryValue = catVal;
+            }
         }
     });
+
+    // Category Modal CRUD logic
+    const categoryModalOverlay = document.getElementById('categoryModalOverlay');
+    const btnOpenCategoryModal = document.getElementById('btn-open-category-modal');
+    const categoryModalCloseBtn = document.getElementById('categoryModalCloseBtn');
+    
+    if (categoryModalOverlay) {
+        function openCategoryModal() {
+            categoryModalOverlay.style.display = 'flex';
+            setTimeout(() => {
+                categoryModalOverlay.classList.add('open');
+            }, 10);
+        }
+
+        function closeCategoryModal() {
+            categoryModalOverlay.classList.remove('open');
+            setTimeout(() => {
+                categoryModalOverlay.style.display = 'none';
+            }, 300);
+        }
+
+        if (btnOpenCategoryModal) {
+            btnOpenCategoryModal.addEventListener('click', openCategoryModal);
+        }
+
+        if (categoryModalCloseBtn) {
+            categoryModalCloseBtn.addEventListener('click', closeCategoryModal);
+        }
+
+        categoryModalOverlay.addEventListener('click', (e) => {
+            if (e.target === categoryModalOverlay) {
+                closeCategoryModal();
+            }
+        });
+
+        // Global functions for inline edit mode triggers
+        window.enableEditMode = function(id) {
+            const item = document.getElementById('cat-item-' + id);
+            if (!item) return;
+            const viewMode = item.querySelector('.cat-item-view-mode');
+            const editMode = item.querySelector('.cat-item-edit-mode');
+            if (viewMode && editMode) {
+                viewMode.style.display = 'none';
+                editMode.style.display = 'flex';
+                const input = editMode.querySelector('input[name="category_name"]');
+                if (input) {
+                    input.focus();
+                    input.select();
+                }
+            }
+        };
+
+        window.disableEditMode = function(id) {
+            const item = document.getElementById('cat-item-' + id);
+            if (!item) return;
+            const viewMode = item.querySelector('.cat-item-view-mode');
+            const editMode = item.querySelector('.cat-item-edit-mode');
+            if (viewMode && editMode) {
+                viewMode.style.display = 'flex';
+                editMode.style.display = 'none';
+            }
+        };
+
+        const addCategoryForm = document.getElementById('category-add-form');
+        if (addCategoryForm) {
+            addCategoryForm.addEventListener('submit', () => {
+                sessionStorage.setItem('openCategoryModal', '1');
+            });
+        }
+
+        const editCategoryForms = categoryModalOverlay.querySelectorAll('.cat-item-edit-mode');
+        editCategoryForms.forEach(form => {
+            form.addEventListener('submit', () => {
+                sessionStorage.setItem('openCategoryModal', '1');
+            });
+        });
+
+        const categoryDeleteBtns = categoryModalOverlay.querySelectorAll('.category-item-delete-btn');
+        categoryDeleteBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                sessionStorage.setItem('openCategoryModal', '1');
+            });
+        });
+
+        if (sessionStorage.getItem('openCategoryModal') === '1') {
+            sessionStorage.removeItem('openCategoryModal');
+            openCategoryModal();
+        }
+    }
 
     bindEvents();
-
-    // Catalog Chat Room Functionality
-    let catalogChatInterval = null;
-    const currentUserId = parseInt(<?= json_encode($authUser['id'] ?? 0) ?>);
-    const currentUserRole = <?= json_encode($authUser['role'] ?? '') ?>;
-    const basePath = <?= json_encode($this->basePath()) ?>;
-    let lastMessagesJson = '';
-
-    function escapeHtml(unsafe) {
-        return (unsafe || '').replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
-    }
-
-    function renderReactionsHtml(msgId, msgReactions) {
-        let html = '';
-        const emojis = Object.keys(msgReactions);
-        if (emojis.length > 0) {
-            html += `<div class="forum-msg-reactions">`;
-            emojis.forEach(emoji => {
-                const userIds = msgReactions[emoji] || [];
-                if (userIds.length > 0) {
-                    const hasReacted = userIds.includes(currentUserId);
-                    const activeClass = hasReacted ? 'active' : '';
-                    html += `<span class="forum-reaction-badge ${activeClass}" onclick="reactCatalogMessage(${msgId}, '${emoji}')">
-                        ${emoji} ${userIds.length}
-                    </span>`;
-                }
-            });
-            html += `</div>`;
-        }
-        return html;
-    }
-
-    window.toggleReactionPicker = function(event, msgId) {
-        event.stopPropagation();
-        const existing = document.querySelector('.forum-react-picker');
-        if (existing) {
-            existing.remove();
-        }
-        
-        const btn = event.currentTarget;
-        const picker = document.createElement('div');
-        picker.className = 'forum-react-picker';
-        const emojis = ['👍', '❤️', '😂', '😮', '😢'];
-        emojis.forEach(emoji => {
-            const emojiSpan = document.createElement('span');
-            emojiSpan.className = 'forum-react-picker-emoji';
-            emojiSpan.innerText = emoji;
-            emojiSpan.onclick = function(e) {
-                e.stopPropagation();
-                reactCatalogMessage(msgId, emoji);
-                picker.remove();
-            };
-            picker.appendChild(emojiSpan);
-        });
-        btn.appendChild(picker);
-    };
-
-    document.addEventListener('click', function() {
-        const existing = document.querySelector('.forum-react-picker');
-        if (existing) {
-            existing.remove();
-        }
-    });
-
-    async function loadCatalogMessages() {
-        try {
-            const response = await fetch('<?= $this->url($routePrefix . "/dashboard", ["action" => "chat"]) ?>');
-            if (!response.ok) return;
-            const data = await response.json();
-            
-            const messages = data.messages || [];
-            const pinned = data.pinned || null;
-            
-            const messagesJson = JSON.stringify(data);
-            if (messagesJson === lastMessagesJson) {
-                return;
-            }
-            lastMessagesJson = messagesJson;
-
-            // Handle Pinned Banner
-            const pinnedBanner = document.getElementById('forum-pinned-banner');
-            const pinnedText = document.getElementById('forum-pinned-text');
-            const pinnedUnpinBtn = document.getElementById('forum-pinned-unpin-btn');
-            if (pinnedBanner && pinnedText) {
-                if (pinned) {
-                    pinnedText.innerHTML = `<strong>${escapeHtml(pinned.nickname)}:</strong> ${escapeHtml(pinned.message)}`;
-                    pinnedBanner.style.display = 'flex';
-                    if (pinnedUnpinBtn) {
-                        pinnedUnpinBtn.style.display = (currentUserRole === 'admin') ? 'block' : 'none';
-                    }
-                } else {
-                    pinnedBanner.style.display = 'none';
-                }
-            }
-
-            const container = document.getElementById('catalog-chat-body');
-            if (!container) return;
-            
-            // Mark last message as seen
-            if (messages.length > 0) {
-                const lastMsg = messages[messages.length - 1];
-                localStorage.setItem('catalog_chat_last_seen_id', lastMsg.id);
-            }
-            
-            let html = '';
-            messages.forEach(msg => {
-                const colors = ['#7c6aff','#f97316','#22c55e','#3b82f6','#ec4899','#14b8a6'];
-                let hash = 0;
-                const usernameStr = msg.nickname || '';
-                for (let i = 0; i < usernameStr.length; i++) {
-                    hash = usernameStr.charCodeAt(i) + ((hash << 5) - hash);
-                }
-                const avatarColor = colors[Math.abs(hash) % colors.length];
-                const initial = usernameStr.substring(0, 1).toUpperCase() || '?';
-                const roleBadge = msg.role === 'admin' ? '<span class="badge badge-purple forum-role-badge">Thủ thư</span>' : '';
-                const username = escapeHtml(msg.nickname) + roleBadge;
-                const time = msg.created_at;
-                
-                // Parse reactions
-                let msgReactions = {};
-                try {
-                    if (msg.reactions && msg.reactions !== '') {
-                        msgReactions = JSON.parse(msg.reactions);
-                    }
-                } catch (e) {
-                    console.error('Failed to parse reactions:', e);
-                }
-
-                // Delete button
-                const deleteBtn = (parseInt(msg.user_id) === currentUserId || currentUserRole === 'admin')
-                    ? `<span onclick="deleteCatalogMessage(${msg.id})" class="forum-msg-delete" title="Xóa"><i class="bi bi-trash"></i></span>`
-                    : '';
-                
-                // Admin pin button
-                let pinBtn = '';
-                if (currentUserRole === 'admin') {
-                    if (msg.is_pinned === 1) {
-                        pinBtn = `<span onclick="unpinCatalogMessage()" class="forum-msg-pin active" title="Gỡ ghim"><i class="bi bi-pin-fill"></i></span>`;
-                    } else {
-                        pinBtn = `<span onclick="pinCatalogMessage(${msg.id})" class="forum-msg-pin" title="Ghim tin nhắn"><i class="bi bi-pin"></i></span>`;
-                    }
-                }
-
-                // React button
-                let reactBtn = '';
-                if (currentUserId > 0) {
-                    reactBtn = `<span class="forum-msg-react-btn" title="Thả cảm xúc" onclick="toggleReactionPicker(event, ${msg.id})">
-                        <i class="bi bi-emoji-smile"></i>
-                    </span>`;
-                }
-
-                const actionsHtml = `<div class="forum-msg-meta-actions">
-                    ${pinBtn}
-                    ${reactBtn}
-                    ${deleteBtn}
-                </div>`;
-
-                const message = escapeHtml(msg.message);
-
-                html += `<div class="forum-msg-row">
-                    <div style="background:${avatarColor}" class="forum-msg-avatar">
-                        ${initial}
-                    </div>
-                    <div class="forum-msg-body">
-                        <div class="forum-msg-meta">
-                            <span class="forum-msg-username">${username}</span>
-                            <span class="forum-msg-time">${time}</span>
-                            ${actionsHtml}
-                        </div>
-                        <div class="forum-msg-text">
-                            ${message}
-                        </div>
-                        ${renderReactionsHtml(msg.id, msgReactions)}
-                    </div>
-                </div>`;
-            });
-            
-            if (html === '') {
-                html = `
-                    <div class="forum-empty-chat">
-                        <i class="bi bi-chat-dots"></i>
-                        <span>Chưa có tin nhắn nào. Hãy gửi tin nhắn đầu tiên để bắt đầu thảo luận!</span>
-                    </div>
-                `;
-            }
-            
-            container.innerHTML = html;
-            const body = document.getElementById('catalog-chat-body');
-            if (body) {
-                body.scrollTop = body.scrollHeight;
-            }
-        } catch (e) {
-            console.error('Failed to load catalog chat messages:', e);
-        }
-    }
-
-    window.sendCatalogMessage = async function() {
-        const input = document.getElementById('catalog-chat-input');
-        if (!input) return;
-        const msg = input.value.trim();
-        if (msg === '') return;
-        input.value = '';
-        
-        try {
-            const response = await fetch('<?= $this->url($routePrefix . "/dashboard", ["action" => "chat"]) ?>', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-                body: 'message=' + encodeURIComponent(msg)
-            });
-            if (response.ok) {
-                loadCatalogMessages();
-            } else {
-                console.error('Failed to send catalog chat message.');
-            }
-        } catch (e) {
-            console.error(e);
-        }
-    };
-
-    window.deleteCatalogMessage = async function(id) {
-        if (!confirm('Bạn có chắc chắn muốn xóa tin nhắn này?')) return;
-        try {
-            const response = await fetch('<?= $this->url($routePrefix . "/dashboard", ["action" => "chat"]) ?>', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-                body: `action=delete&id=${id}`
-            });
-            if (response.ok) {
-                loadCatalogMessages();
-            } else {
-                alert('Không thể xóa tin nhắn.');
-            }
-        } catch (e) {
-            console.error(e);
-        }
-    };
-
-    window.pinCatalogMessage = async function(id) {
-        if (!confirm('Bạn có chắc chắn muốn ghim tin nhắn này?')) return;
-        try {
-            const response = await fetch('<?= $this->url($routePrefix . "/dashboard", ["action" => "chat"]) ?>', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-                body: `action=pin&id=${id}`
-            });
-            if (response.ok) {
-                loadCatalogMessages();
-            } else {
-                alert('Không thể ghim tin nhắn.');
-            }
-        } catch (e) {
-            console.error(e);
-        }
-    };
-
-    window.unpinCatalogMessage = async function() {
-        if (!confirm('Bạn có chắc chắn muốn gỡ ghim tin nhắn này?')) return;
-        try {
-            const response = await fetch('<?= $this->url($routePrefix . "/dashboard", ["action" => "chat"]) ?>', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-                body: `action=unpin`
-            });
-            if (response.ok) {
-                loadCatalogMessages();
-            } else {
-                alert('Không thể gỡ ghim tin nhắn.');
-            }
-        } catch (e) {
-            console.error(e);
-        }
-    };
-
-    window.reactCatalogMessage = async function(id, emoji) {
-        try {
-            const response = await fetch('<?= $this->url($routePrefix . "/dashboard", ["action" => "chat"]) ?>', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-                body: `action=react&id=${id}&emoji=${encodeURIComponent(emoji)}`
-            });
-            if (response.ok) {
-                loadCatalogMessages();
-            } else {
-                console.error('Failed to react.');
-            }
-        } catch (e) {
-            console.error(e);
-        }
-    };
-
-    loadCatalogMessages();
-    catalogChatInterval = setInterval(loadCatalogMessages, 5000);
 });
 </script>

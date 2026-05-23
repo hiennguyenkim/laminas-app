@@ -59,8 +59,27 @@ class BorrowTable
                 'users',
                 'borrow_records.user_id = users.user_id',
                 ['full_name', 'username']
-            )
-            ->order('borrow_records.created_at DESC');
+            );
+
+        $sort = $filters['sort'] ?? null;
+        $direction = strtoupper($filters['direction'] ?? 'DESC');
+        if (!in_array($direction, ['ASC', 'DESC'])) {
+            $direction = 'DESC';
+        }
+
+        $allowedSorts = [
+            'member' => 'users.full_name',
+            'book' => 'books.title',
+            'borrow_date' => 'borrow_records.borrow_date',
+            'return_date' => 'borrow_records.return_date',
+            'status' => 'borrow_records.status',
+        ];
+
+        if ($sort !== null && array_key_exists($sort, $allowedSorts)) {
+            $select->order($allowedSorts[$sort] . ' ' . $direction);
+        } else {
+            $select->order('borrow_records.created_at DESC');
+        }
 
         if ($userId !== null) {
             $select->where(['borrow_records.user_id' => $userId]);
@@ -104,6 +123,28 @@ class BorrowTable
         $filterUserId = trim((string) ($filters['user_id'] ?? ''));
         if ($userId === null && $filterUserId !== '') {
             $select->where(['borrow_records.user_id' => (int) $filterUserId]);
+        }
+
+        $filterYear = $filters['year'] ?? null;
+        $filterPeriod = $filters['period'] ?? null;
+        $filterWeek = $filters['week'] ?? null;
+
+        if ($filterYear !== null && $filterYear !== '' && $filterYear !== 'all') {
+            $select->where(new \Laminas\Db\Sql\Predicate\Expression("YEAR(borrow_records.borrow_date) = ?", (int)$filterYear));
+        }
+
+        if ($filterPeriod !== null && $filterPeriod !== '' && $filterPeriod !== 'year') {
+            if (strpos($filterPeriod, 'q') === 0) {
+                $qtr = (int)substr($filterPeriod, 1);
+                $select->where(new \Laminas\Db\Sql\Predicate\Expression("QUARTER(borrow_records.borrow_date) = ?", $qtr));
+            } elseif (strpos($filterPeriod, 'm') === 0) {
+                $month = (int)substr($filterPeriod, 1);
+                $select->where(new \Laminas\Db\Sql\Predicate\Expression("MONTH(borrow_records.borrow_date) = ?", $month));
+            }
+        }
+
+        if ($filterWeek !== null && $filterWeek !== '' && $filterWeek !== 'all') {
+            $select->where(new \Laminas\Db\Sql\Predicate\Expression("WEEK(borrow_records.borrow_date, 1) = ?", (int)$filterWeek));
         }
 
         if ($limit > 0) {
@@ -187,6 +228,28 @@ class BorrowTable
         $filterUserId = trim((string) ($filters['user_id'] ?? ''));
         if ($userId === null && $filterUserId !== '') {
             $select->where(['borrow_records.user_id' => (int) $filterUserId]);
+        }
+
+        $filterYear = $filters['year'] ?? null;
+        $filterPeriod = $filters['period'] ?? null;
+        $filterWeek = $filters['week'] ?? null;
+
+        if ($filterYear !== null && $filterYear !== '' && $filterYear !== 'all') {
+            $select->where(new \Laminas\Db\Sql\Predicate\Expression("YEAR(borrow_records.borrow_date) = ?", (int)$filterYear));
+        }
+
+        if ($filterPeriod !== null && $filterPeriod !== '' && $filterPeriod !== 'year') {
+            if (strpos($filterPeriod, 'q') === 0) {
+                $qtr = (int)substr($filterPeriod, 1);
+                $select->where(new \Laminas\Db\Sql\Predicate\Expression("QUARTER(borrow_records.borrow_date) = ?", $qtr));
+            } elseif (strpos($filterPeriod, 'm') === 0) {
+                $month = (int)substr($filterPeriod, 1);
+                $select->where(new \Laminas\Db\Sql\Predicate\Expression("MONTH(borrow_records.borrow_date) = ?", $month));
+            }
+        }
+
+        if ($filterWeek !== null && $filterWeek !== '' && $filterWeek !== 'all') {
+            $select->where(new \Laminas\Db\Sql\Predicate\Expression("WEEK(borrow_records.borrow_date, 1) = ?", (int)$filterWeek));
         }
 
         $stmt   = $sql->prepareStatementForSqlObject($select);

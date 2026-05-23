@@ -52,7 +52,7 @@ class TransactionControllerTest extends AbstractHttpControllerTestCase
         $borrowTableMock = $this->createMock(BorrowTable::class);
         $borrowTableMock->expects(self::once())
             ->method('fetchAllWithDetails')
-            ->with(['search' => 'PHP', 'status' => 'borrowed', 'user_id' => ''], null, 0, 0)
+            ->with(['search' => 'PHP', 'status' => 'borrowed', 'user_id' => '', 'year' => 'all', 'period' => 'year', 'week' => 'all', 'sort' => null, 'direction' => null], null, 0, 0)
             ->willReturn([$record]);
 
         $serviceLocator = $this->getApplicationServiceLocator();
@@ -69,18 +69,27 @@ class TransactionControllerTest extends AbstractHttpControllerTestCase
         $response = $this->getResponse();
         $headers = $response->getHeaders();
         $this->assertTrue($headers->has('Content-Disposition'));
-        $this->assertStringContainsString('danh-sach-muon-tra.csv', $headers->get('Content-Disposition')->getFieldValue());
-        $this->assertStringContainsString('text/csv', $headers->get('Content-Type')->getFieldValue());
+        $this->assertStringContainsString('bao-cao-muon-tra-', $headers->get('Content-Disposition')->getFieldValue());
+        $this->assertStringContainsString('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', $headers->get('Content-Type')->getFieldValue());
 
         $content = $response->getContent();
-        // BOM is at the start
-        $this->assertStringStartsWith("\xEF\xBB\xBF", $content);
-        // Should contain record details
-        $this->assertStringContainsString('Mã giao dịch', $content);
-        $this->assertStringContainsString('101', $content);
-        $this->assertStringContainsString('Nguyễn Văn An', $content);
-        $this->assertStringContainsString('Lập trình PHP', $content);
-        $this->assertStringContainsString('Đang mượn', $content);
+        $this->assertNotEmpty($content);
+
+        // Write content to temporary file to load with PhpSpreadsheet and verify values
+        $tempFile = tempnam(sys_get_temp_dir(), 'xlsx_test_');
+        file_put_contents($tempFile, $content);
+        
+        $reader = new \PhpOffice\PhpSpreadsheet\Reader\Xlsx();
+        $spreadsheet = $reader->load($tempFile);
+        unlink($tempFile);
+
+        $sheet = $spreadsheet->getActiveSheet();
+        $this->assertEquals('CHI TIẾT PHIẾU MƯỢN TRẢ SÁCH THƯ VIỆN', $sheet->getCell('A1')->getValue());
+        $this->assertEquals('Mã giao dịch', $sheet->getCell('A6')->getValue());
+        $this->assertEquals(101, $sheet->getCell('A7')->getValue());
+        $this->assertEquals('Nguyễn Văn An', $sheet->getCell('B7')->getValue());
+        $this->assertEquals('Lập trình PHP', $sheet->getCell('D7')->getValue());
+        $this->assertEquals('Đang mượn', $sheet->getCell('I7')->getValue());
     }
 
     public function testExportActionAsStudent(): void
@@ -103,10 +112,9 @@ class TransactionControllerTest extends AbstractHttpControllerTestCase
         ]);
 
         $borrowTableMock = $this->createMock(BorrowTable::class);
-        // Student ID is 2, so the controller must pass 2 instead of null
         $borrowTableMock->expects(self::once())
             ->method('fetchAllWithDetails')
-            ->with(['search' => '', 'status' => ''], 2, 0, 0)
+            ->with(['search' => '', 'status' => '', 'year' => 'all', 'period' => 'year', 'week' => 'all', 'sort' => null, 'direction' => null], 2, 0, 0)
             ->willReturn([$record]);
 
         $serviceLocator = $this->getApplicationServiceLocator();
@@ -121,10 +129,158 @@ class TransactionControllerTest extends AbstractHttpControllerTestCase
 
         $response = $this->getResponse();
         $content = $response->getContent();
-        $this->assertStringContainsString('102', $content);
-        $this->assertStringContainsString('Lập trình JS', $content);
-        $this->assertStringContainsString('Đã trả', $content);
-        $this->assertStringContainsString('10/05/2026 10:00:00', $content);
+        $this->assertNotEmpty($content);
+
+        // Write content to temporary file to load with PhpSpreadsheet and verify values
+        $tempFile = tempnam(sys_get_temp_dir(), 'xlsx_test_');
+        file_put_contents($tempFile, $content);
+        
+        $reader = new \PhpOffice\PhpSpreadsheet\Reader\Xlsx();
+        $spreadsheet = $reader->load($tempFile);
+        unlink($tempFile);
+
+        $sheet = $spreadsheet->getActiveSheet();
+        $this->assertEquals(102, $sheet->getCell('A7')->getValue());
+        $this->assertEquals('Lập trình JS', $sheet->getCell('D7')->getValue());
+        $this->assertEquals('Đã trả', $sheet->getCell('I7')->getValue());
+    }
+
+    public function testIndexActionWithYearAndPeriodFilters(): void
+    {
+        $this->mockLoginAsRole('admin');
+
+        $record = new BorrowRecord();
+        $record->exchangeArray([
+            'id' => 103,
+            'book_id' => 1,
+            'user_id' => 2,
+            'borrow_date' => '2026-05-23',
+            'return_date' => '2026-06-06',
+            'returned_at' => '',
+            'status' => 'borrowed',
+            'book_title' => 'PHP Book',
+            'book_isbn' => '9781234567890',
+            'full_name' => 'Nguyễn Văn An',
+            'username' => 'student1',
+        ]);
+
+        $borrowTableMock = $this->createMock(BorrowTable::class);
+        $borrowTableMock->expects(self::once())
+            ->method('countFiltered')
+            ->with(['search' => '', 'status' => '', 'year' => '2026', 'period' => 'm5', 'week' => 'all', 'sort' => null, 'direction' => null, 'user_id' => null], null)
+            ->willReturn(1);
+        $borrowTableMock->expects(self::once())
+            ->method('fetchAllWithDetails')
+            ->with(['search' => '', 'status' => '', 'year' => '2026', 'period' => 'm5', 'week' => 'all', 'sort' => null, 'direction' => null, 'user_id' => null], null, 10, 0)
+            ->willReturn([$record]);
+        $borrowTableMock->method('getSummary')->willReturn([
+            'borrowed' => 1, 'overdue' => 0, 'returned' => 0, 'pending' => 0, 'total' => 1
+        ]);
+
+        $userTableMock = $this->createMock(UserTable::class);
+
+        $serviceLocator = $this->getApplicationServiceLocator();
+        $serviceLocator->setAllowOverride(true);
+        $serviceLocator->setService(BorrowTable::class, $borrowTableMock);
+        $serviceLocator->setService(UserTable::class, $userTableMock);
+
+        $this->dispatch('/admin/borrow?year=2026&period=m5', 'GET');
+
+        $this->assertResponseStatusCode(200);
+        $this->assertControllerName(TransactionController::class);
+        $this->assertMatchedRouteName('library/transaction');
+    }
+
+    public function testIndexActionWithWeekFilter(): void
+    {
+        $this->mockLoginAsRole('admin');
+
+        $record = new BorrowRecord();
+        $record->exchangeArray([
+            'id' => 104,
+            'book_id' => 1,
+            'user_id' => 2,
+            'borrow_date' => '2026-05-23',
+            'return_date' => '2026-06-06',
+            'returned_at' => '',
+            'status' => 'borrowed',
+            'book_title' => 'PHP Book',
+            'book_isbn' => '9781234567890',
+            'full_name' => 'Nguyễn Văn An',
+            'username' => 'student1',
+        ]);
+
+        $borrowTableMock = $this->createMock(BorrowTable::class);
+        $borrowTableMock->expects(self::once())
+            ->method('countFiltered')
+            ->with(['search' => '', 'status' => '', 'year' => '2026', 'period' => 'm5', 'week' => '21', 'sort' => null, 'direction' => null, 'user_id' => null], null)
+            ->willReturn(1);
+        $borrowTableMock->expects(self::once())
+            ->method('fetchAllWithDetails')
+            ->with(['search' => '', 'status' => '', 'year' => '2026', 'period' => 'm5', 'week' => '21', 'sort' => null, 'direction' => null, 'user_id' => null], null, 10, 0)
+            ->willReturn([$record]);
+        $borrowTableMock->method('getSummary')->willReturn([
+            'borrowed' => 1, 'overdue' => 0, 'returned' => 0, 'pending' => 0, 'total' => 1
+        ]);
+
+        $userTableMock = $this->createMock(UserTable::class);
+
+        $serviceLocator = $this->getApplicationServiceLocator();
+        $serviceLocator->setAllowOverride(true);
+        $serviceLocator->setService(BorrowTable::class, $borrowTableMock);
+        $serviceLocator->setService(UserTable::class, $userTableMock);
+
+        $this->dispatch('/admin/borrow?year=2026&period=m5&week=21', 'GET');
+
+        $this->assertResponseStatusCode(200);
+        $this->assertControllerName(TransactionController::class);
+        $this->assertMatchedRouteName('library/transaction');
+    }
+
+    public function testIndexActionWithSorting(): void
+    {
+        $this->mockLoginAsRole('admin');
+
+        $record = new BorrowRecord();
+        $record->exchangeArray([
+            'id' => 105,
+            'book_id' => 1,
+            'user_id' => 2,
+            'borrow_date' => '2026-05-23',
+            'return_date' => '2026-06-06',
+            'returned_at' => '',
+            'status' => 'borrowed',
+            'book_title' => 'PHP Book',
+            'book_isbn' => '9781234567890',
+            'full_name' => 'Nguyễn Văn An',
+            'username' => 'student1',
+        ]);
+
+        $borrowTableMock = $this->createMock(BorrowTable::class);
+        $borrowTableMock->expects(self::once())
+            ->method('countFiltered')
+            ->with(['search' => '', 'status' => '', 'year' => 'all', 'period' => 'year', 'week' => 'all', 'sort' => 'book', 'direction' => 'asc', 'user_id' => null], null)
+            ->willReturn(1);
+        $borrowTableMock->expects(self::once())
+            ->method('fetchAllWithDetails')
+            ->with(['search' => '', 'status' => '', 'year' => 'all', 'period' => 'year', 'week' => 'all', 'sort' => 'book', 'direction' => 'asc', 'user_id' => null], null, 10, 0)
+            ->willReturn([$record]);
+        $borrowTableMock->method('getSummary')->willReturn([
+            'borrowed' => 1, 'overdue' => 0, 'returned' => 0, 'pending' => 0, 'total' => 1
+        ]);
+
+        $userTableMock = $this->createMock(UserTable::class);
+
+        $serviceLocator = $this->getApplicationServiceLocator();
+        $serviceLocator->setAllowOverride(true);
+        $serviceLocator->setService(BorrowTable::class, $borrowTableMock);
+        $serviceLocator->setService(UserTable::class, $userTableMock);
+
+        $this->dispatch('/admin/borrow?sort=book&direction=asc', 'GET');
+
+        $this->assertResponseStatusCode(200);
+        $this->assertControllerName(TransactionController::class);
+        $this->assertMatchedRouteName('library/transaction');
     }
 
     private function mockLoginAsRole(string $role): void

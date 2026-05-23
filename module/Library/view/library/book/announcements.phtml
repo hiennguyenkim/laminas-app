@@ -2,8 +2,13 @@
 $this->headTitle('Bảng tin Thư viện');
 $this->layout('layout/library-layout');
 
+$authUser    = $this->currentUser();
+$routePrefix = ($authUser['role'] ?? '') === 'admin' ? 'library' : 'student';
+$isGuest     = $authUser === null;
+
 $typeFilter = (string) ($filters['type'] ?? 'all');
 $searchVal = (string) ($filters['search'] ?? '');
+$baseRoute = $baseRoute ?? 'announcements';
 
 $typeTabs = [
     'all'     => ['Tất cả', 'bi-grid-fill'],
@@ -53,6 +58,61 @@ $typeConfig = [
 ];
 ?>
 
+<!-- KÊNH THẢO LUẬN (nằm trên bảng tin, rộng ngang như cũ) -->
+<div class="forum-section">
+    <div class="forum-header">
+        <i class="bi bi-chat-quote-fill forum-header-icon"></i>
+        <h2 class="forum-header-title">Kênh Thảo Luận</h2>
+        <span class="forum-online-badge">
+            <span class="forum-online-dot"></span>
+            Trực tuyến
+        </span>
+    </div>
+
+    <div class="forum-card-wrap">
+        <!-- Pinned Banner -->
+        <div class="forum-pinned-banner" id="forum-pinned-banner" style="display:none;">
+            <div class="forum-pinned-content">
+                <i class="bi bi-pin-angle-fill text-purple"></i>
+                <span class="forum-pinned-text" id="forum-pinned-text"></span>
+            </div>
+            <button class="forum-pinned-unpin-btn" id="forum-pinned-unpin-btn" onclick="unpinCatalogMessage()" title="Gỡ ghim" style="display:none;">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+
+        <!-- Message area -->
+        <div class="catalog-chat-messages forum-list" id="catalog-chat-body">
+            <div class="forum-empty">
+                Đang tải thảo luận...
+            </div>
+        </div>
+
+        <!-- Input area -->
+        <div class="forum-footer">
+            <?php if ($isGuest): ?>
+                <div class="forum-guest-msg">
+                    Vui lòng
+                    <a href="<?= $this->url('library/auth', ['action' => 'login']) ?>"
+                       class="forum-guest-link">Đăng nhập</a>
+                    để tham gia thảo luận.
+                </div>
+            <?php else: ?>
+                <div class="forum-input-row">
+                    <input type="text" id="catalog-chat-input"
+                           placeholder="Viết thảo luận..."
+                           onkeypress="if(event.key==='Enter') sendCatalogMessage()"
+                           class="forum-input">
+                    <button onclick="sendCatalogMessage()"
+                            class="forum-send-btn">
+                        <i class="bi bi-send-fill"></i> Gửi
+                    </button>
+                </div>
+            <?php endif; ?>
+        </div>
+    </div>
+</div>
+
 <!-- PAGE HEADER -->
 <div class="page-header">
     <div>
@@ -61,18 +121,13 @@ $typeConfig = [
         </div>
         <div class="page-subtitle">Cập nhật tin tức, sự kiện và thông báo mới nhất từ Thư viện HDPE</div>
     </div>
-    <div>
-        <a href="<?= $this->url('catalog') ?>" class="btn btn-outline ann-btn-back">
-            <i class="bi bi-arrow-left"></i>Quay lại danh mục
-        </a>
-    </div>
 </div>
 
 <!-- FILTERS SECTION -->
 <div class="ann-filters-bar">
     <div class="filter-tabs ann-filter-tabs-wrap">
         <?php foreach ($typeTabs as $key => $tab): ?>
-        <a href="<?= $this->url('announcements', [], ['query' => ['type' => $key, 'search' => $searchVal]]) ?>"
+        <a href="<?= $this->url($baseRoute, [], ['query' => ['type' => $key, 'search' => $searchVal]]) ?>"
            class="filter-tab <?= $typeFilter === $key ? 'active' : '' ?> ann-filter-tab-link">
             <i class="bi <?= $tab[1] ?>"></i>
             <?= $tab[0] ?>
@@ -80,7 +135,7 @@ $typeConfig = [
         <?php endforeach; ?>
     </div>
     
-    <form method="GET" action="<?= $this->url('announcements') ?>" class="ann-search-form">
+    <form method="GET" action="<?= $this->url($baseRoute) ?>" class="ann-search-form">
         <input type="hidden" name="type" value="<?= htmlspecialchars($typeFilter) ?>">
         <div class="topbar-search ann-search-input-wrap">
             <i class="bi bi-search"></i>
@@ -99,7 +154,7 @@ $typeConfig = [
     <h3 class="ann-empty-title">Không có bản tin nào</h3>
     <p class="ann-empty-desc">Không tìm thấy bản tin nào phù hợp với bộ lọc hiện tại.</p>
     <?php if ($typeFilter !== 'all' || $searchVal !== ''): ?>
-    <a href="<?= $this->url('announcements') ?>" class="btn btn-outline btn-sm ann-empty-btn">Xóa bộ lọc</a>
+    <a href="<?= $this->url($baseRoute) ?>" class="btn btn-outline btn-sm ann-empty-btn">Xóa bộ lọc</a>
     <?php endif; ?>
 </div>
 <?php else: ?>
@@ -170,3 +225,318 @@ $typeConfig = [
     <?php endforeach; ?>
 </div>
 <?php endif; ?>
+
+<style>
+.forum-section {
+    margin-top: 0;
+    margin-bottom: 36px;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // Catalog Chat Room Functionality
+    let catalogChatInterval = null;
+    const currentUserId = parseInt(<?= json_encode($authUser['id'] ?? 0) ?>);
+    const currentUserRole = <?= json_encode($authUser['role'] ?? '') ?>;
+    const basePath = <?= json_encode($this->basePath()) ?>;
+    let lastMessagesJson = '';
+
+    function escapeHtml(unsafe) {
+        return (unsafe || '').replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    }
+
+    function renderReactionsHtml(msgId, msgReactions) {
+        let html = '';
+        const emojis = Object.keys(msgReactions);
+        if (emojis.length > 0) {
+            html += `<div class="forum-msg-reactions">`;
+            emojis.forEach(emoji => {
+                const userIds = msgReactions[emoji] || [];
+                if (userIds.length > 0) {
+                    const hasReacted = userIds.includes(currentUserId);
+                    const activeClass = hasReacted ? 'active' : '';
+                    html += `<span class="forum-reaction-badge ${activeClass}" onclick="reactCatalogMessage(${msgId}, '${emoji}')">
+                        ${emoji} ${userIds.length}
+                    </span>`;
+                }
+            });
+            html += `</div>`;
+        }
+        return html;
+    }
+
+    window.toggleReactionPicker = function(event, msgId) {
+        event.stopPropagation();
+        const existing = document.querySelector('.forum-react-picker');
+        if (existing) {
+            existing.remove();
+        }
+        
+        const btn = event.currentTarget;
+        const picker = document.createElement('div');
+        picker.className = 'forum-react-picker';
+        const emojis = ['👍', '❤️', '😂', '😮', '😢'];
+        emojis.forEach(emoji => {
+            const emojiSpan = document.createElement('span');
+            emojiSpan.className = 'forum-react-picker-emoji';
+            emojiSpan.innerText = emoji;
+            emojiSpan.onclick = function(e) {
+                e.stopPropagation();
+                reactCatalogMessage(msgId, emoji);
+                picker.remove();
+            };
+            picker.appendChild(emojiSpan);
+        });
+        btn.appendChild(picker);
+    };
+
+    document.addEventListener('click', function() {
+        const existing = document.querySelector('.forum-react-picker');
+        if (existing) {
+            existing.remove();
+        }
+    });
+
+    async function loadCatalogMessages() {
+        try {
+            const response = await fetch('<?= $this->url($routePrefix . "/dashboard", ["action" => "chat"]) ?>');
+            if (!response.ok) return;
+            const data = await response.json();
+            
+            const messages = data.messages || [];
+            const pinned = data.pinned || null;
+            
+            const messagesJson = JSON.stringify(data);
+            if (messagesJson === lastMessagesJson) {
+                return;
+            }
+            lastMessagesJson = messagesJson;
+
+            // Handle Pinned Banner
+            const pinnedBanner = document.getElementById('forum-pinned-banner');
+            const pinnedText = document.getElementById('forum-pinned-text');
+            const pinnedUnpinBtn = document.getElementById('forum-pinned-unpin-btn');
+            if (pinnedBanner && pinnedText) {
+                if (pinned) {
+                    pinnedText.innerHTML = `<strong>${escapeHtml(pinned.nickname)}:</strong> ${escapeHtml(pinned.message)}`;
+                    pinnedBanner.style.display = 'flex';
+                    if (pinnedUnpinBtn) {
+                        pinnedUnpinBtn.style.display = (currentUserRole === 'admin') ? 'block' : 'none';
+                    }
+                } else {
+                    pinnedBanner.style.display = 'none';
+                }
+            }
+
+            const container = document.getElementById('catalog-chat-body');
+            if (!container) return;
+            
+            // Mark last message as seen
+            if (messages.length > 0) {
+                const lastMsg = messages[messages.length - 1];
+                localStorage.setItem('catalog_chat_last_seen_id', lastMsg.id);
+            }
+            
+            let html = '';
+            messages.forEach(msg => {
+                const colors = ['#7c6aff','#f97316','#22c55e','#3b82f6','#ec4899','#14b8a6'];
+                let hash = 0;
+                const usernameStr = msg.nickname || '';
+                for (let i = 0; i < usernameStr.length; i++) {
+                    hash = usernameStr.charCodeAt(i) + ((hash << 5) - hash);
+                }
+                const avatarColor = colors[Math.abs(hash) % colors.length];
+                const initial = usernameStr.substring(0, 1).toUpperCase() || '?';
+                const roleBadge = msg.role === 'admin' ? '<span class="badge badge-purple forum-role-badge">Thủ thư</span>' : '';
+                const username = escapeHtml(msg.nickname) + roleBadge;
+                const time = msg.created_at;
+                
+                // Parse reactions
+                let msgReactions = {};
+                try {
+                    if (msg.reactions && msg.reactions !== '') {
+                        msgReactions = JSON.parse(msg.reactions);
+                    }
+                } catch (e) {
+                    console.error('Failed to parse reactions:', e);
+                }
+
+                // Delete button
+                const deleteBtn = (parseInt(msg.user_id) === currentUserId || currentUserRole === 'admin')
+                    ? `<span onclick="deleteCatalogMessage(${msg.id})" class="forum-msg-delete" title="Xóa"><i class="bi bi-trash"></i></span>`
+                    : '';
+                
+                // Admin pin button
+                let pinBtn = '';
+                if (currentUserRole === 'admin') {
+                    if (msg.is_pinned === 1) {
+                        pinBtn = `<span onclick="unpinCatalogMessage()" class="forum-msg-pin active" title="Gỡ ghim"><i class="bi bi-pin-fill"></i></span>`;
+                    } else {
+                        pinBtn = `<span onclick="pinCatalogMessage(${msg.id})" class="forum-msg-pin" title="Ghim tin nhắn"><i class="bi bi-pin"></i></span>`;
+                    }
+                }
+
+                // React button
+                let reactBtn = '';
+                if (currentUserId > 0) {
+                    reactBtn = `<span class="forum-msg-react-btn" title="Thả cảm xúc" onclick="toggleReactionPicker(event, ${msg.id})">
+                        <i class="bi bi-emoji-smile"></i>
+                    </span>`;
+                }
+
+                const actionsHtml = `<div class="forum-msg-meta-actions">
+                    ${pinBtn}
+                    ${reactBtn}
+                    ${deleteBtn}
+                </div>`;
+
+                const message = escapeHtml(msg.message);
+
+                const avatarHtml = msg.avatar_url 
+                    ? `<img src="${basePath + msg.avatar_url}" class="forum-msg-avatar" alt="${escapeHtml(msg.nickname)}" style="object-fit: cover;">`
+                    : `<div style="background:${avatarColor}" class="forum-msg-avatar">${initial}</div>`;
+
+                html += `<div class="forum-msg-row">
+                    ${avatarHtml}
+                    <div class="forum-msg-body">
+                        <div class="forum-msg-meta">
+                            <span class="forum-msg-username">${username}</span>
+                            <span class="forum-msg-time">${time}</span>
+                            ${actionsHtml}
+                        </div>
+                        <div class="forum-msg-text">
+                            ${message}
+                        </div>
+                        ${renderReactionsHtml(msg.id, msgReactions)}
+                    </div>
+                </div>`;
+            });
+            
+            if (html === '') {
+                html = `
+                    <div class="forum-empty-chat">
+                        <i class="bi bi-chat-dots"></i>
+                        <span>Chưa có tin nhắn nào. Hãy gửi tin nhắn đầu tiên để bắt đầu thảo luận!</span>
+                    </div>
+                `;
+            }
+            
+            container.innerHTML = html;
+            const body = document.getElementById('catalog-chat-body');
+            if (body) {
+                body.scrollTop = body.scrollHeight;
+            }
+        } catch (e) {
+            console.error('Failed to load catalog chat messages:', e);
+        }
+    }
+
+    window.sendCatalogMessage = async function() {
+        const input = document.getElementById('catalog-chat-input');
+        if (!input) return;
+        const msg = input.value.trim();
+        if (msg === '') return;
+        input.value = '';
+        
+        try {
+            const response = await fetch('<?= $this->url($routePrefix . "/dashboard", ["action" => "chat"]) ?>', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: 'message=' + encodeURIComponent(msg)
+            });
+            if (response.ok) {
+                loadCatalogMessages();
+            } else {
+                console.error('Failed to send catalog chat message.');
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
+    window.deleteCatalogMessage = async function(id) {
+        if (!confirm('Bạn có chắc chắn muốn xóa tin nhắn này?')) return;
+        try {
+            const response = await fetch('<?= $this->url($routePrefix . "/dashboard", ["action" => "chat"]) ?>', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `action=delete&id=${id}`
+            });
+            if (response.ok) {
+                loadCatalogMessages();
+            } else {
+                alert('Không thể xóa tin nhắn.');
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
+    window.pinCatalogMessage = async function(id) {
+        if (!confirm('Bạn có chắc chắn muốn ghim tin nhắn này?')) return;
+        try {
+            const response = await fetch('<?= $this->url($routePrefix . "/dashboard", ["action" => "chat"]) ?>', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `action=pin&id=${id}`
+            });
+            if (response.ok) {
+                loadCatalogMessages();
+            } else {
+                alert('Không thể ghim tin nhắn.');
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
+    window.unpinCatalogMessage = async function() {
+        if (!confirm('Bạn có chắc chắn muốn gỡ ghim tin nhắn này?')) return;
+        try {
+            const response = await fetch('<?= $this->url($routePrefix . "/dashboard", ["action" => "chat"]) ?>', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `action=unpin`
+            });
+            if (response.ok) {
+                loadCatalogMessages();
+            } else {
+                alert('Không thể gỡ ghim tin nhắn.');
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
+    window.reactCatalogMessage = async function(id, emoji) {
+        try {
+            const response = await fetch('<?= $this->url($routePrefix . "/dashboard", ["action" => "chat"]) ?>', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `action=react&id=${id}&emoji=${encodeURIComponent(emoji)}`
+            });
+            if (response.ok) {
+                loadCatalogMessages();
+            } else {
+                console.error('Failed to react.');
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
+    loadCatalogMessages();
+    catalogChatInterval = setInterval(loadCatalogMessages, 5000);
+});
+</script>

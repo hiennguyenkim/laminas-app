@@ -32,10 +32,17 @@ class TicketController extends BaseController
 
         $search = trim($this->queryString('search'));
         $status = trim($this->queryString('status'));
+        $sort   = trim((string)$this->queryString('sort'));
+        $direction = strtoupper(trim((string)$this->queryString('direction')));
+        if (!in_array($direction, ['ASC', 'DESC'])) {
+            $direction = 'DESC';
+        }
 
         $filters = [
-            'search' => $search,
-            'status' => $status,
+            'search'    => $search,
+            'status'    => $status,
+            'sort'      => $sort,
+            'direction' => strtolower($direction),
         ];
 
         $where = [];
@@ -78,7 +85,20 @@ class TicketController extends BaseController
         $page       = min($page, $totalPages);
         $offset     = ($page - 1) * $perPage;
 
-        $sql = "SELECT t.*, u.full_name as author_name FROM support_tickets t JOIN users u ON t.user_id = u.user_id $whereClause ORDER BY t.status DESC, t.updated_at DESC LIMIT ? OFFSET ?";
+        $allowedSorts = [
+            'id' => 't.id',
+            'title' => 't.title',
+            'author' => 'u.full_name',
+            'updated_at' => 't.updated_at',
+            'status' => 't.status',
+        ];
+
+        $orderBy = 't.status DESC, t.updated_at DESC';
+        if (array_key_exists($sort, $allowedSorts)) {
+            $orderBy = $allowedSorts[$sort] . ' ' . $direction;
+        }
+
+        $sql = "SELECT t.*, u.full_name as author_name FROM support_tickets t JOIN users u ON t.user_id = u.user_id $whereClause ORDER BY $orderBy LIMIT ? OFFSET ?";
         
         $fetchParams = $params;
         $fetchParams[] = $perPage;

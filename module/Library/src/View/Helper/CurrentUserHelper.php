@@ -17,7 +17,7 @@ class CurrentUserHelper extends AbstractHelper
     }
 
     /**
-     * @return array{id:int, username:string, full_name:string, role:string}|null
+     * @return array{id:int, username:string, full_name:string, role:string, email:string, avatar_url:string, nickname:string}|null
      */
     public function __invoke(): ?array
     {
@@ -28,11 +28,13 @@ class CurrentUserHelper extends AbstractHelper
         }
 
         return [
-            'id'        => (int) ($user['id'] ?? 0),
-            'username'  => (string) ($user['username'] ?? ''),
-            'full_name' => (string) ($user['full_name'] ?? ''),
-            'role'      => (string) ($user['role'] ?? ''),
-            'email'     => (string) ($user['email'] ?? ''),
+            'id'         => (int) ($user['id'] ?? 0),
+            'username'   => (string) ($user['username'] ?? ''),
+            'full_name'  => (string) ($user['full_name'] ?? ''),
+            'role'       => (string) ($user['role'] ?? ''),
+            'email'      => (string) ($user['email'] ?? ''),
+            'avatar_url' => (string) ($user['avatar_url'] ?? ''),
+            'nickname'   => (string) ($user['nickname'] ?? ''),
         ];
     }
 }

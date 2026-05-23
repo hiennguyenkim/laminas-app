@@ -4,19 +4,25 @@ $this->layout('layout/library-layout');
 
 $pagination = $pagination ?? [];
 $page       = (int) ($pagination['page'] ?? 1);
-$perPage    = (int) ($pagination['perPage'] ?? 8);
+$perPageRaw = $pagination['perPage'] ?? '10';
+$perPage    = $perPageRaw === 'all' ? 999999 : (int) $perPageRaw;
 $totalItems = (int) ($pagination['totalItems'] ?? 0);
 $totalPages = (int) ($pagination['totalPages'] ?? 1);
 
 $queryBase = [
-    'search' => (string) ($filters['search'] ?? ''),
-    'role'   => (string) ($filters['role'] ?? ''),
+    'search'  => (string) ($filters['search'] ?? ''),
+    'role'    => (string) ($filters['role'] ?? ''),
+    'perPage' => $perPageRaw,
 ];
 
-$buildPageUrl = function(int $p) use ($queryBase): string {
-    $q = $queryBase; $q['page'] = $p;
-    $q = array_filter($q, fn($v, $k) => $k === 'page' || $v !== '', ARRAY_FILTER_USE_BOTH);
-    return $this->url('library/user', [], ['query' => $q]);
+$filterQuery = function(array $params): array {
+    return array_filter($params, fn($v) => $v !== null && $v !== '');
+};
+
+$buildPageUrl = function(int $p) use ($queryBase, $filterQuery): string {
+    $q = $queryBase;
+    $q['page'] = $p;
+    return $this->url('library/user', [], ['query' => $filterQuery($q)]);
 };
 
 $avatarColors = ['#7c6aff','#22c55e','#f97316','#ec4899','#3b82f6','#14b8a6','#ef4444','#fbbf24'];
@@ -41,14 +47,26 @@ $initials = function(string $name): string {
 <!-- FILTER TABS -->
 <div class="user-filters-bar">
     <div class="filter-tabs user-filter-tabs">
-        <a href="<?= $this->url('library/user') ?>" class="filter-tab <?= !($filters['role']??'') ? 'active' : '' ?>">
+        <a href="<?= $this->url('library/user', [], ['query' => $filterQuery(['search' => $filters['search']??'', 'perPage' => $perPageRaw])]) ?>" class="filter-tab <?= !($filters['role']??'') ? 'active' : '' ?>">
             Tất cả <span class="count"><?= (int)($summary['total']??0) ?></span>
         </a>
-        <a href="<?= $this->url('library/user', [], ['query' => ['role' => 'student']]) ?>" class="filter-tab <?= ($filters['role']??'')==='student'?'active':'' ?>">
+        <a href="<?= $this->url('library/user', [], ['query' => $filterQuery(['role' => 'student', 'search' => $filters['search']??'', 'perPage' => $perPageRaw])]) ?>" class="filter-tab <?= ($filters['role']??'')==='student'?'active':'' ?>">
             Độc giả <span class="count"><?= (int)($summary['students']??0) ?></span>
+        </a>
+        <a href="<?= $this->url('library/user', [], ['query' => $filterQuery(['role' => 'admin', 'search' => $filters['search']??'', 'perPage' => $perPageRaw])]) ?>" class="filter-tab <?= ($filters['role']??'')==='admin'?'active':'' ?>">
+            Quản trị viên <span class="count"><?= (int)($summary['admins']??0) ?></span>
         </a>
     </div>
     <form method="GET" class="user-search-form">
+        <input type="hidden" name="role" value="<?= htmlspecialchars($filters['role']??'') ?>">
+        
+        <select name="perPage" class="form-select user-perpage-select" style="max-width: 125px; border-radius: 8px; font-size: 13px; background-color: var(--bg-input); color: var(--text-primary); border: 1px solid var(--border-color); padding: 4px 10px; cursor: pointer;" onchange="this.form.submit()">
+            <option value="10" <?= $perPageRaw === '10' ? 'selected' : '' ?>>10 / trang</option>
+            <option value="20" <?= $perPageRaw === '20' ? 'selected' : '' ?>>20 / trang</option>
+            <option value="50" <?= $perPageRaw === '50' ? 'selected' : '' ?>>50 / trang</option>
+            <option value="all" <?= $perPageRaw === 'all' ? 'selected' : '' ?>>Tất cả</option>
+        </select>
+
         <div class="topbar-search user-search-wrap">
             <i class="bi bi-search"></i>
             <input type="text" name="search" value="<?= htmlspecialchars($filters['search']??'') ?>" placeholder="Tìm theo tên, username...">
@@ -83,10 +101,17 @@ $initials = function(string $name): string {
     <div class="member-card <?= $user->isLocked() ? 'locked' : '' ?>">
         <div class="member-card-top">
             <div class="d-flex gap-3 align-center">
-                <div class="member-avatar-lg" style="background:<?= $color ?>">
-                    <?= $initials(htmlspecialchars($user->fullName)) ?>
-                    <?php if ($user->role === 'admin'): ?><span class="star">⭐</span><?php endif; ?>
-                </div>
+                <?php if (!empty($user->avatarUrl)): ?>
+                    <div class="member-avatar-lg" style="background: transparent; overflow: hidden; position: relative;">
+                        <img src="<?= $this->basePath() . $user->avatarUrl ?>" alt="<?= htmlspecialchars($user->fullName) ?>" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
+                        <?php if ($user->role === 'admin'): ?><span class="star" style="z-index: 2;">⭐</span><?php endif; ?>
+                    </div>
+                <?php else: ?>
+                    <div class="member-avatar-lg" style="background:<?= $color ?>; position: relative;">
+                        <?= $initials(htmlspecialchars($user->fullName)) ?>
+                        <?php if ($user->role === 'admin'): ?><span class="star" style="z-index: 2;">⭐</span><?php endif; ?>
+                    </div>
+                <?php endif; ?>
                 <div>
                     <div class="member-name"><?= htmlspecialchars($user->fullName) ?></div>
                     <div class="member-email"><?= htmlspecialchars($user->email) ?></div>

@@ -73,6 +73,31 @@ input, button, select, textarea {
   border-bottom: 1px solid var(--border-color);
 }
 
+/* Clickable brand link */
+.sidebar-brand-link {
+  text-decoration: none;
+  color: inherit;
+  transition: var(--transition);
+}
+.sidebar-brand-link:hover {
+  background: rgba(124,106,255,0.08);
+}
+.sidebar-brand-link:hover .sidebar-brand-icon {
+  box-shadow: 0 0 0 3px rgba(124,106,255,0.25);
+}
+
+/* Clickable avatar */
+a.sidebar-user-avatar {
+  cursor: pointer;
+  text-decoration: none;
+  color: #fff;
+  transition: box-shadow 0.18s, transform 0.18s;
+}
+a.sidebar-user-avatar:hover {
+  box-shadow: 0 0 0 3px rgba(124,106,255,0.45);
+  transform: scale(1.07);
+}
+
 .sidebar-brand-icon {
   width: 40px; height: 40px;
   background: var(--accent-purple);
@@ -146,11 +171,12 @@ input, button, select, textarea {
   border-radius: var(--radius-sm);
 }
 .sidebar-user-avatar {
-  width: 34px; height: 34px;
+  width: 36px; height: 36px;
   background: linear-gradient(135deg, var(--accent-purple), var(--accent-blue));
-  border-radius: 8px;
+  border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   font-weight: 700; font-size: 13px; color: #fff; flex-shrink: 0;
+  overflow: hidden;
 }
 .sidebar-user-info .uname { font-weight: 600; font-size: 13px; }
 .sidebar-user-info .uemail { font-size: 11px; color: var(--text-muted); }
@@ -256,6 +282,7 @@ input, button, select, textarea {
 .stat-card.pink::after   { background: var(--accent-pink); }
 .stat-card.blue::after   { background: var(--accent-blue); }
 .stat-card.teal::after   { background: var(--accent-teal); }
+.stat-card.warning::after { background: #f59e0b; }
 
 .stat-icon {
   width: 44px; height: 44px; border-radius: 12px;

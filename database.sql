@@ -10,6 +10,8 @@ USE library_db;
 
 -- ── DỌN DẸP BẢNG CŨ (NẾU CÓ) ──────────────────────────────────────────
 SET FOREIGN_KEY_CHECKS = 0;
+DROP TABLE IF EXISTS system_settings;
+DROP TABLE IF EXISTS book_categories;
 DROP TABLE IF EXISTS public_chats;
 DROP TABLE IF EXISTS notifications;
 DROP TABLE IF EXISTS chat_logs;
@@ -211,3 +213,48 @@ CREATE TABLE IF NOT EXISTS public_chats (
     INDEX idx_created_at (created_at),
     CONSTRAINT fk_chat_user_public FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ───────────────────────────────────────────────
+-- 12. BẢNG book_categories (Danh mục thể loại sách)
+-- ───────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS book_categories (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT INTO book_categories (name) VALUES 
+('Công nghệ thông tin'),
+('Văn học nước ngoài'),
+('Kỹ năng học tập'),
+('Tâm lý / Sức khỏe'),
+('Kinh tế / Kinh doanh'),
+('Khoa học'),
+('Kỹ năng sống'),
+('Văn học Việt Nam'),
+('Triết học'),
+('Tiểu thuyết'),
+('Thiếu nhi'),
+('Sức khỏe'),
+('Lịch sử'),
+('Tôn giáo / Tâm linh'),
+('Ngoại ngữ'),
+('Y học'),
+('Xã hội học'),
+('Công nghệ'),
+('Ẩm thực'),
+('Toán học'),
+('Địa lý'),
+('Khác');
+
+-- ───────────────────────────────────────────────
+-- 13. BẢNG system_settings (Cài đặt hệ thống)
+-- ───────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS system_settings (
+    setting_key VARCHAR(50) PRIMARY KEY,
+    setting_value TEXT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT INTO system_settings (setting_key, setting_value) VALUES
+('maintenance_mode', '0'),
+('maintenance_until', NULL);

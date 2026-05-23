@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Hệ thống đang bảo trì | Thư Viện HDPE</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0f0f16;
+            --bg-card: rgba(22, 22, 33, 0.8);
+            --border-glow: rgba(139, 92, 246, 0.25);
+            --accent-color: #8b5cf6;
+            --text-primary: #f3f4f6;
+            --text-secondary: #9ca3af;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-dark);
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(139, 92, 246, 0.15) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(236, 72, 153, 0.12) 0px, transparent 50%);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            overflow: hidden;
+        }
+
+        .maintenance-container {
+            max-width: 600px;
+            width: 100%;
+            text-align: center;
+            background: var(--bg-card);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 24px;
+            padding: 48px 32px;
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            box-shadow: 
+                0 20px 40px rgba(0, 0, 0, 0.4),
+                0 0 50px rgba(139, 92, 246, 0.1);
+            animation: fadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            position: relative;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .gear-container {
+            position: relative;
+            width: 100px;
+            height: 100px;
+            margin: 0 auto 32px auto;
+        }
+
+        .main-gear {
+            font-size: 72px;
+            color: var(--accent-color);
+            display: inline-block;
+            animation: spin 10s linear infinite;
+            filter: drop-shadow(0 0 15px rgba(139, 92, 246, 0.5));
+        }
+
+        .sub-gear {
+            font-size: 36px;
+            color: #ec4899;
+            position: absolute;
+            bottom: 5px;
+            right: 5px;
+            animation: spin-reverse 6s linear infinite;
+            filter: drop-shadow(0 0 10px rgba(236, 72, 153, 0.4));
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes spin-reverse {
+            from { transform: rotate(360deg); }
+            to { transform: rotate(0deg); }
+        }
+
+        .title {
+            font-size: 28px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, #ffffff 30%, #a78bfa 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+        }
+
+        .description {
+            font-size: 15px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+            margin-bottom: 36px;
+        }
+
+        .time-box {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 8px 18px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #ec4899;
+            margin-bottom: 40px;
+            letter-spacing: 0.5px;
+        }
+
+        .countdown-wrap {
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+            margin-bottom: 48px;
+        }
+
+        .countdown-item {
+            min-width: 80px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            border-radius: 16px;
+            padding: 16px 8px;
+            box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.02);
+        }
+
+        .countdown-number {
+            font-size: 32px;
+            font-weight: 800;
+            color: #ffffff;
+            font-feature-settings: "tnum";
+            font-variant-numeric: tabular-nums;
+            line-height: 1;
+            margin-bottom: 4px;
+        }
+
+        .countdown-label {
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-secondary);
+        }
+
+        .footer {
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            padding-top: 24px;
+        }
+
+        .admin-link {
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            opacity: 0.6;
+        }
+
+        .admin-link:hover {
+            color: var(--accent-color);
+            opacity: 1;
+            transform: translateY(-1px);
+        }
+    </style>
+</head>
+<body>
+
+<div class="maintenance-container">
+    <div class="gear-container">
+        <i class="bi bi-gear-wide-connected main-gear"></i>
+        <i class="bi bi-gear-fill sub-gear"></i>
+    </div>
+    
+    <h1 class="title">Hệ thống đang bảo trì</h1>
+    <p class="description">Chúng tôi đang nâng cấp và tối ưu hóa hệ thống để mang lại trải nghiệm tốt nhất cho bạn. Vui lòng quay lại sau.</p>
+    
+    <?php if ($maintenanceUntil): ?>
+        <div class="time-box">
+            <i class="bi bi-clock-fill" style="margin-right: 6px;"></i>
+            Dự kiến hoàn thành: <?= date('H:i d/m/Y', strtotime($maintenanceUntil)) ?>
+        </div>
+        
+        <div class="countdown-wrap" id="countdown" data-until="<?= date('c', strtotime($maintenanceUntil)) ?>">
+            <div class="countdown-item">
+                <div class="countdown-number" id="cd-hours">00</div>
+                <div class="countdown-label">Giờ</div>
+            </div>
+            <div class="countdown-item">
+                <div class="countdown-number" id="cd-mins">00</div>
+                <div class="countdown-label">Phút</div>
+            </div>
+            <div class="countdown-item">
+                <div class="countdown-number" id="cd-secs">00</div>
+                <div class="countdown-label">Giây</div>
+            </div>
+        </div>
+    <?php endif; ?>
+
+    <div class="footer">
+        <a href="<?= $this->url('library/auth', ['action' => 'login']) ?>" class="admin-link">
+            <i class="bi bi-shield-lock-fill"></i> Đăng nhập Quản trị viên
+        </a>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const countdown = document.getElementById('countdown');
+    if (!countdown) return;
+
+    const untilDate = new Date(countdown.dataset.until).getTime();
+
+    function updateTimer() {
+        const now = new Date().getTime();
+        const diff = untilDate - now;
+
+        if (diff <= 0) {
+            // Reload page if maintenance timer expired
+            window.location.reload();
+            return;
+        }
+
+        // Calculations for hours, minutes and seconds
+        const hours = Math.floor(diff / (1000 * 60 * 60));
+        const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const secs = Math.floor((diff % (1000 * 60)) / 1000);
+
+        document.getElementById('cd-hours').innerText = String(hours).padStart(2, '0');
+        document.getElementById('cd-mins').innerText = String(mins).padStart(2, '0');
+        document.getElementById('cd-secs').innerText = String(secs).padStart(2, '0');
+    }
+
+    updateTimer();
+    setInterval(updateTimer, 1000);
+});
+</script>
+
+</body>
+</html>

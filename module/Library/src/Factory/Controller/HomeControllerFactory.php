@@ -12,6 +12,9 @@ class HomeControllerFactory
 {
     public function __invoke(ContainerInterface $container): HomeController
     {
-        return new HomeController($container->get(AuthSessionContainer::class));
+        return new HomeController(
+            $container->get(AuthSessionContainer::class),
+            $container->get(\Laminas\Db\Adapter\AdapterInterface::class)
+        );
     }
 }

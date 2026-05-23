@@ -17,8 +17,10 @@ $totalCount = (int) ($totalCount ?? 0);
 $totalPages = (int) ($totalPages ?? 1);
 
 $queryBase = [
-    'search' => (string) ($filters['search'] ?? ''),
-    'status' => (string) ($filters['status'] ?? ''),
+    'search'    => (string) ($filters['search'] ?? ''),
+    'status'    => (string) ($filters['status'] ?? ''),
+    'sort'      => (string) ($filters['sort'] ?? ''),
+    'direction' => (string) ($filters['direction'] ?? ''),
 ];
 
 $buildPageUrl = function(int $p) use ($routePrefix, $queryBase): string {
@@ -26,6 +28,33 @@ $buildPageUrl = function(int $p) use ($routePrefix, $queryBase): string {
     $q['page'] = $p;
     $q = array_filter($q, fn($v, $k) => $k === 'page' || $v !== '', ARRAY_FILTER_USE_BOTH);
     return $this->url($routePrefix . '/ticket', [], ['query' => $q]);
+};
+
+$buildSortUrl = function(string $col) use ($queryBase, $routePrefix): string {
+    $currentSort = $queryBase['sort'];
+    $currentDir  = strtoupper($queryBase['direction']);
+    if ($currentSort === $col) {
+        $newDir = ($currentDir === 'ASC') ? 'DESC' : 'ASC';
+    } else {
+        $newDir = in_array($col, ['updated_at', 'id']) ? 'DESC' : 'ASC';
+    }
+    $q = $queryBase;
+    $q['sort'] = $col;
+    $q['direction'] = $newDir;
+    $q = array_filter($q, fn($v) => $v !== null && $v !== '');
+    return $this->url($routePrefix . '/ticket', [], ['query' => $q]);
+};
+
+$renderSortIcon = function(string $col) use ($queryBase): string {
+    $currentSort = $queryBase['sort'];
+    $currentDir  = strtoupper($queryBase['direction']);
+    if ($currentSort !== $col) {
+        return '<i class="bi bi-arrow-down-up ms-1" style="font-size: 0.75rem; opacity: 0.4;"></i>';
+    }
+    if ($currentDir === 'ASC') {
+        return '<i class="bi bi-sort-down ms-1" style="font-size: 0.85rem; color: var(--primary-color);"></i>';
+    }
+    return '<i class="bi bi-sort-up ms-1" style="font-size: 0.85rem; color: var(--primary-color);"></i>';
 };
 ?>
 
@@ -42,15 +71,26 @@ $buildPageUrl = function(int $p) use ($routePrefix, $queryBase): string {
 </div>
 
 <!-- FILTER TABS & SEARCH -->
+<?php
+$buildTabUrl = function(string $statusVal) use ($filters, $routePrefix) {
+    $q = [
+        'search'    => $filters['search'] ?? '',
+        'status'    => $statusVal,
+        'sort'      => $filters['sort'] ?? '',
+        'direction' => $filters['direction'] ?? '',
+    ];
+    return $this->url($routePrefix . '/ticket', [], ['query' => array_filter($q, fn($v) => $v !== null && $v !== '')]);
+};
+?>
 <div class="user-filters-bar">
     <div class="filter-tabs user-filter-tabs">
-        <a href="<?= $this->url($routePrefix . '/ticket', [], ['query' => array_filter(['search' => $filters['search'] ?? ''])]) ?>" class="filter-tab <?= !($filters['status'] ?? '') ? 'active' : '' ?>">
+        <a href="<?= $buildTabUrl('') ?>" class="filter-tab <?= !($filters['status'] ?? '') ? 'active' : '' ?>">
             Tất cả <span class="count"><?= (int)($allCount ?? 0) ?></span>
         </a>
-        <a href="<?= $this->url($routePrefix . '/ticket', [], ['query' => array_filter(['status' => 'unanswered', 'search' => $filters['search'] ?? ''])]) ?>" class="filter-tab <?= ($filters['status'] ?? '') === 'unanswered' ? 'active' : '' ?>">
+        <a href="<?= $buildTabUrl('unanswered') ?>" class="filter-tab <?= ($filters['status'] ?? '') === 'unanswered' ? 'active' : '' ?>">
             Chưa phản hồi <span class="count"><?= (int)($unansweredCount ?? 0) ?></span>
         </a>
-        <a href="<?= $this->url($routePrefix . '/ticket', [], ['query' => array_filter(['status' => 'answered', 'search' => $filters['search'] ?? ''])]) ?>" class="filter-tab <?= ($filters['status'] ?? '') === 'answered' ? 'active' : '' ?>">
+        <a href="<?= $buildTabUrl('answered') ?>" class="filter-tab <?= ($filters['status'] ?? '') === 'answered' ? 'active' : '' ?>">
             Đã phản hồi <span class="count"><?= (int)($answeredCount ?? 0) ?></span>
         </a>
     </div>
@@ -58,6 +98,8 @@ $buildPageUrl = function(int $p) use ($routePrefix, $queryBase): string {
         <?php if (!empty($filters['status'])): ?>
             <input type="hidden" name="status" value="<?= htmlspecialchars($filters['status']) ?>">
         <?php endif; ?>
+        <input type="hidden" name="sort" value="<?= htmlspecialchars((string)($filters['sort'] ?? '')) ?>">
+        <input type="hidden" name="direction" value="<?= htmlspecialchars((string)($filters['direction'] ?? '')) ?>">
         <div class="topbar-search user-search-wrap">
             <i class="bi bi-search"></i>
             <input type="text" name="search" value="<?= htmlspecialchars($filters['search'] ?? '') ?>" placeholder="Tìm theo tiêu đề, nội dung...">
@@ -71,13 +113,33 @@ $buildPageUrl = function(int $p) use ($routePrefix, $queryBase): string {
         <table class="data-table">
             <thead>
                 <tr>
-                    <th class="ticket-table-th">Mã Ticket</th>
-                    <th class="ticket-table-th">Tiêu đề</th>
+                    <th class="ticket-table-th">
+                        <a href="<?= $buildSortUrl('id') ?>" style="text-decoration: none; color: inherit; display: inline-flex; align-items: center;">
+                            Mã Ticket <?= $renderSortIcon('id') ?>
+                        </a>
+                    </th>
+                    <th class="ticket-table-th">
+                        <a href="<?= $buildSortUrl('title') ?>" style="text-decoration: none; color: inherit; display: inline-flex; align-items: center;">
+                            Tiêu đề <?= $renderSortIcon('title') ?>
+                        </a>
+                    </th>
                     <?php if ($isAdmin): ?>
-                    <th class="ticket-table-th">Người gửi</th>
+                    <th class="ticket-table-th">
+                        <a href="<?= $buildSortUrl('author') ?>" style="text-decoration: none; color: inherit; display: inline-flex; align-items: center;">
+                            Người gửi <?= $renderSortIcon('author') ?>
+                        </a>
+                    </th>
                     <?php endif; ?>
-                    <th class="ticket-table-th">Cập nhật lần cuối</th>
-                    <th class="ticket-table-th">Trạng thái</th>
+                    <th class="ticket-table-th">
+                        <a href="<?= $buildSortUrl('updated_at') ?>" style="text-decoration: none; color: inherit; display: inline-flex; align-items: center;">
+                            Cập nhật lần cuối <?= $renderSortIcon('updated_at') ?>
+                        </a>
+                    </th>
+                    <th class="ticket-table-th">
+                        <a href="<?= $buildSortUrl('status') ?>" style="text-decoration: none; color: inherit; display: inline-flex; align-items: center;">
+                            Trạng thái <?= $renderSortIcon('status') ?>
+                        </a>
+                    </th>
                     <th class="ticket-table-th--right">Thao tác</th>
                 </tr>
             </thead>

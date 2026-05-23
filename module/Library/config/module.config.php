@@ -72,11 +72,21 @@ return [
                     'defaults' => ['controller' => BookController::class, 'action' => 'index'],
                 ],
             ],
+            'maintenance' => [
+                'type'    => Literal::class,
+                'options' => [
+                    'route'    => '/maintenance',
+                    'defaults' => ['controller' => HomeController::class, 'action' => 'maintenance'],
+                ],
+            ],
             'announcements' => [
                 'type'    => Literal::class,
                 'options' => [
                     'route'    => '/announcements',
-                    'defaults' => ['controller' => BookController::class, 'action' => 'announcements'],
+                    'defaults' => [
+                        'controller' => BookController::class,
+                        'action'     => 'announcements',
+                    ],
                 ],
             ],
             'library' => [
@@ -176,6 +186,64 @@ return [
                             'defaults'    => ['controller' => SettingsController::class, 'action' => 'index'],
                         ],
                     ],
+                    'announcements' => [
+                        'type'    => Segment::class,
+                        'options' => [
+                            'route'    => '/announcements',
+                            'defaults' => [
+                                'controller' => BookController::class,
+                                'action'     => 'announcements',
+                            ],
+                        ],
+                        'may_terminate' => true,
+                        'child_routes' => [
+                            'add' => [
+                                'type' => Literal::class,
+                                'options' => [
+                                    'route' => '/add',
+                                    'defaults' => [
+                                        'action' => 'addAnnouncement',
+                                    ],
+                                ],
+                            ],
+                            'edit' => [
+                                'type' => Segment::class,
+                                'options' => [
+                                    'route' => '/edit/:id',
+                                    'constraints' => [
+                                        'id' => '[0-9]+',
+                                    ],
+                                    'defaults' => [
+                                        'action' => 'editAnnouncement',
+                                    ],
+                                ],
+                            ],
+                            'delete' => [
+                                'type' => Segment::class,
+                                'options' => [
+                                    'route' => '/delete/:id',
+                                    'constraints' => [
+                                        'id' => '[0-9]+',
+                                    ],
+                                    'defaults' => [
+                                        'action' => 'deleteAnnouncement',
+                                    ],
+                                ],
+                            ],
+                            'toggle' => [
+                                'type' => Segment::class,
+                                'options' => [
+                                    'route' => '/toggle/:id',
+                                    'constraints' => [
+                                        'id' => '[0-9]+',
+                                    ],
+                                    'defaults' => [
+                                        'action' => 'toggleAnnouncement',
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
                 ],
             ],
             'student' => [
@@ -240,6 +308,16 @@ return [
                             'route'       => '/profile[/:action]',
                             'constraints' => ['action' => '[a-zA-Z][a-zA-Z0-9_-]*'],
                             'defaults'    => ['controller' => ProfileController::class, 'action' => 'index'],
+                        ],
+                    ],
+                    'announcements' => [
+                        'type'    => Literal::class,
+                        'options' => [
+                            'route'    => '/announcements',
+                            'defaults' => [
+                                'controller' => BookController::class,
+                                'action'     => 'announcements',
+                            ],
                         ],
                     ],
                 ],

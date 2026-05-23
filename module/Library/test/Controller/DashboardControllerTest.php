@@ -463,6 +463,162 @@ class DashboardControllerTest extends AbstractHttpControllerTestCase
         $this->assertResponseStatusCode(403);
     }
 
+    public function testExportStatsActionAdmin(): void
+    {
+        $this->mockLoginAsRole('admin');
+
+        $borrowTableMock = $this->createMock(BorrowTable::class);
+        $borrowTableMock->expects(self::once())
+            ->method('getMonthlyStats')
+            ->with(2026, null)
+            ->willReturn([
+                'borrow' => [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+                'return' => [12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1],
+            ]);
+
+        $serviceLocator = $this->getApplicationServiceLocator();
+        $serviceLocator->setAllowOverride(true);
+        $serviceLocator->setService(BorrowTable::class, $borrowTableMock);
+
+        $this->dispatch('/admin/dashboard/export-stats?year=2026&quarter=all', 'GET');
+        $this->assertResponseStatusCode(200);
+        $response = $this->getResponse();
+        $headers = $response->getHeaders();
+        $this->assertTrue($headers->has('Content-Disposition'));
+        $this->assertStringContainsString('thong-ke-muon-tra-2026.xlsx', $headers->get('Content-Disposition')->getFieldValue());
+        $this->assertStringContainsString('spreadsheetml', $headers->get('Content-Type')->getFieldValue());
+
+        // XLSX is binary — verify it starts with the ZIP/PK signature
+        $content = $response->getContent();
+        $this->assertStringStartsWith('PK', $content);
+    }
+
+    public function testExportStatsActionStudent(): void
+    {
+        $this->mockLoginAsRole('student'); // ID is 2
+
+        $borrowTableMock = $this->createMock(BorrowTable::class);
+        $borrowTableMock->expects(self::once())
+            ->method('getMonthlyStats')
+            ->with(2026, 2)
+            ->willReturn([
+                'borrow' => array_fill(0, 12, 0),
+                'return' => array_fill(0, 12, 0),
+            ]);
+
+        $serviceLocator = $this->getApplicationServiceLocator();
+        $serviceLocator->setAllowOverride(true);
+        $serviceLocator->setService(BorrowTable::class, $borrowTableMock);
+
+        $this->dispatch('/student/dashboard/export-stats?year=2026&quarter=1', 'GET');
+        $this->assertResponseStatusCode(200);
+        $response = $this->getResponse();
+        $headers = $response->getHeaders();
+        $this->assertTrue($headers->has('Content-Disposition'));
+        $this->assertStringContainsString('thong-ke-muon-tra-2026-quy-1.xlsx', $headers->get('Content-Disposition')->getFieldValue());
+        $this->assertStringContainsString('spreadsheetml', $headers->get('Content-Type')->getFieldValue());
+
+        // XLSX is binary — verify it starts with the ZIP/PK signature
+        $content = $response->getContent();
+        $this->assertStringStartsWith('PK', $content);
+    }
+
+    public function testExportCategoryMonthlyStatsActionAdmin(): void
+    {
+        $this->mockLoginAsRole('admin');
+
+        $borrowTableMock = $this->createMock(BorrowTable::class);
+        $borrowTableMock->expects(self::once())
+            ->method('getCategoryMonthlyStats')
+            ->with(2026)
+            ->willReturn([
+                'Thiếu nhi' => [1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            ]);
+
+        $serviceLocator = $this->getApplicationServiceLocator();
+        $serviceLocator->setAllowOverride(true);
+        $serviceLocator->setService(BorrowTable::class, $borrowTableMock);
+
+        $this->dispatch('/admin/dashboard/export-category-monthly-stats?year=2026&month=year', 'GET');
+        $this->assertResponseStatusCode(200);
+        $response = $this->getResponse();
+        $headers = $response->getHeaders();
+        $this->assertTrue($headers->has('Content-Disposition'));
+        $this->assertStringContainsString('the-loai-sach-duoc-muon-2026.xlsx', $headers->get('Content-Disposition')->getFieldValue());
+        $this->assertStringContainsString('spreadsheetml', $headers->get('Content-Type')->getFieldValue());
+
+        // XLSX is binary — verify it starts with the ZIP/PK signature
+        $content = $response->getContent();
+        $this->assertStringStartsWith('PK', $content);
+    }
+
+    public function testExportCategoryMonthlyStatsActionStudentForbidden(): void
+    {
+        $this->mockLoginAsRole('student');
+
+        $this->dispatch('/student/dashboard/export-category-monthly-stats', 'GET');
+        $this->assertResponseStatusCode(403);
+    }
+
+    public function testExportCategoryStatsActionAdmin(): void
+    {
+        $this->mockLoginAsRole('admin');
+
+        $bookTableMock = $this->createMock(BookTable::class);
+        $bookTableMock->expects(self::once())
+            ->method('getCategoryStats')
+            ->with(null)
+            ->willReturn([
+                'Văn học' => 10,
+                'Khoa học' => 5,
+            ]);
+
+        $serviceLocator = $this->getApplicationServiceLocator();
+        $serviceLocator->setAllowOverride(true);
+        $serviceLocator->setService(BookTable::class, $bookTableMock);
+
+        $this->dispatch('/admin/dashboard/export-category-stats', 'GET');
+        $this->assertResponseStatusCode(200);
+        $response = $this->getResponse();
+        $headers = $response->getHeaders();
+        $this->assertTrue($headers->has('Content-Disposition'));
+        $this->assertStringContainsString('phan-bo-the-loai-sach.xlsx', $headers->get('Content-Disposition')->getFieldValue());
+        $this->assertStringContainsString('spreadsheetml', $headers->get('Content-Type')->getFieldValue());
+
+        // XLSX is binary — verify it starts with the ZIP/PK signature
+        $content = $response->getContent();
+        $this->assertStringStartsWith('PK', $content);
+    }
+
+    public function testExportCategoryStatsActionStudent(): void
+    {
+        $this->mockLoginAsRole('student'); // ID is 2
+
+        $bookTableMock = $this->createMock(BookTable::class);
+        $bookTableMock->expects(self::once())
+            ->method('getCategoryStats')
+            ->with(2)
+            ->willReturn([
+                'Văn học' => 2,
+            ]);
+
+        $serviceLocator = $this->getApplicationServiceLocator();
+        $serviceLocator->setAllowOverride(true);
+        $serviceLocator->setService(BookTable::class, $bookTableMock);
+
+        $this->dispatch('/student/dashboard/export-category-stats', 'GET');
+        $this->assertResponseStatusCode(200);
+        $response = $this->getResponse();
+        $headers = $response->getHeaders();
+        $this->assertTrue($headers->has('Content-Disposition'));
+        $this->assertStringContainsString('the-loai-sach-da-muon.xlsx', $headers->get('Content-Disposition')->getFieldValue());
+        $this->assertStringContainsString('spreadsheetml', $headers->get('Content-Type')->getFieldValue());
+
+        // XLSX is binary — verify it starts with the ZIP/PK signature
+        $content = $response->getContent();
+        $this->assertStringStartsWith('PK', $content);
+    }
+
 
     private function mockLoginAsRole(string $role): void
     {
