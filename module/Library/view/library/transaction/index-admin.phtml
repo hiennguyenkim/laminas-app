@@ -1,8 +1,8 @@
 <?php
-$this->headTitle('Phiếu mượn của tôi');
+$this->headTitle('Mượn / Trả sách');
 $this->layout('layout/library-layout');
 $authUser    = $this->currentUser();
-$routePrefix = 'student';
+$routePrefix = 'library';
 $statusMap = [
     'pending'  => ['Chờ duyệt',  'badge-orange'],
     'borrowed' => ['Đang mượn',  'badge-purple'],
@@ -11,6 +11,11 @@ $statusMap = [
 ];
 $avatarColors = ['#7c6aff','#22c55e','#f97316','#ec4899','#3b82f6','#14b8a6'];
 $bookColors   = ['#7c6aff','#f97316','#14b8a6','#3b82f6','#ec4899','#22c55e'];
+$initials = function(string $name): string {
+    $words = explode(' ', trim($name));
+    if (count($words)>=2) return strtoupper(substr($words[0],0,1).substr(end($words),0,1));
+    return strtoupper(substr($name,0,2));
+};
 $filterStatus = (string)($filters['status']??'');
 
 $pagination = $pagination ?? [];
@@ -28,6 +33,7 @@ $queryBase = [
     'sort'      => (string) ($filters['sort'] ?? ''),
     'direction' => (string) ($filters['direction'] ?? ''),
 ];
+$queryBase['user_id'] = (string) ($filters['user_id'] ?? '');
 
 $buildPageUrl = function(int $p) use ($queryBase, $routePrefix): string {
     $q = $queryBase; $q['page'] = $p;
@@ -66,15 +72,15 @@ $renderSortIcon = function(string $col) use ($queryBase): string {
 <!-- PAGE HEADER -->
 <div class="page-header">
     <div>
-        <div class="page-title">Lịch sử mượn / trả</div>
+        <div class="page-title">Lịch sử mượn / trả (Quản trị)</div>
         <div class="page-subtitle"><?= number_format((int)($summary['total'] ?? count((array)($records ?? [])))) ?> giao dịch gần đây</div>
     </div>
     <div class="d-flex gap-2">
         <a href="<?= $this->url($routePrefix . '/transaction', ['action' => 'export'], ['query' => $queryBase]) ?>" class="btn btn-outline d-flex align-items-center gap-2" title="Xuất Excel (.xlsx)">
             <i class="bi bi-file-earmark-excel" style="color:#1d6f42;"></i>Xuất .xlsx
         </a>
-        <a href="<?= $this->url($routePrefix . '/transaction', ['action' => 'borrow']) ?>" class="btn btn-success">
-            <i class="bi bi-bookmark-plus"></i>Mượn sách
+        <a href="<?= $this->url($routePrefix . '/transaction', ['action' => 'borrow']) ?>" class="btn btn-primary">
+            <i class="bi bi-plus-lg"></i>Tạo phiếu mượn
         </a>
     </div>
 </div>
@@ -140,6 +146,9 @@ $buildTabUrl = function(string $statusVal) use ($filters, $routePrefix) {
         'sort'      => $filters['sort'] ?? '',
         'direction' => $filters['direction'] ?? '',
     ];
+    if (!empty($filters['user_id'])) {
+        $q['user_id'] = $filters['user_id'];
+    }
     return $this->url($routePrefix . '/transaction', [], ['query' => array_filter($q, fn($v) => $v !== null && $v !== '')]);
 };
 ?>
@@ -164,6 +173,9 @@ $buildTabUrl = function(string $statusVal) use ($filters, $routePrefix) {
     <form method="GET" class="tx-filter-form" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
         <!-- Preserve selected status -->
         <input type="hidden" name="status" value="<?= htmlspecialchars($filterStatus) ?>">
+        <?php if (!empty($filters['user_id'])): ?>
+            <input type="hidden" name="user_id" value="<?= htmlspecialchars((string)$filters['user_id']) ?>">
+        <?php endif; ?>
         <input type="hidden" name="sort" value="<?= htmlspecialchars((string)($filters['sort'] ?? '')) ?>">
         <input type="hidden" name="direction" value="<?= htmlspecialchars((string)($filters['direction'] ?? '')) ?>">
 
@@ -213,7 +225,7 @@ $buildTabUrl = function(string $statusVal) use ($filters, $routePrefix) {
 
         <div class="topbar-search tx-search-wrap" style="position: relative;">
             <i class="bi bi-search"></i>
-            <input type="text" name="search" value="<?= htmlspecialchars($filters['search']??'') ?>" placeholder="Tìm theo sách..." oninput="this.nextElementSibling.style.display = this.value ? 'inline-block' : 'none';" style="padding-right: 28px;">
+            <input type="text" name="search" value="<?= htmlspecialchars($filters['search']??'') ?>" placeholder="Tìm theo sách, thành viên..." oninput="this.nextElementSibling.style.display = this.value ? 'inline-block' : 'none';" style="padding-right: 28px;">
             <i class="bi bi-x-circle-fill search-clear-btn" style="position: absolute; right: 12px; cursor: pointer; color: var(--text-muted); display: <?= !empty($filters['search']) ? 'inline-block' : 'none' ?>; font-size: 14px;" onclick="clearSearchInput(this)"></i>
         </div>
         <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-search"></i>Tìm</button>
@@ -226,7 +238,11 @@ $buildTabUrl = function(string $statusVal) use ($filters, $routePrefix) {
         <table class="data-table">
             <thead>
                 <tr>
-                    <th>Thành viên</th>
+                    <th>
+                        <a href="<?= $buildSortUrl('member') ?>" style="text-decoration: none; color: inherit; display: inline-flex; align-items: center;">
+                            Thành viên <?= $renderSortIcon('member') ?>
+                        </a>
+                    </th>
                     <th>
                         <a href="<?= $buildSortUrl('book') ?>" style="text-decoration: none; color: inherit; display: inline-flex; align-items: center;">
                             Sách <?= $renderSortIcon('book') ?>
@@ -271,10 +287,11 @@ $buildTabUrl = function(string $statusVal) use ($filters, $routePrefix) {
                     <td>
                         <div class="avatar-row">
                             <div class="avatar" style="background:<?= $aColor ?>">
-                                <i class="bi bi-person"></i>
+                                <?= substr($initials(htmlspecialchars($record->userFullName)),0,2) ?>
                             </div>
                             <div>
-                                <div class="fw-medium">Tôi</div>
+                                <div class="fw-medium"><?= htmlspecialchars($record->userFullName) ?></div>
+                                <div class="text-muted"><?= htmlspecialchars($record->username) ?></div>
                             </div>
                         </div>
                     </td>
@@ -304,9 +321,31 @@ $buildTabUrl = function(string $statusVal) use ($filters, $routePrefix) {
                     <td><span class="badge <?= $statusClass ?>"><?= $statusLabel ?></span></td>
                     <td>
                         <?php if ($record->status === 'pending'): ?>
-                        <span class="tx-status-hint tx-status-hint-italic"><i class="bi bi-hourglass-split"></i> Đang chờ duyệt</span>
+                        <div class="tx-actions-row">
+                            <button type="button" class="btn btn-primary btn-sm tx-btn-tiny"
+                                    onclick="openApproveModal(
+                                        '<?= $this->url($routePrefix . '/transaction', ['action' => 'approve', 'id' => $record->id]) ?>',
+                                        '<?= addslashes(htmlspecialchars($record->userFullName ?? '')) ?>',
+                                        '<?= addslashes(htmlspecialchars($record->bookTitle)) ?>',
+                                        '<?= htmlspecialchars($record->borrowDate) ?>',
+                                        '<?= htmlspecialchars($record->returnDate) ?>'
+                                    )">
+                                <i class="bi bi-patch-check"></i>Duyệt
+                            </button>
+                            <form method="POST" action="<?= $this->url($routePrefix . '/transaction', ['action' => 'reject', 'id' => $record->id]) ?>"
+                                  data-confirm="Từ chối duyệt yêu cầu mượn sách '<?= htmlspecialchars($record->bookTitle) ?>' của '<?= htmlspecialchars($record->userFullName ?? '') ?>'?" class="tx-form-inline">
+                                <button type="submit" class="btn btn-sm btn-outline tx-btn-tiny-danger">
+                                    <i class="bi bi-x-circle"></i>Từ chối
+                                </button>
+                            </form>
+                        </div>
                         <?php elseif (in_array($record->status, ['borrowed','overdue'], true)): ?>
-                        <span class="tx-status-hint">Liên hệ thủ thư để trả</span>
+                        <form method="POST" action="<?= $this->url($routePrefix . '/transaction', ['action' => 'return', 'id' => $record->id]) ?>"
+                              data-confirm="Xác nhận '<?= htmlspecialchars($record->userFullName ?? '') ?>' đã trả sách '<?= htmlspecialchars($record->bookTitle) ?>'?">
+                            <button type="submit" class="btn btn-success btn-sm">
+                                <i class="bi bi-check-circle"></i>Xác nhận trả
+                            </button>
+                        </form>
                         <?php else: ?>
                         <?php if ($record->returnedAt): ?>
                         <span class="tx-status-hint">Trả: <?= htmlspecialchars($record->returnedAt) ?></span>
@@ -338,6 +377,76 @@ $buildTabUrl = function(string $statusVal) use ($filters, $routePrefix) {
     </div>
 </div>
 <?php endif; ?>
+
+<!-- HTML Custom Modal for Approving Loan with Dates -->
+<div id="approveModal" class="custom-modal d-none">
+    <div class="custom-modal-overlay" onclick="closeApproveModal()"></div>
+    <div class="custom-modal-content">
+        <div class="custom-modal-header">
+            <div class="custom-modal-title"><i class="bi bi-calendar-check"></i> Phê duyệt phiếu mượn</div>
+            <button type="button" class="custom-modal-close-btn" onclick="closeApproveModal()">&times;</button>
+        </div>
+        <form id="approveForm" method="POST" action="">
+            <div class="custom-modal-body">
+                <p class="tx-modal-desc">
+                    Bạn đang phê duyệt yêu cầu mượn sách của <strong id="modalUser" class="tx-modal-desc-highlight"></strong>.<br>
+                    Cuốn sách: <strong id="modalBook" class="tx-modal-desc-highlight"></strong>.
+                </p>
+                <div class="form-group">
+                    <label class="form-label">Ngày mượn thực tế</label>
+                    <input type="date" name="borrow_date" id="modalBorrowDate" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Hạn trả (Ngày phải trả)</label>
+                    <input type="date" name="return_date" id="modalReturnDate" class="form-control" required>
+                </div>
+            </div>
+            <div class="custom-modal-footer">
+                <button type="button" class="btn btn-outline btn-sm" onclick="closeApproveModal()">Hủy bỏ</button>
+                <button type="submit" class="btn btn-primary btn-sm">Xác nhận & Duyệt</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function openApproveModal(actionUrl, userName, bookTitle, borrowDate, returnDate) {
+    const modal = document.getElementById('approveModal');
+    const form = document.getElementById('approveForm');
+    const modalUser = document.getElementById('modalUser');
+    const modalBook = document.getElementById('modalBook');
+    const modalBorrowInput = document.getElementById('modalBorrowDate');
+    const modalReturnInput = document.getElementById('modalReturnDate');
+
+    form.action = actionUrl;
+    modalUser.textContent = userName;
+    modalBook.textContent = bookTitle;
+
+    const today = new Date().toISOString().split('T')[0];
+    modalBorrowInput.value = borrowDate && borrowDate !== '0000-00-00' ? borrowDate : today;
+    
+    if (returnDate && returnDate !== '0000-00-00') {
+        modalReturnInput.value = returnDate;
+    } else {
+        const borrowVal = new Date(modalBorrowInput.value);
+        borrowVal.setDate(borrowVal.getDate() + 14); // Default to 14 days
+        modalReturnInput.value = borrowVal.toISOString().split('T')[0];
+    }
+
+    modal.classList.remove('d-none');
+    setTimeout(() => {
+        modal.classList.add('show');
+    }, 15);
+}
+
+function closeApproveModal() {
+    const modal = document.getElementById('approveModal');
+    modal.classList.remove('show');
+    setTimeout(() => {
+        modal.classList.add('d-none');
+    }, 220);
+}
+</script>
 
 <script>
 // Period to week numbers mapping

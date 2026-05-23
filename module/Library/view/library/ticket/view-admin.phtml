@@ -2,7 +2,7 @@
 $this->headTitle('Chi tiết Ticket #' . $ticket['id']);
 $this->layout('layout/library-layout');
 $authUser    = $this->currentUser();
-$routePrefix = 'student';
+$routePrefix = 'library';
 
 $statusMap = [
     'open' => ['Chưa phản hồi', 'badge-orange'],
@@ -69,4 +69,3 @@ $isClosed = false; // Always allow reply since ticket closing is removed
     <i class="bi bi-info-circle-fill"></i> Yêu cầu hỗ trợ này đã được đóng. Bạn không thể gửi thêm phản hồi.
 </div>
 <?php endif; ?>
-

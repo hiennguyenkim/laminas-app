@@ -103,7 +103,7 @@ class BookController extends BaseController
             }
         }
 
-        return new ViewModel([
+        $viewModel = new ViewModel([
             'books'      => $this->bookTable->fetchPage($filters, $page, $perPage),
             'filters'    => $filters,
             'categories' => array_keys($this->getCategoryOptions()),
@@ -121,6 +121,14 @@ class BookController extends BaseController
             'announcements' => $announcements,
             'categoriesWithId' => $this->getCategoriesWithId(),
         ]);
+
+        if ($this->isAdmin()) {
+            $viewModel->setTemplate('library/book/index-admin');
+        } else {
+            $viewModel->setTemplate('library/book/index');
+        }
+
+        return $viewModel;
     }
 
     public function viewAction(): Response|ViewModel
@@ -157,13 +165,21 @@ class BookController extends BaseController
             } catch (\Exception $e) {}
         }
 
-        return new ViewModel([
+        $viewModel = new ViewModel([
             'book'            => $book,
             'hasActiveBorrow' => $this->borrowTable->hasActiveBorrowForBook($id),
             'currentUser'     => $currentUser,
             'canManage'       => $canManage,
             'reviews'         => $reviews,
         ]);
+
+        if ($canManage) {
+            $viewModel->setTemplate('library/book/view-admin');
+        } else {
+            $viewModel->setTemplate('library/book/view');
+        }
+
+        return $viewModel;
     }
 
     public function importAction(): Response

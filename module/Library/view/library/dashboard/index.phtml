@@ -2,7 +2,7 @@
 $this->headTitle('Tổng quan');
 $this->layout('layout/library-layout');
 $authUser    = $this->currentUser();
-$routePrefix = ($authUser['role'] ?? '') === 'admin' ? 'library' : 'student';
+$routePrefix = 'student';
 $statusLabels = [
     'borrowed' => ['label' => 'Đang mượn', 'class' => 'badge-purple'],
     'returned' => ['label' => 'Đã trả',    'class' => 'badge-green'],
@@ -15,13 +15,10 @@ $statusLabels = [
 <div class="page-header">
     <div>
         <div class="page-title">Tổng quan</div>
-        <div class="page-subtitle"><?= $isAdmin ? 'Bảng điều hành vận hành thư viện dành cho quản trị viên.' : 'Không gian theo dõi hoạt động mượn đọc của bạn.' ?></div>
+        <div class="page-subtitle">Không gian theo dõi hoạt động mượn đọc của bạn.</div>
     </div>
     <div class="d-flex gap-2">
-        <a href="<?= $this->url($routePrefix . '/book') ?>" class="btn btn-outline"><i class="bi bi-book"></i><?= $isAdmin ? 'Mở kho sách' : 'Xem danh mục' ?></a>
-        <?php if ($isAdmin): ?>
-        <a href="<?= $this->url($routePrefix . '/transaction', ['action' => 'borrow']) ?>" class="btn btn-primary"><i class="bi bi-plus-circle"></i>Lập phiếu mượn</a>
-        <?php endif; ?>
+        <a href="<?= $this->url('student/book') ?>" class="btn btn-outline"><i class="bi bi-book"></i>Xem danh mục</a>
     </div>
 </div>
 
@@ -39,7 +36,7 @@ $statusLabels = [
 </div>
 <?php endif; ?>
 
-<?php if (!$isAdmin && isset($dueSoon) && $dueSoon > 0): ?>
+<?php if (isset($dueSoon) && $dueSoon > 0): ?>
 <div class="db-alert db-alert-warning">
     <i class="bi bi-exclamation-circle db-alert-icon"></i>
     <div>
@@ -51,36 +48,36 @@ $statusLabels = [
 
 <!-- STAT CARDS -->
 <div class="stat-cards">
-    <!-- Card 1: Books/History -->
-    <a href="<?= $isAdmin ? $this->url('library/book') : $this->url('student/transaction') ?>" class="stat-card purple stat-card-link">
+    <!-- Card 1: History -->
+    <a href="<?= $this->url('student/transaction') ?>" class="stat-card purple stat-card-link">
         <div class="stat-icon purple"><i class="bi bi-book-half"></i></div>
-        <div class="stat-value"><?= number_format((int)($isAdmin ? $totalBooks : ($loanSummary['total'] ?? 0))) ?></div>
-        <div class="stat-label"><?= $isAdmin ? 'Tổng số sách' : 'Lịch sử mượn' ?></div>
+        <div class="stat-value"><?= number_format((int)($loanSummary['total'] ?? 0)) ?></div>
+        <div class="stat-label">Lịch sử mượn</div>
     </a>
-    <!-- Card 2: Members/Returned -->
-    <a href="<?= $isAdmin ? $this->url('library/user') : $this->url('student/transaction', [], ['query' => ['status' => 'returned']]) ?>" class="stat-card green stat-card-link">
+    <!-- Card 2: Returned -->
+    <a href="<?= $this->url('student/transaction', [], ['query' => ['status' => 'returned']]) ?>" class="stat-card green stat-card-link">
         <div class="stat-icon green"><i class="bi bi-bookmark-check-fill"></i></div>
-        <div class="stat-value"><?= number_format((int)($isAdmin ? ($totalMembers ?? 0) : ($loanSummary['returned'] ?? 0))) ?></div>
-        <div class="stat-label"><?= $isAdmin ? 'Thành viên' : 'Đã hoàn trả' ?></div>
+        <div class="stat-value"><?= number_format((int)($loanSummary['returned'] ?? 0)) ?></div>
+        <div class="stat-label">Đã hoàn trả</div>
     </a>
     <!-- Card 3: Borrowing -->
-    <a href="<?= $this->url($routePrefix . '/transaction', [], ['query' => ['status' => 'borrowed']]) ?>" class="stat-card orange stat-card-link">
+    <a href="<?= $this->url('student/transaction', [], ['query' => ['status' => 'borrowed']]) ?>" class="stat-card orange stat-card-link">
         <div class="stat-icon orange"><i class="bi bi-bookmark-check"></i></div>
         <div class="stat-value"><?= number_format((int)$totalBorrowed) ?></div>
-        <div class="stat-label"><?= $isAdmin ? 'Đang mượn' : 'Sách đang mượn' ?></div>
+        <div class="stat-label">Sách đang mượn</div>
     </a>
     <!-- Card 4: Overdue -->
-    <a href="<?= $this->url($routePrefix . '/transaction', [], ['query' => ['status' => 'overdue']]) ?>" class="stat-card pink stat-card-link">
+    <a href="<?= $this->url('student/transaction', [], ['query' => ['status' => 'overdue']]) ?>" class="stat-card pink stat-card-link">
         <div class="stat-icon pink"><i class="bi bi-exclamation-triangle"></i></div>
         <div class="stat-value"><?= number_format((int)$totalOverdue) ?></div>
-        <div class="stat-label"><?= $isAdmin ? 'Quá hạn' : 'Sách quá hạn' ?></div>
+        <div class="stat-label">Sách quá hạn</div>
     </a>
 </div>
 
-<!-- CHARTS ROW -->
-<?php if ($isAdmin): ?>
-    <!-- ADMIN CHARTS ROW 1: Full-width Line Chart -->
-    <div class="card" style="margin-bottom: 24px;">
+<!-- STUDENT CHARTS ROW -->
+<div class="charts-row">
+    <!-- Line Chart: Borrow/Return Stats -->
+    <div class="card">
         <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
             <div>
                 <div class="card-title">Thống kê mượn / trả sách</div>
@@ -107,7 +104,7 @@ $statusLabels = [
                             <option value="<?= $y ?>"><?= $y ?></option>
                         <?php endfor; ?>
                     </select>
-                    <a id="exportStatsBtn" href="<?= $this->url($routePrefix . '/dashboard', ['action' => 'export-stats'], ['query' => ['year' => date('Y'), 'quarter' => 'all']]) ?>" class="btn btn-outline btn-sm d-flex align-items-center gap-2" title="Xuất Excel (.xlsx)">
+                    <a id="exportStatsBtn" href="<?= $this->url('student/dashboard', ['action' => 'export-stats'], ['query' => ['year' => date('Y'), 'quarter' => 'all']]) ?>" class="btn btn-outline btn-sm d-flex align-items-center gap-2" title="Xuất Excel (.xlsx)">
                         <i class="bi bi-file-earmark-excel" style="color:#1d6f42;"></i>Xuất .xlsx
                     </a>
                 </div>
@@ -120,195 +117,60 @@ $statusLabels = [
         </div>
     </div>
 
-    <!-- ADMIN CHARTS ROW 2: Two Donut Charts Side-by-Side -->
-    <div class="dashboard-double-donuts">
-        <!-- Donut Chart 1: Thể loại sách được mượn -->
-        <div class="card" style="margin-bottom: 0;">
-            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
-                <div>
-                    <div class="card-title">Thể loại sách được mượn</div>
-                    <div class="card-subtitle" id="categoryMonthlySubtitle">Chi tiết số lượt mượn của từng thể loại theo thời gian trong năm <?= date('Y') ?></div>
-                </div>
-                <div class="d-flex gap-2">
-                    <select id="categoryMonthlyFilter" style="background: #1e1e2d; color: #a2a5b9; border: 1px solid #2f3049; border-radius: 6px; padding: 6px 12px; outline: none; cursor: pointer; font-size: 13px;">
-                        <option value="year">Cả năm</option>
-                        <?php $currentMonth = (int)date('n'); ?>
-                        <?php for ($m = 1; $m <= 12; $m++): ?>
-                            <option value="<?= $m ?>" <?= $m === $currentMonth ? 'selected' : '' ?>>Tháng <?= $m ?></option>
-                        <?php endfor; ?>
-                    </select>
-                    <select id="categoryMonthlyYearFilter" style="background: #1e1e2d; color: #a2a5b9; border: 1px solid #2f3049; border-radius: 6px; padding: 6px 12px; outline: none; cursor: pointer; font-size: 13px;">
-                        <?php
-                        $currentYear = (int)date('Y');
-                        for ($y = $currentYear; $y >= $currentYear - 4; $y--):
-                        ?>
-                            <option value="<?= $y ?>"><?= $y ?></option>
-                        <?php endfor; ?>
-                    </select>
-                    <a id="exportCategoryMonthlyBtn" href="<?= $this->url('library/dashboard', ['action' => 'export-category-monthly-stats'], ['query' => ['year' => date('Y'), 'month' => 'year']]) ?>" class="btn btn-outline btn-sm d-flex align-items-center gap-2" title="Xuất Excel (.xlsx)">
-                        <i class="bi bi-file-earmark-excel" style="color:#1d6f42;"></i>Xuất .xlsx
-                    </a>
-                </div>
+    <!-- Donut Chart: Book Categories -->
+    <div class="card">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <div class="card-title">Thể loại sách</div>
+                <div class="card-subtitle">Phân bố danh mục</div>
             </div>
-            <div class="card-body" style="display: flex; flex-direction: row; align-items: center; gap: 40px; flex-wrap: wrap; justify-content: center; min-height: 320px; padding: 24px;">
-                <div style="flex: 1; min-width: 250px; max-width: 320px; height: 260px; position: relative; display: flex; align-items: center; justify-content: center;">
-                    <canvas id="categoryMonthlyChart"></canvas>
-                    <div id="noDataMessage" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #5a6282; font-size: 14px; text-align: center; width: 100%;">Không có dữ liệu mượn trong thời gian này</div>
-                    <div id="categoryMonthlyCenterLabel" style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; pointer-events:none; line-height:1.2;">
-                        <div id="categoryMonthlyCenterNum" style="font-size:22px; font-weight:700; color:#e2e8f0;">0</div>
-                        <div style="font-size:11px; color:#a2a5b9; margin-top:2px;">lượt mượn</div>
-                    </div>
-                </div>
-                <div id="categoryMonthlyLegend" class="donut-legend" style="flex: 1.5; min-width: 280px; margin-top: 0; display: flex; flex-direction: column; gap: 10px; width: 100%;">
-                    <!-- Legend dynamically populated by JS -->
-                </div>
-            </div>
+            <a href="<?= $this->url('student/dashboard', ['action' => 'export-category-stats']) ?>" class="btn btn-outline btn-sm d-flex align-items-center gap-2" title="Xuất Excel (.xlsx)">
+                <i class="bi bi-file-earmark-excel" style="color:#1d6f42;"></i>Xuất .xlsx
+            </a>
         </div>
-
-        <!-- Donut Chart 2: Thể loại sách -->
-        <div class="card" style="margin-bottom: 0;">
-            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                    <div class="card-title">Thể loại sách</div>
-                    <div class="card-subtitle">Phân bố danh mục</div>
+        <div class="card-body">
+            <div class="dashboard-donut-container" style="position:relative;">
+                <canvas id="categoryChart" class="dashboard-donut-chart"></canvas>
+                <?php $catSumTotal = array_sum($categoryStats ?? []); ?>
+                <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; pointer-events:none; line-height:1.2;">
+                    <div style="font-size:20px; font-weight:700; color:#e2e8f0;"><?= number_format($catSumTotal) ?></div>
+                    <div style="font-size:11px; color:#a2a5b9; margin-top:2px;">lượt mượn</div>
                 </div>
-                <a href="<?= $this->url($routePrefix . '/dashboard', ['action' => 'export-category-stats']) ?>" class="btn btn-outline btn-sm d-flex align-items-center gap-2" title="Xuất Excel (.xlsx)">
-                    <i class="bi bi-file-earmark-excel" style="color:#1d6f42;"></i>Xuất .xlsx
-                </a>
             </div>
-            <div class="card-body" style="display: flex; flex-direction: row; align-items: center; gap: 40px; flex-wrap: wrap; justify-content: center; min-height: 320px; padding: 24px;">
-                <div style="flex: 1; min-width: 250px; max-width: 320px; height: 260px; position: relative; display: flex; align-items: center; justify-content: center;">
-                    <canvas id="categoryChart"></canvas>
-                    <?php $catSumTotal = array_sum($categoryStats ?? []); ?>
-                    <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; pointer-events:none; line-height:1.2;">
-                        <div style="font-size:22px; font-weight:700; color:#e2e8f0;"><?= number_format($catSumTotal) ?></div>
-                        <div style="font-size:11px; color:#a2a5b9; margin-top:2px;"><?= $isAdmin ? 'sách' : 'lượt mượn' ?></div>
+            <?php
+            $catPalette = ['#7c6aff','#22c55e','#f97316','#ec4899','#3b82f6','#14b8a6','#fbbf24','#ef4444'];
+            $catStatsView = $categoryStats ?? [];
+            $catTotal = array_sum($catStatsView) ?: 1;
+            $ci = 0;
+            ?>
+            <div class="donut-legend">
+                <?php foreach ($catStatsView as $catName => $catCount): ?>
+                <?php $catPct = round($catCount / $catTotal * 100); $catClr = $catPalette[$ci % count($catPalette)]; $ci++; ?>
+                <div class="donut-legend-item">
+                    <div class="donut-legend-label"><div class="donut-legend-dot" style="background:<?= $catClr ?>"></div><?= htmlspecialchars($catName) ?></div>
+                    <div class="donut-legend-bar"><div class="donut-legend-bar-fill" style="width:<?= $catPct ?>%;background:<?= $catClr ?>"></div></div>
+                    <div class="donut-legend-pct" style="display:flex;align-items:center;gap:6px;min-width:80px;justify-content:flex-end;">
+                        <span style="color:var(--text-muted,#a2a5b9);font-size:11px;"><?= number_format($catCount) ?></span>
+                        <span><?= $catPct ?>%</span>
                     </div>
                 </div>
-                <?php
-                $catPalette = ['#7c6aff','#22c55e','#f97316','#ec4899','#3b82f6','#14b8a6','#fbbf24','#ef4444'];
-                $catStatsView = $categoryStats ?? [];
-                $catTotal = array_sum($catStatsView) ?: 1;
-                $ci = 0;
-                ?>
-                <div class="donut-legend" style="flex: 1.5; min-width: 280px; margin-top: 0; display: flex; flex-direction: column; gap: 10px; width: 100%;">
-                    <?php foreach ($catStatsView as $catName => $catCount): ?>
-                    <?php $catPct = round($catCount / $catTotal * 100); $catClr = $catPalette[$ci % count($catPalette)]; $ci++; ?>
-                    <div class="donut-legend-item">
-                        <div class="donut-legend-label"><div class="donut-legend-dot" style="background:<?= $catClr ?>"></div><?= htmlspecialchars($catName) ?></div>
-                        <div class="donut-legend-bar"><div class="donut-legend-bar-fill" style="width:<?= $catPct ?>%;background:<?= $catClr ?>"></div></div>
-                        <div class="donut-legend-pct" style="display:flex;align-items:center;gap:6px;min-width:80px;justify-content:flex-end;">
-                            <span style="color:var(--text-muted,#a2a5b9);font-size:11px;"><?= number_format($catCount) ?></span>
-                            <span><?= $catPct ?>%</span>
-                        </div>
-                    </div>
-                    <?php endforeach; ?>
-                    <?php if (!$catStatsView): ?>
-                    <div class="dashboard-empty-data">Chưa có dữ liệu</div>
-                    <?php endif; ?>
-                </div>
+                <?php endforeach; ?>
+                <?php if (!$catStatsView): ?>
+                <div class="dashboard-empty-data">Chưa có dữ liệu</div>
+                <?php endif; ?>
             </div>
         </div>
     </div>
-<?php else: ?>
-    <!-- STUDENT CHARTS ROW (Original side-by-side layout) -->
-    <div class="charts-row">
-        <!-- Line Chart: Borrow/Return Stats -->
-        <div class="card">
-            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
-                <div>
-                    <div class="card-title">Thống kê mượn / trả sách</div>
-                    <div class="card-subtitle" id="borrowChartSubtitle">Theo tháng trong năm <?= date('Y') ?></div>
-                </div>
-                <div class="d-flex gap-3 align-center flex-wrap">
-                    <div class="d-flex gap-2 align-center dashboard-legend-container">
-                        <span class="dashboard-legend-item"><span class="dashboard-legend-box dashboard-legend-box--purple"></span>Mượn <span id="legendTotalBorrow" style="font-weight:700; color:#a29bfe; margin-left:4px;">0</span></span>
-                        <span class="dashboard-legend-item"><span class="dashboard-legend-box dashboard-legend-box--green"></span>Trả <span id="legendTotalReturn" style="font-weight:700; color:#55efc4; margin-left:4px;">0</span></span>
-                    </div>
-                    <div class="d-flex gap-2">
-                        <select id="borrowChartQuarterFilter" style="background: #1e1e2d; color: #a2a5b9; border: 1px solid #2f3049; border-radius: 6px; padding: 6px 12px; outline: none; cursor: pointer; font-size: 13px;">
-                            <option value="all">Cả năm</option>
-                            <option value="1">Quý 1</option>
-                            <option value="2">Quý 2</option>
-                            <option value="3">Quý 3</option>
-                            <option value="4">Quý 4</option>
-                        </select>
-                        <select id="borrowChartYearFilter" style="background: #1e1e2d; color: #a2a5b9; border: 1px solid #2f3049; border-radius: 6px; padding: 6px 12px; outline: none; cursor: pointer; font-size: 13px;">
-                            <?php
-                            $currentYear = (int)date('Y');
-                            for ($y = $currentYear; $y >= $currentYear - 4; $y--):
-                            ?>
-                                <option value="<?= $y ?>"><?= $y ?></option>
-                            <?php endfor; ?>
-                        </select>
-                        <a id="exportStatsBtn" href="<?= $this->url($routePrefix . '/dashboard', ['action' => 'export-stats'], ['query' => ['year' => date('Y'), 'quarter' => 'all']]) ?>" class="btn btn-outline btn-sm d-flex align-items-center gap-2" title="Xuất Excel (.xlsx)">
-                            <i class="bi bi-file-earmark-excel" style="color:#1d6f42;"></i>Xuất .xlsx
-                        </a>
-                    </div>
-                </div>
-            </div>
-            <div class="card-body">
-                <div class="chart-area dashboard-chart-area">
-                    <canvas id="borrowChart"></canvas>
-                </div>
-            </div>
-        </div>
+</div>
 
-        <!-- Donut Chart: Book Categories -->
-        <div class="card">
-            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                    <div class="card-title">Thể loại sách</div>
-                    <div class="card-subtitle">Phân bố danh mục</div>
-                </div>
-                <a href="<?= $this->url($routePrefix . '/dashboard', ['action' => 'export-category-stats']) ?>" class="btn btn-outline btn-sm d-flex align-items-center gap-2" title="Xuất Excel (.xlsx)">
-                    <i class="bi bi-file-earmark-excel" style="color:#1d6f42;"></i>Xuất .xlsx
-                </a>
-            </div>
-            <div class="card-body">
-                <div class="dashboard-donut-container" style="position:relative;">
-                    <canvas id="categoryChart" class="dashboard-donut-chart"></canvas>
-                    <?php $catSumTotal = array_sum($categoryStats ?? []); ?>
-                    <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; pointer-events:none; line-height:1.2;">
-                        <div style="font-size:20px; font-weight:700; color:#e2e8f0;"><?= number_format($catSumTotal) ?></div>
-                        <div style="font-size:11px; color:#a2a5b9; margin-top:2px;">lượt mượn</div>
-                    </div>
-                </div>
-                <?php
-                $catPalette = ['#7c6aff','#22c55e','#f97316','#ec4899','#3b82f6','#14b8a6','#fbbf24','#ef4444'];
-                $catStatsView = $categoryStats ?? [];
-                $catTotal = array_sum($catStatsView) ?: 1;
-                $ci = 0;
-                ?>
-                <div class="donut-legend">
-                    <?php foreach ($catStatsView as $catName => $catCount): ?>
-                    <?php $catPct = round($catCount / $catTotal * 100); $catClr = $catPalette[$ci % count($catPalette)]; $ci++; ?>
-                    <div class="donut-legend-item">
-                        <div class="donut-legend-label"><div class="donut-legend-dot" style="background:<?= $catClr ?>"></div><?= htmlspecialchars($catName) ?></div>
-                        <div class="donut-legend-bar"><div class="donut-legend-bar-fill" style="width:<?= $catPct ?>%;background:<?= $catClr ?>"></div></div>
-                        <div class="donut-legend-pct" style="display:flex;align-items:center;gap:6px;min-width:80px;justify-content:flex-end;">
-                            <span style="color:var(--text-muted,#a2a5b9);font-size:11px;"><?= number_format($catCount) ?></span>
-                            <span><?= $catPct ?>%</span>
-                        </div>
-                    </div>
-                    <?php endforeach; ?>
-                    <?php if (!$catStatsView): ?>
-                    <div class="dashboard-empty-data">Chưa có dữ liệu</div>
-                    <?php endif; ?>
-                </div>
-            </div>
-        </div>
-    </div>
-<?php endif; ?>
-
-<div class="dashboard-grid-2">
+<div class="dashboard-grid-2" style="margin-top: 24px;">
     <!-- RECENT TRANSACTIONS -->
     <div class="card dashboard-card-flat">
         <div class="card-header">
             <div>
-                <div class="card-title"><i class="bi bi-clock-history dashboard-recent-icon"></i><?= $isAdmin ? 'Phiếu mượn gần đây' : 'Hoạt động mượn gần đây' ?></div>
+                <div class="card-title"><i class="bi bi-clock-history dashboard-recent-icon"></i>Hoạt động mượn gần đây</div>
             </div>
-            <a href="<?= $this->url($routePrefix . '/transaction') ?>" class="btn btn-outline btn-sm">Xem tất cả</a>
+            <a href="<?= $this->url('student/transaction') ?>" class="btn btn-outline btn-sm">Xem tất cả</a>
         </div>
         <div class="dashboard-table-responsive">
             <table class="data-table">
@@ -316,7 +178,6 @@ $statusLabels = [
                     <tr>
                         <th>#ID</th>
                         <th>Tên sách</th>
-                        <?php if ($isAdmin): ?><th>Thành viên</th><?php endif; ?>
                         <th>Ngày mượn</th>
                         <th>Hạn trả</th>
                         <th>Ngày trả</th>
@@ -325,14 +186,13 @@ $statusLabels = [
                 </thead>
                 <tbody>
                 <?php if ($recentBorrows === []): ?>
-                    <tr><td colspan="<?= $isAdmin ? 7 : 6 ?>" class="dashboard-table-empty">Chưa có dữ liệu mượn trả gần đây.</td></tr>
+                    <tr><td colspan="6" class="dashboard-table-empty">Chưa có dữ liệu mượn trả gần đây.</td></tr>
                 <?php else: ?>
                     <?php foreach ($recentBorrows as $record): ?>
                     <?php $s = $statusLabels[$record->status] ?? ['label' => $record->status, 'class' => 'badge-gray']; ?>
                     <tr>
                         <td class="text-muted">#<?= (int)$record->id ?></td>
                         <td class="fw-medium"><?= htmlspecialchars($record->bookTitle) ?></td>
-                        <?php if ($isAdmin): ?><td><?= htmlspecialchars($record->userFullName) ?></td><?php endif; ?>
                         <td><?= htmlspecialchars($record->borrowDate) ?></td>
                         <td><?= htmlspecialchars($record->returnDate) ?></td>
                         <td><?= htmlspecialchars($record->returnedAt !== '' ? $record->returnedAt : '—') ?></td>
@@ -361,9 +221,6 @@ arsort($categoryStats);
 $catLabels = json_encode(array_keys($categoryStats));
 $catData   = json_encode(array_values($categoryStats));
 $catColorsUsed = json_encode(array_slice($catColors, 0, count($categoryStats)));
-
-// Category monthly stats JSON
-$categoryMonthlyStatsJson = $isAdmin ? json_encode($categoryMonthlyStats ?? [], JSON_UNESCAPED_UNICODE) : '[]';
 ?>
 // Line Chart
 (function() {
@@ -374,9 +231,9 @@ $categoryMonthlyStatsJson = $isAdmin ? json_encode($categoryMonthlyStats ?? [], 
     const quarterFilter = document.getElementById('borrowChartQuarterFilter');
     const subtitle = document.getElementById('borrowChartSubtitle');
     const chartArea = ctx.closest('.dashboard-chart-area');
-    const statsUrl = '<?= $this->url($routePrefix . '/dashboard', ['action' => 'stats']) ?>';
+    const statsUrl = '<?= $this->url('student/dashboard', ['action' => 'stats']) ?>';
     const exportBtn = document.getElementById('exportStatsBtn');
-    const exportBaseUrl = '<?= $this->url($routePrefix . '/dashboard', ['action' => 'export-stats']) ?>';
+    const exportBaseUrl = '<?= $this->url('student/dashboard', ['action' => 'export-stats']) ?>';
 
     function updateExportUrl() {
         if (!exportBtn) return;
@@ -439,7 +296,7 @@ $categoryMonthlyStatsJson = $isAdmin ? json_encode($categoryMonthlyStats ?? [], 
             borrowSlice = currentYearData.borrow;
             returnSlice = currentYearData.return;
             if (subtitle) {
-                subtitle.textContent = 'Theo tháng trong năm ' + year;
+                subtitle.textContent = 'Theo month trong năm ' + year;
             }
         } else if (quarter === '1') {
             labels = ['T1', 'T2', 'T3'];
@@ -523,7 +380,6 @@ $categoryMonthlyStatsJson = $isAdmin ? json_encode($categoryMonthlyStats ?? [], 
     }
 })();
 
-
 // Donut Chart
 (function() {
     const ctx = document.getElementById('categoryChart');
@@ -548,207 +404,4 @@ $categoryMonthlyStatsJson = $isAdmin ? json_encode($categoryMonthlyStats ?? [], 
         }
     });
 })();
-
-// Donut Chart for Monthly Categories
-(function() {
-    const ctx = document.getElementById('categoryMonthlyChart');
-    if (!ctx) return;
-    const filterSelect = document.getElementById('categoryMonthlyFilter');
-    const yearSelect = document.getElementById('categoryMonthlyYearFilter');
-    const subtitle = document.getElementById('categoryMonthlySubtitle');
-    const noDataMessage = document.getElementById('noDataMessage');
-    const legendContainer = document.getElementById('categoryMonthlyLegend');
-    const cardBody = ctx.closest('.card-body');
-    const categoryStatsUrl = '<?= $this->url($routePrefix . '/dashboard', ['action' => 'category-stats']) ?>';
-    const exportBtn = document.getElementById('exportCategoryMonthlyBtn');
-    const exportBaseUrl = '<?= $this->url('library/dashboard', ['action' => 'export-category-monthly-stats']) ?>';
-    
-    // Store current year data (default to PHP rendered data)
-    let currentCategoryYearData = <?= $categoryMonthlyStatsJson ?>;
-    
-    // Consistent color mapping for categories
-    const categoryColors = ['#7c6aff','#22c55e','#f97316','#ec4899','#3b82f6','#14b8a6','#fbbf24','#ef4444','#6366f1','#10b981','#f59e0b','#f43f5e','#06b6d4','#8b5cf6','#a855f7','#6b7280'];
-    const colorMap = {};
-    let colorIdx = 0;
-    
-    function getColorForCategory(catName) {
-        if (!colorMap[catName]) {
-            colorMap[catName] = categoryColors[colorIdx % categoryColors.length];
-            colorIdx++;
-        }
-        return colorMap[catName];
-    }
-    
-    // Pre-populate color map from initial data
-    for (const catName in currentCategoryYearData) {
-        getColorForCategory(catName);
-    }
-
-    let chartInstance = null;
-
-    function updateChart() {
-        const selectedValue = filterSelect ? filterSelect.value : 'year';
-        const selectedYear = yearSelect ? yearSelect.value : new Date().getFullYear();
-        if (exportBtn) {
-            exportBtn.href = exportBaseUrl + '?year=' + encodeURIComponent(selectedYear) + '&month=' + encodeURIComponent(selectedValue);
-        }
-        const items = [];
-
-        for (const catName in currentCategoryYearData) {
-            const monthlyCounts = currentCategoryYearData[catName];
-            let count = 0;
-
-            if (selectedValue === 'year') {
-                count = monthlyCounts.reduce((sum, val) => sum + val, 0);
-            } else {
-                const monthIndex = parseInt(selectedValue, 10) - 1;
-                count = monthlyCounts[monthIndex] || 0;
-            }
-
-            if (count > 0) {
-                items.push({
-                    name: catName,
-                    count: count,
-                    color: getColorForCategory(catName)
-                });
-            }
-        }
-
-        // Sort items by count in descending order
-        items.sort((a, b) => b.count - a.count);
-
-        const labels = items.map(item => item.name);
-        const data = items.map(item => item.count);
-        const backgroundColors = items.map(item => item.color);
-
-        // Update subtitle text dynamically
-        if (subtitle) {
-            if (selectedValue === 'year') {
-                subtitle.textContent = 'Chi tiết số lượt mượn của từng thể loại cả năm ' + selectedYear;
-            } else {
-                subtitle.textContent = 'Chi tiết số lượt mượn của từng thể loại trong Tháng ' + selectedValue + ' năm ' + selectedYear;
-            }
-        }
-
-        if (data.length === 0) {
-            ctx.style.display = 'none';
-            if (legendContainer) legendContainer.style.display = 'none';
-            if (noDataMessage) noDataMessage.style.display = 'block';
-            const centerLabel = document.getElementById('categoryMonthlyCenterLabel');
-            if (centerLabel) centerLabel.style.display = 'none';
-            if (chartInstance) {
-                chartInstance.destroy();
-                chartInstance = null;
-            }
-        } else {
-            ctx.style.display = 'block';
-            if (legendContainer) legendContainer.style.display = 'flex';
-            if (noDataMessage) noDataMessage.style.display = 'none';
-
-            // Calculate total for percentage calculation
-            const total = data.reduce((sum, val) => sum + val, 0) || 1;
-
-            // Update center label
-            const centerLabel = document.getElementById('categoryMonthlyCenterLabel');
-            const centerNum = document.getElementById('categoryMonthlyCenterNum');
-            if (centerLabel) centerLabel.style.display = 'block';
-            if (centerNum) centerNum.textContent = total.toLocaleString('vi-VN');
-
-            // Generate HTML legend
-            if (legendContainer) {
-                let legendHtml = '';
-                for (let i = 0; i < labels.length; i++) {
-                    const catName = labels[i];
-                    const val = data[i];
-                    const color = backgroundColors[i];
-                    const pct = Math.round((val / total) * 100);
-
-                    legendHtml += `
-                        <div class="donut-legend-item">
-                            <div class="donut-legend-label"><div class="donut-legend-dot" style="background:${color}"></div>${catName}</div>
-                            <div class="donut-legend-bar"><div class="donut-legend-bar-fill" style="width:${pct}%;background:${color}"></div></div>
-                            <div class="donut-legend-pct" style="display:flex;align-items:center;gap:6px;min-width:80px;justify-content:flex-end;">
-                                <span style="color:#a2a5b9;font-size:11px;">${val.toLocaleString('vi-VN')}</span>
-                                <span>${pct}%</span>
-                            </div>
-                        </div>
-                    `;
-                }
-                legendContainer.innerHTML = legendHtml;
-            }
-
-            if (chartInstance) {
-                chartInstance.data.labels = labels;
-                chartInstance.data.datasets[0].data = data;
-                chartInstance.data.datasets[0].backgroundColor = backgroundColors;
-                chartInstance.update();
-            } else {
-                chartInstance = new Chart(ctx, {
-                    type: 'doughnut',
-                    data: {
-                        labels: labels,
-                        datasets: [{
-                            data: data,
-                            backgroundColor: backgroundColors,
-                            borderWidth: 0,
-                            hoverOffset: 6
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        cutout: '68%',
-                        plugins: {
-                            legend: {
-                                display: false
-                            },
-                            tooltip: {
-                                enabled: true
-                            }
-                        }
-                    }
-                });
-            }
-        }
-    }
-
-    function fetchCategoryNewYearData(year) {
-        if (cardBody) {
-            cardBody.style.opacity = '0.4';
-            cardBody.style.transition = 'opacity 0.15s ease';
-        }
-
-        fetch(categoryStatsUrl + '?year=' + encodeURIComponent(year))
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                return response.json();
-            })
-            .then(data => {
-                currentCategoryYearData = data || {};
-                updateChart();
-            })
-            .catch(error => {
-                console.error('Error loading category monthly stats:', error);
-            })
-            .finally(() => {
-                if (cardBody) {
-                    cardBody.style.opacity = '1';
-                }
-            });
-    }
-
-    updateChart();
-    
-    if (filterSelect) {
-        filterSelect.addEventListener('change', updateChart);
-    }
-    if (yearSelect) {
-        yearSelect.addEventListener('change', function() {
-            fetchCategoryNewYearData(yearSelect.value);
-        });
-    }
-})();
-
 </script>

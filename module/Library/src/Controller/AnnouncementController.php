@@ -184,7 +184,7 @@ class AnnouncementController extends BaseController
                 'currentUser'        => $currentUser,
                 'baseRoute'          => $baseRoute,
             ]);
-            $viewModel->setTemplate('library/announcement/announcements');
+            $viewModel->setTemplate('library/announcement/announcements-admin');
             return $viewModel;
         }
 
@@ -221,7 +221,7 @@ class AnnouncementController extends BaseController
             }
         }
 
-        return new ViewModel([
+        $viewModel = new ViewModel([
             'announcements' => $announcements,
             'filters' => [
                 'type' => $typeFilter,
@@ -230,6 +230,8 @@ class AnnouncementController extends BaseController
             'currentUser' => $currentUser,
             'baseRoute' => $baseRoute,
         ]);
+        $viewModel->setTemplate('library/announcement/announcements');
+        return $viewModel;
     }
 
     public function addAnnouncementAction(): Response|ViewModel

@@ -181,7 +181,7 @@ class TicketController extends BaseController
         $allCountSql = "SELECT COUNT(*) as cnt FROM support_tickets t JOIN users u ON t.user_id = u.user_id $allWhereClause";
         $allCount = (int)(($this->dbAdapter->query($allCountSql)->execute($allParams)->current()['cnt']) ?? 0);
 
-        return new ViewModel([
+        $viewModel = new ViewModel([
             'tickets'         => $tickets,
             'isAdmin'         => $isAdmin,
             'page'            => $page,
@@ -193,6 +193,14 @@ class TicketController extends BaseController
             'answeredCount'   => $answeredCount,
             'allCount'        => $allCount,
         ]);
+
+        if ($isAdmin) {
+            $viewModel->setTemplate('library/ticket/index-admin');
+        } else {
+            $viewModel->setTemplate('library/ticket/index');
+        }
+
+        return $viewModel;
     }
 
     public function createAction(): Response|ViewModel
@@ -310,11 +318,19 @@ class TicketController extends BaseController
         $msgSql = "SELECT m.*, u.full_name, u.role FROM ticket_messages m JOIN users u ON m.sender_id = u.user_id WHERE m.ticket_id = ? ORDER BY m.sent_at ASC";
         $messages = iterator_to_array($this->dbAdapter->query($msgSql)->execute([$id]));
 
-        return new ViewModel([
+        $viewModel = new ViewModel([
             'ticket' => $ticket,
             'messages' => $messages,
             'isAdmin' => $isAdmin,
             'currentUser' => $currentUser
         ]);
+
+        if ($isAdmin) {
+            $viewModel->setTemplate('library/ticket/view-admin');
+        } else {
+            $viewModel->setTemplate('library/ticket/view');
+        }
+
+        return $viewModel;
     }
 }

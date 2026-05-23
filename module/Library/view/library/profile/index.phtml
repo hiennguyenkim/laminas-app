@@ -2,7 +2,7 @@
 $this->headTitle('Hồ sơ cá nhân');
 $this->layout('layout/library-layout');
 $authUser    = $this->currentUser();
-$routePrefix = ($authUser['role'] ?? '') === 'admin' ? 'library' : 'student';
+$routePrefix = 'student';
 ?>
 
 <div class="page-header">
@@ -14,7 +14,7 @@ $routePrefix = ($authUser['role'] ?? '') === 'admin' ? 'library' : 'student';
     </div>
 </div>
 
-<?php if (!$isAdmin && $user->isLocked()): ?>
+<?php if ($user->isLocked()): ?>
 <div class="profile-alert-danger">
     <i class="bi bi-shield-slash profile-alert-icon"></i>
     <div>
@@ -92,177 +92,141 @@ $routePrefix = ($authUser['role'] ?? '') === 'admin' ? 'library' : 'student';
 
     <!-- Right Column: Stats & History -->
     <div class="profile-col-right">
-        <?php if ($isAdmin): ?>
-            <!-- Admin Stats -->
-            <div class="profile-stats-grid">
-                <div class="card profile-stat-card">
-                    <div class="profile-stat-val profile-stat-val--purple"><?= number_format($adminStats['total_books']) ?></div>
-                    <div class="profile-stat-label">Tổng số bản sách</div>
-                </div>
-                <div class="card profile-stat-card">
-                    <div class="profile-stat-val profile-stat-val--blue"><?= number_format($adminStats['total_members']) ?></div>
-                    <div class="profile-stat-label">Số thành viên</div>
-                </div>
-                <div class="card profile-stat-card">
-                    <div class="profile-stat-val profile-stat-val--orange"><?= number_format($adminStats['active_loans']) ?></div>
-                    <div class="profile-stat-label">Sách đang mượn</div>
-                </div>
+        <!-- Student Stats -->
+        <div class="profile-stats-grid">
+            <div class="card profile-stat-card">
+                <div class="profile-stat-val profile-stat-val--purple"><?= $stats['total_borrowed'] ?></div>
+                <div class="profile-stat-label">Đã mượn</div>
             </div>
-
-            <div class="card">
-                <div class="card-header profile-card-header">
-                    <i class="bi bi-shield-lock-fill"></i> Quyền hạn Quản trị viên
-                </div>
-                <div class="card-body profile-card-body-text">
-                    <p class="profile-paragraph">Bạn đang đăng nhập bằng tài khoản <strong>Quản trị viên (Admin)</strong>. Các chức năng chính bạn có thể thực hiện bao gồm:</p>
-                    <ul class="profile-list">
-                        <li><i class="bi bi-check-circle profile-list-icon"></i> Nhập kho và cập nhật số lượng sách mới về.</li>
-                        <li><i class="bi bi-check-circle profile-list-icon"></i> Quản lý danh mục sách và phê duyệt đăng ký mượn của độc giả.</li>
-                        <li><i class="bi bi-check-circle profile-list-icon"></i> Xem báo cáo doanh thu, thống kê chi phí chi tiết theo thời gian.</li>
-                    </ul>
-                    <div class="profile-info-box">
-                        <i class="bi bi-info-circle-fill profile-info-box-icon"></i>
-                        Thông tin của bạn được hiển thị bằng nickname trên các phòng chat công khai để tăng tính riêng tư.
-                    </div>
-                </div>
+            <div class="card profile-stat-card">
+                <div class="profile-stat-val profile-stat-val--blue"><?= $stats['active_loans'] ?></div>
+                <div class="profile-stat-label">Đang mượn</div>
             </div>
-        <?php else: ?>
-            <!-- Student Stats -->
-            <div class="profile-stats-grid">
-                <div class="card profile-stat-card">
-                    <div class="profile-stat-val profile-stat-val--purple"><?= $stats['total_borrowed'] ?></div>
-                    <div class="profile-stat-label">Đã mượn</div>
-                </div>
-                <div class="card profile-stat-card">
-                    <div class="profile-stat-val profile-stat-val--blue"><?= $stats['active_loans'] ?></div>
-                    <div class="profile-stat-label">Đang mượn</div>
-                </div>
-                <div class="card profile-stat-card">
-                    <div class="profile-stat-val profile-stat-val--red"><?= $stats['overdue_count'] ?></div>
-                    <div class="profile-stat-label">Trễ hạn</div>
-                </div>
+            <div class="card profile-stat-card">
+                <div class="profile-stat-val profile-stat-val--red"><?= $stats['overdue_count'] ?></div>
+                <div class="profile-stat-label">Trễ hạn</div>
             </div>
+        </div>
 
-            <div class="card">
-                <div class="card-header profile-card-header">
-                    <i class="bi bi-clock-history"></i> Lịch sử mượn trả
-                </div>
-                <div class="card-body profile-card-body-flat">
-                    <!-- SEARCH BAR -->
-                    <div style="padding: 16px; display: flex; justify-content: flex-end; border-bottom: 1px solid var(--border-color, #2a2f45);">
-                        <form method="GET" action="<?= $this->url($routePrefix . '/profile') ?>" style="display: flex; gap: 8px; width: 100%; max-width: 320px;">
-                            <div class="topbar-search" style="position: relative; flex: 1; max-width: 100%; margin: 0;">
-                                <i class="bi bi-search"></i>
-                                <input type="text" name="search" value="<?= htmlspecialchars($search) ?>" placeholder="Tìm tên sách, tác giả..." oninput="this.nextElementSibling.style.display = this.value ? 'inline-block' : 'none';" style="padding-right: 28px;">
-                                <i class="bi bi-x-circle-fill search-clear-btn" style="position: absolute; right: 12px; cursor: pointer; color: var(--text-muted); display: <?= !empty($search) ? 'inline-block' : 'none' ?>; font-size: 14px;" onclick="clearSearchInput(this)"></i>
-                            </div>
-                            <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-search"></i>Tìm</button>
-                        </form>
-                    </div>
-
-                    <?php if (empty($history)): ?>
-                        <div class="profile-empty" style="border-bottom: <?= $totalPages > 1 ? '1px solid var(--border-color, #2a2f45)' : 'none' ?>;">
-                            <i class="bi bi-inbox profile-empty-icon"></i>
-                            <?php if ($search !== ''): ?>
-                                <p class="profile-empty-text">Không tìm thấy kết quả phù hợp.</p>
-                                <a href="<?= $this->url($routePrefix . '/profile') ?>" class="btn btn-outline btn-sm" style="margin-top: 10px;">Xóa tìm kiếm</a>
-                            <?php else: ?>
-                                <p class="profile-empty-text">Bạn chưa mượn cuốn sách nào.</p>
-                            <?php endif; ?>
+        <div class="card">
+            <div class="card-header profile-card-header">
+                <i class="bi bi-clock-history"></i> Lịch sử mượn trả
+            </div>
+            <div class="card-body profile-card-body-flat">
+                <!-- SEARCH BAR -->
+                <div style="padding: 16px; display: flex; justify-content: flex-end; border-bottom: 1px solid var(--border-color, #2a2f45);">
+                    <form method="GET" action="<?= $this->url($routePrefix . '/profile') ?>" style="display: flex; gap: 8px; width: 100%; max-width: 320px;">
+                        <div class="topbar-search" style="position: relative; flex: 1; max-width: 100%; margin: 0;">
+                            <i class="bi bi-search"></i>
+                            <input type="text" name="search" value="<?= htmlspecialchars($search) ?>" placeholder="Tìm tên sách, tác giả..." oninput="this.nextElementSibling.style.display = this.value ? 'inline-block' : 'none';" style="padding-right: 28px;">
+                            <i class="bi bi-x-circle-fill search-clear-btn" style="position: absolute; right: 12px; cursor: pointer; color: var(--text-muted); display: <?= !empty($search) ? 'inline-block' : 'none' ?>; font-size: 14px;" onclick="clearSearchInput(this)"></i>
                         </div>
-                    <?php else: ?>
-                        <table class="data-table profile-table" style="border-bottom: <?= $totalPages > 1 ? '1px solid var(--border-color, #2a2f45)' : 'none' ?>;">
-                            <thead>
-                                <tr>
-                                    <th>Sách</th>
-                                    <th>Ngày mượn</th>
-                                    <th>Hạn trả / Ngày trả</th>
-                                    <th>Trạng thái</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($history as $record): ?>
-                                <?php
-                                $borrowedDateFormatted = ($record->borrowDate && $record->borrowDate !== '0000-00-00')
-                                    ? date('d/m/Y', strtotime($record->borrowDate))
-                                    : '—';
-                                $returnDateFormatted = ($record->returnDate && $record->returnDate !== '0000-00-00')
-                                    ? date('d/m/Y', strtotime($record->returnDate))
-                                    : '—';
-                                $returnedAtFormatted = ($record->returnedAt && $record->returnedAt !== '0000-00-00 00:00:00' && $record->returnedAt !== '0000-00-00')
-                                    ? date('d/m/Y', strtotime($record->returnedAt))
-                                    : '';
-                                $isRecordOverdue = $record->status === 'overdue' || ($record->status === 'borrowed' && $record->returnDate < date('Y-m-d'));
-                                ?>
-                                <tr>
-                                    <td>
-                                        <div class="profile-book-title">
-                                            <?= htmlspecialchars($record->bookTitle) ?>
+                        <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-search"></i>Tìm</button>
+                    </form>
+                </div>
+
+                <?php if (empty($history)): ?>
+                    <div class="profile-empty" style="border-bottom: <?= $totalPages > 1 ? '1px solid var(--border-color, #2a2f45)' : 'none' ?>;">
+                        <i class="bi bi-inbox profile-empty-icon"></i>
+                        <?php if ($search !== ''): ?>
+                            <p class="profile-empty-text">Không tìm thấy kết quả phù hợp.</p>
+                            <a href="<?= $this->url($routePrefix . '/profile') ?>" class="btn btn-outline btn-sm" style="margin-top: 10px;">Xóa tìm kiếm</a>
+                        <?php else: ?>
+                            <p class="profile-empty-text">Bạn chưa mượn cuốn sách nào.</p>
+                        <?php endif; ?>
+                    </div>
+                <?php else: ?>
+                    <table class="data-table profile-table" style="border-bottom: <?= $totalPages > 1 ? '1px solid var(--border-color, #2a2f45)' : 'none' ?>;">
+                        <thead>
+                            <tr>
+                                <th>Sách</th>
+                                <th>Ngày mượn</th>
+                                <th>Hạn trả / Ngày trả</th>
+                                <th>Trạng thái</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($history as $record): ?>
+                            <?php
+                            $borrowedDateFormatted = ($record->borrowDate && $record->borrowDate !== '0000-00-00')
+                                ? date('d/m/Y', strtotime($record->borrowDate))
+                                : '—';
+                            $returnDateFormatted = ($record->returnDate && $record->returnDate !== '0000-00-00')
+                                ? date('d/m/Y', strtotime($record->returnDate))
+                                : '—';
+                            $returnedAtFormatted = ($record->returnedAt && $record->returnedAt !== '0000-00-00 00:00:00' && $record->returnedAt !== '0000-00-00')
+                                ? date('d/m/Y', strtotime($record->returnedAt))
+                                : '';
+                            $isRecordOverdue = $record->status === 'overdue' || ($record->status === 'borrowed' && $record->returnDate < date('Y-m-d'));
+                            ?>
+                            <tr>
+                                <td>
+                                    <div class="profile-book-title">
+                                        <?= htmlspecialchars($record->bookTitle) ?>
+                                    </div>
+                                    <?php if ($record->bookIsbn): ?>
+                                        <div class="profile-book-isbn">ISBN: <?= htmlspecialchars($record->bookIsbn) ?></div>
+                                    <?php endif; ?>
+                                </td>
+                                <td class="profile-nowrap">
+                                    <div class="d-flex align-center gap-2">
+                                        <i class="bi bi-calendar3 profile-table-icon"></i>
+                                        <?= htmlspecialchars($borrowedDateFormatted) ?>
+                                    </div>
+                                </td>
+                                <td class="profile-nowrap">
+                                    <?php if ($record->status === 'returned'): ?>
+                                        <div class="d-flex align-center gap-2 profile-returned-color">
+                                            <i class="bi bi-calendar-check profile-table-icon-small"></i>
+                                            <span>Trả: <?= htmlspecialchars($returnedAtFormatted ?: $returnDateFormatted) ?></span>
                                         </div>
-                                        <?php if ($record->bookIsbn): ?>
-                                            <div class="profile-book-isbn">ISBN: <?= htmlspecialchars($record->bookIsbn) ?></div>
-                                        <?php endif; ?>
-                                    </td>
-                                    <td class="profile-nowrap">
-                                        <div class="d-flex align-center gap-2">
-                                            <i class="bi bi-calendar3 profile-table-icon"></i>
-                                            <?= htmlspecialchars($borrowedDateFormatted) ?>
+                                    <?php else: ?>
+                                        <div class="d-flex align-center gap-2 <?= $isRecordOverdue ? 'profile-overdue-alert' : 'profile-active-alert' ?>">
+                                            <i class="bi bi-clock profile-table-icon-small <?= $isRecordOverdue ? 'profile-color-danger' : 'profile-color-muted' ?>"></i>
+                                            <span>Hạn: <?= htmlspecialchars($returnDateFormatted) ?></span>
                                         </div>
-                                    </td>
-                                    <td class="profile-nowrap">
-                                        <?php if ($record->status === 'returned'): ?>
-                                            <div class="d-flex align-center gap-2 profile-returned-color">
-                                                <i class="bi bi-calendar-check profile-table-icon-small"></i>
-                                                <span>Trả: <?= htmlspecialchars($returnedAtFormatted ?: $returnDateFormatted) ?></span>
-                                            </div>
-                                        <?php else: ?>
-                                            <div class="d-flex align-center gap-2 <?= $isRecordOverdue ? 'profile-overdue-alert' : 'profile-active-alert' ?>">
-                                                <i class="bi bi-clock profile-table-icon-small <?= $isRecordOverdue ? 'profile-color-danger' : 'profile-color-muted' ?>"></i>
-                                                <span>Hạn: <?= htmlspecialchars($returnDateFormatted) ?></span>
-                                            </div>
-                                        <?php endif; ?>
-                                    </td>
-                                    <td>
-                                        <?php if ($record->status === 'returned'): ?>
-                                            <span class="badge badge-green">Đã trả</span>
-                                        <?php elseif ($isRecordOverdue): ?>
-                                            <span class="badge badge-red">Quá hạn</span>
-                                        <?php else: ?>
-                                            <span class="badge badge-blue">Đang mượn</span>
-                                        <?php endif; ?>
-                                    </td>
-                                </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                    <?php endif; ?>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <?php if ($record->status === 'returned'): ?>
+                                        <span class="badge badge-green">Đã trả</span>
+                                    <?php elseif ($isRecordOverdue): ?>
+                                        <span class="badge badge-red">Quá hạn</span>
+                                    <?php else: ?>
+                                        <span class="badge badge-blue">Đang mượn</span>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                <?php endif; ?>
 
-                    <!-- PAGINATION -->
-                    <?php if ($totalPages > 1): ?>
-                    <?php
-                    $buildPageUrl = function(int $p) use ($routePrefix, $search): string {
-                        return $this->url($routePrefix . '/profile', [], ['query' => array_filter([
-                            'page' => $p,
-                            'search' => $search
-                        ])]);
-                    };
-                    ?>
-                    <div class="catalog-pagination-bar" style="padding: 16px; width: 100%;">
-                        <div class="catalog-pagination-info">
-                            Hiển thị <?= min(($page-1)*$perPage+1,$totalCount) ?> – <?= min($page*$perPage,$totalCount) ?> / <?= $totalCount ?> bản ghi
-                        </div>
-                        <div class="pagination">
-                            <a class="page-btn <?= $page<=1?'disabled':'' ?>" href="<?= $page>1?$buildPageUrl($page-1):'#' ?>"><i class="bi bi-chevron-left"></i></a>
-                            <?php for ($p=max(1,$page-2); $p<=min($totalPages,$page+2); $p++): ?>
-                            <a class="page-btn <?= $p===$page?'active':'' ?>" href="<?= $buildPageUrl($p) ?>"><?= $p ?></a>
-                            <?php endfor; ?>
-                            <a class="page-btn <?= $page>=$totalPages?'disabled':'' ?>" href="<?= $page<$totalPages?$buildPageUrl($page+1):'#' ?>"><i class="bi bi-chevron-right"></i></a>
-                        </div>
+                <!-- PAGINATION -->
+                <?php if ($totalPages > 1): ?>
+                <?php
+                $buildPageUrl = function(int $p) use ($routePrefix, $search): string {
+                    return $this->url($routePrefix . '/profile', [], ['query' => array_filter([
+                        'page' => $p,
+                        'search' => $search
+                    ])]);
+                };
+                ?>
+                <div class="catalog-pagination-bar" style="padding: 16px; width: 100%;">
+                    <div class="catalog-pagination-info">
+                        Hiển thị <?= min(($page-1)*$perPage+1,$totalCount) ?> – <?= min($page*$perPage,$totalCount) ?> / <?= $totalCount ?> bản ghi
                     </div>
-                    <?php endif; ?>
+                    <div class="pagination">
+                        <a class="page-btn <?= $page<=1?'disabled':'' ?>" href="<?= $page>1?$buildPageUrl($page-1):'#' ?>"><i class="bi bi-chevron-left"></i></a>
+                        <?php for ($p=max(1,$page-2); $p<=min($totalPages,$page+2); $p++): ?>
+                        <a class="page-btn <?= $p===$page?'active':'' ?>" href="<?= $buildPageUrl($p) ?>"><?= $p ?></a>
+                        <?php endfor; ?>
+                        <a class="page-btn <?= $page>=$totalPages?'disabled':'' ?>" href="<?= $page<$totalPages?$buildPageUrl($page+1):'#' ?>"><i class="bi bi-chevron-right"></i></a>
+                    </div>
                 </div>
+                <?php endif; ?>
             </div>
-        <?php endif; ?>
+        </div>
     </div>
 </div>
 
@@ -312,3 +276,4 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 </script>
+

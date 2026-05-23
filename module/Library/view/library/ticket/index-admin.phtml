@@ -1,8 +1,8 @@
 <?php
-$this->headTitle('Hỗ trợ / Hỏi đáp');
+$this->headTitle('Hỗ trợ / Hỏi đáp (Quản trị)');
 $this->layout('layout/library-layout');
 $authUser    = $this->currentUser();
-$routePrefix = 'student';
+$routePrefix = 'library';
 
 $statusMap = [
     'open' => ['Chưa phản hồi', 'badge-orange'],
@@ -60,12 +60,9 @@ $renderSortIcon = function(string $col) use ($queryBase): string {
 
 <div class="page-header">
     <div>
-        <div class="page-title">Hỗ trợ / Hỏi đáp</div>
-        <div class="page-subtitle">Gửi yêu cầu hỗ trợ và trao đổi thông tin với Thư viện.</div>
+        <div class="page-title">Hỗ trợ / Hỏi đáp (Quản trị)</div>
+        <div class="page-subtitle">Quản lý các yêu cầu hỗ trợ và trao đổi giữa Thư viện và Độc giả.</div>
     </div>
-    <a href="<?= $this->url($routePrefix . '/ticket', ['action' => 'create']) ?>" class="btn btn-primary">
-        <i class="bi bi-plus-lg"></i>Gửi yêu cầu mới
-    </a>
 </div>
 
 <!-- FILTER TABS & SEARCH -->
@@ -123,6 +120,11 @@ $buildTabUrl = function(string $statusVal) use ($filters, $routePrefix) {
                         </a>
                     </th>
                     <th class="ticket-table-th">
+                        <a href="<?= $buildSortUrl('author') ?>" style="text-decoration: none; color: inherit; display: inline-flex; align-items: center;">
+                            Người gửi <?= $renderSortIcon('author') ?>
+                        </a>
+                    </th>
+                    <th class="ticket-table-th">
                         <a href="<?= $buildSortUrl('updated_at') ?>" style="text-decoration: none; color: inherit; display: inline-flex; align-items: center;">
                             Cập nhật lần cuối <?= $renderSortIcon('updated_at') ?>
                         </a>
@@ -138,7 +140,7 @@ $buildTabUrl = function(string $statusVal) use ($filters, $routePrefix) {
             <tbody>
                 <?php if (empty($tickets)): ?>
                 <tr>
-                    <td colspan="5" class="ticket-table-empty">
+                    <td colspan="6" class="ticket-table-empty">
                         <i class="bi bi-inbox ticket-table-empty-icon"></i>
                         Không có yêu cầu hỗ trợ nào.
                     </td>
@@ -149,6 +151,7 @@ $buildTabUrl = function(string $statusVal) use ($filters, $routePrefix) {
                 <tr class="ticket-table-row">
                     <td class="ticket-table-td--muted">#<?= $t['id'] ?></td>
                     <td class="ticket-table-td--title"><?= htmlspecialchars($t['title']) ?></td>
+                    <td class="ticket-table-td--secondary"><?= htmlspecialchars($t['author_name']) ?></td>
                     <td class="ticket-table-td--secondary"><?= date('d/m/Y H:i', strtotime($t['updated_at'])) ?></td>
                     <td class="ticket-table-td"><span class="badge <?= $statusClass ?>"><?= $statusLabel ?></span></td>
                     <td class="ticket-table-td--right">
@@ -179,4 +182,3 @@ $buildTabUrl = function(string $statusVal) use ($filters, $routePrefix) {
     </div>
 </div>
 <?php endif; ?>
-

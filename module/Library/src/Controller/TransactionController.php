@@ -85,7 +85,7 @@ class TransactionController extends BaseController
 
         $records = $this->borrowTable->fetchAllWithDetails($filters, $isAdmin ? null : $userId, $perPage, $offset);
 
-        return new ViewModel([
+        $viewModel = new ViewModel([
             'records'     => $records,
             'summary'     => $this->borrowTable->getSummary($isAdmin ? null : $userId),
             'filters'     => $filters,
@@ -99,6 +99,14 @@ class TransactionController extends BaseController
                 'totalPages' => $totalPages,
             ]
         ]);
+
+        if ($isAdmin) {
+            $viewModel->setTemplate('library/transaction/index-admin');
+        } else {
+            $viewModel->setTemplate('library/transaction/index');
+        }
+
+        return $viewModel;
     }
 
     public function exportAction(): Response
@@ -458,12 +466,20 @@ class TransactionController extends BaseController
                         'Hạn trả phải sau hoặc bằng ngày mượn.',
                     ]);
 
-                    return new ViewModel([
+                    $viewModel = new ViewModel([
                         'form'         => $form,
                         'isAdmin'      => $isAdmin,
                         'currentUser'  => $currentUser,
                         'prefillBookId' => $prefillBookId,
                     ]);
+
+                    if ($isAdmin) {
+                        $viewModel->setTemplate('library/transaction/borrow-admin');
+                    } else {
+                        $viewModel->setTemplate('library/transaction/borrow');
+                    }
+
+                    return $viewModel;
                 }
 
                 try {
@@ -494,12 +510,20 @@ class TransactionController extends BaseController
             }
         }
 
-        return new ViewModel([
+        $viewModel = new ViewModel([
             'form'          => $form,
             'isAdmin'       => $isAdmin,
             'currentUser'   => $currentUser,
             'prefillBookId' => $prefillBookId,
         ]);
+
+        if ($isAdmin) {
+            $viewModel->setTemplate('library/transaction/borrow-admin');
+        } else {
+            $viewModel->setTemplate('library/transaction/borrow');
+        }
+
+        return $viewModel;
     }
 
     public function returnAction(): Response

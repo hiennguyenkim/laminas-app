@@ -1,21 +1,28 @@
 <?php
-$this->headTitle('Mượn sách');
+$this->headTitle('Lập phiếu mượn');
 $this->layout('layout/library-layout');
 $authUser    = $this->currentUser();
-$routePrefix = 'student';
-
-// Lấy thông tin user hiện tại
-$currentUserLabel = htmlspecialchars((string)(
-    ($currentUser['full_name'] ?? '') !== ''
-        ? $currentUser['full_name']
-        : ($currentUser['username'] ?? '')
-));
+$routePrefix = 'library';
 
 // Lấy book options để fallback và check prefill
 $bookOptions = $form->get('book_id')->getValueOptions();
+$userOptions = $form->get('user_id')->getValueOptions();
+
+$userList = [];
+foreach ($userOptions as $val => $lbl) {
+    if ($val === '') continue; // Skip empty placeholder
+    $userList[] = [
+        'id' => (int)$val,
+        'label' => (string)$lbl,
+    ];
+}
+$userListJson = json_encode($userList, JSON_UNESCAPED_UNICODE);
 
 // Kiểm tra có sách khả dụng không
 $hasBooks = count($bookOptions) > 0;
+
+// Kiểm tra có user không (admin mode)
+$hasUsers = count($userOptions) > 0;
 
 // Ngày mặc định cho form
 $today    = date('Y-m-d');
@@ -29,8 +36,8 @@ $due14d   = date('Y-m-d', strtotime('+14 days'));
             <i class="bi bi-arrow-left"></i>
         </a>
         <div>
-            <div class="page-title">Mượn sách</div>
-            <div class="page-subtitle">Tìm sách và gửi yêu cầu mượn sách lên hệ thống.</div>
+            <div class="page-title">Lập phiếu mượn sách</div>
+            <div class="page-subtitle">Tìm sách và tạo giao dịch mượn sách cho thư viện.</div>
         </div>
     </div>
 </div>
@@ -100,10 +107,49 @@ $due14d   = date('Y-m-d', strtotime('+14 days'));
 
             <!-- ── NGƯỜI MƯỢN ─── -->
             <div class="form-group">
-                <label class="form-label">Người mượn</label>
-                <input type="text" class="form-control borrow-input-disabled"
-                       value="<?= $currentUserLabel ?>" disabled>
-                <input type="hidden" name="user_id" id="real-user-select" value="<?= (int)($currentUser['id'] ?? 0) ?>">
+                <label class="form-label" for="user-search-input">
+                    Thành viên * <span class="borrow-label-hint">(nhập tên, MSSV hoặc chọn từ danh sách)</span>
+                </label>
+
+                <!-- Ẩn select thực tế của Laminas, gán ID để JS điều khiển -->
+                <div class="d-none">
+                    <?= $this->formSelect($form->get('user_id')->setAttribute('id', 'real-user-select')) ?>
+                </div>
+
+                <!-- Ô tìm kiếm thành viên -->
+                <div class="book-search-wrap" id="user-search-wrap">
+                    <div class="book-search-input-row">
+                        <i class="bi bi-person-circle"></i>
+                        <input type="text"
+                               id="user-search-input"
+                               autocomplete="off"
+                               placeholder="Tìm hoặc bấm để chọn thành viên..."
+                               <?= !$hasUsers ? 'disabled' : '' ?>>
+                        <button type="button" id="clear-user-btn" title="Xóa lựa chọn">
+                            <i class="bi bi-x-circle-fill"></i>
+                        </button>
+                    </div>
+                    <!-- Dropdown kết quả thành viên -->
+                    <div id="user-dropdown"></div>
+                </div>
+
+                <!-- Card thông tin thành viên đã chọn -->
+                <div id="selected-user-card" class="borrow-selected-user-card d-none">
+                    <div class="borrow-flex-row">
+                        <div class="borrow-user-avatar"><i class="bi bi-person-check"></i></div>
+                        <div class="borrow-flex-fill-min">
+                            <div class="selected-book-title borrow-user-name" id="selected-user-name">—</div>
+                            <div class="selected-book-author borrow-user-role" id="selected-user-role">MSSV/Tài khoản: —</div>
+                        </div>
+                        <i class="bi bi-check-circle-fill borrow-success-icon"></i>
+                    </div>
+                </div>
+
+                <?php $msgs = $form->get('user_id')->getMessages(); if ($msgs): ?>
+                <div class="borrow-error-text" id="user-select-error">
+                    <?= htmlspecialchars(implode(', ', $msgs)) ?>
+                </div>
+                <?php endif; ?>
             </div>
 
             <!-- ── NGÀY MƯỢN / HẠN TRẢ ─── -->
@@ -156,6 +202,7 @@ $due14d   = date('Y-m-d', strtotime('+14 days'));
 
     // ── Cấu hình ──────────────────────────────────────────
     const SEARCH_API      = '<?= $this->url('api/books-search') ?>';
+    const USER_SEARCH_API = '<?= $this->url('api/users-search') ?>';
     const MIN_CHARS       = 1;          // Bắt đầu tìm từ 1 ký tự
     const DEBOUNCE_MS     = 280;        // Tránh spam request
 
@@ -169,11 +216,17 @@ $due14d   = date('Y-m-d', strtotime('+14 days'));
     const borrowDateEl   = document.getElementById('borrow-date');
     const returnDateEl   = document.getElementById('return-date');
 
+    const userSearchInput = document.getElementById('user-search-input');
     const realUserSelect  = document.getElementById('real-user-select');
+    const userDropdown    = document.getElementById('user-dropdown');
+    const clearUserBtn    = document.getElementById('clear-user-btn');
+    const selectedUserCard = document.getElementById('selected-user-card');
 
     // ── State ─────────────────────────────────────────────
     let selectedBookId  = 0;
+    let selectedUserId  = 0;
     let highlightIndex  = -1;
+    let userHighlightIndex = -1;
 
     // ── Khởi tạo ngày hợp lệ ──────────────────────────────
     if (borrowDateEl && returnDateEl) {
@@ -346,10 +399,148 @@ $due14d   = date('Y-m-d', strtotime('+14 days'));
 
     if (clearBtn) clearBtn.addEventListener('click', clearSelection);
 
+    /* ==========================================================================
+       MEMBER AUTOCOMPLETE (CLIENT SIDE SEARCH)
+       ========================================================================== */
+    function renderUserDropdown(users, query) {
+        if (users.length === 0) {
+            userDropdown.innerHTML = '<div class="search-no-result"><i class="bi bi-inbox"></i> Không tìm thấy thành viên nào.</div>';
+        } else {
+            userDropdown.innerHTML = users.map((u, idx) => `
+                <div class="book-option user-option" data-idx="${idx}" data-user='${JSON.stringify(u).replace(/'/g, "&#39;")}'>
+                    <div class="book-option-icon user-option-icon"><i class="bi bi-person"></i></div>
+                    <div class="book-option-info">
+                        <div class="book-option-title">${highlight(u.label, query)}</div>
+                        <div class="book-option-meta">Mã thành viên: #${u.id}</div>
+                    </div>
+                </div>
+            `).join('');
+
+            userDropdown.querySelectorAll('.user-option').forEach(el => {
+                el.addEventListener('mousedown', function (e) {
+                    e.preventDefault();
+                    const user = JSON.parse(this.dataset.user);
+                    selectUser(user);
+                });
+            });
+        }
+        userDropdown.style.display = 'block';
+        userHighlightIndex = -1;
+    }
+
+    function selectUser(user) {
+        selectedUserId = user.id;
+        if (realUserSelect) {
+            realUserSelect.value = user.id;
+            realUserSelect.dispatchEvent(new Event('change'));
+        }
+        if (userSearchInput) userSearchInput.value = user.label;
+        if (clearUserBtn) clearUserBtn.style.display = 'inline-flex';
+        userDropdown.style.display = 'none';
+
+        document.getElementById('selected-user-name').textContent = user.label;
+        document.getElementById('selected-user-role').textContent = 'MSSV / Mã: #' + user.id;
+        if (selectedUserCard) selectedUserCard.classList.remove('d-none');
+
+        if (userSearchInput) userSearchInput.style.outline = '';
+        const err = document.getElementById('user-select-error');
+        if (err) err.remove();
+    }
+
+    function clearUserSelection() {
+        selectedUserId = 0;
+        if (realUserSelect) {
+            realUserSelect.value = '';
+            realUserSelect.dispatchEvent(new Event('change'));
+        }
+        if (userSearchInput) {
+            userSearchInput.value = '';
+            userSearchInput.focus();
+        }
+        if (clearUserBtn) clearUserBtn.style.display = 'none';
+        if (selectedUserCard) selectedUserCard.classList.add('d-none');
+        userDropdown.style.display = 'none';
+    }
+
+    async function doUserSearch(query) {
+        if (!userDropdown) return;
+
+        userDropdown.innerHTML = '<div class="search-loading"><i class="bi bi-arrow-repeat"></i> Đang tìm...</div>';
+        userDropdown.style.display = 'block';
+
+        try {
+            const url  = `${USER_SEARCH_API}?q=${encodeURIComponent(query)}&role=student&limit=15`;
+            const resp = await fetch(url, { headers: { 'Accept': 'application/json' } });
+            if (! resp.ok) throw new Error('HTTP ' + resp.status);
+            const users = await resp.json();
+            renderUserDropdown(users, query);
+        } catch (err) {
+            userDropdown.innerHTML = '<div class="search-no-result"><i class="bi bi-exclamation-triangle"></i> Lỗi kết nối. Thử lại.</div>';
+            console.error('User search error:', err);
+        }
+    }
+
+    const debouncedUserSearch = debounce(doUserSearch, DEBOUNCE_MS);
+
+    if (userSearchInput) {
+        userSearchInput.addEventListener('input', function () {
+            const q = this.value.trim();
+            if (selectedUserId > 0) {
+                selectedUserId = 0;
+                if (realUserSelect) realUserSelect.value = '';
+                if (clearUserBtn) clearUserBtn.style.display = 'none';
+                if (selectedUserCard) selectedUserCard.classList.add('d-none');
+            }
+            debouncedUserSearch(q);
+        });
+
+        userSearchInput.addEventListener('focus', function () {
+            if (selectedUserId === 0) {
+                doUserSearch(this.value.trim());
+            }
+        });
+
+        userSearchInput.addEventListener('click', function () {
+            if (selectedUserId === 0) {
+                doUserSearch(this.value.trim());
+            }
+        });
+
+        userSearchInput.addEventListener('keydown', function (e) {
+            const options = userDropdown.querySelectorAll('.user-option');
+            if (! options.length) return;
+
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                userHighlightIndex = Math.min(userHighlightIndex + 1, options.length - 1);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                userHighlightIndex = Math.max(userHighlightIndex - 1, -1);
+            } else if (e.key === 'Enter' && userHighlightIndex >= 0) {
+                e.preventDefault();
+                options[userHighlightIndex].dispatchEvent(new Event('mousedown'));
+                return;
+            } else if (e.key === 'Escape') {
+                userDropdown.style.display = 'none';
+                return;
+            } else {
+                return;
+            }
+
+            options.forEach((o, i) => o.classList.toggle('highlighted', i === userHighlightIndex));
+            if (userHighlightIndex >= 0) options[userHighlightIndex].scrollIntoView({ block: 'nearest' });
+        });
+    }
+
+    if (clearUserBtn) clearUserBtn.addEventListener('click', clearUserSelection);
+
     // ── Ẩn dropdowns khi click ra ngoài ───────────────────
     document.addEventListener('click', function (e) {
         if (dropdown && ! e.target.closest('#book-search-wrap')) {
             dropdown.style.display = 'none';
+        }
+        if (userDropdown && ! e.target.closest('#user-search-wrap')) {
+            userDropdown.style.display = 'none';
         }
     });
 
@@ -390,6 +581,23 @@ $due14d   = date('Y-m-d', strtotime('+14 days'));
             }
         }
 
+        if (realUserSelect && (! realUserSelect.value || parseInt(realUserSelect.value, 10) <= 0)) {
+            valid = false;
+            if (userSearchInput) {
+                userSearchInput.style.outline = '2px solid #ef4444';
+                if (valid) userSearchInput.focus();
+            }
+            let err = document.getElementById('user-select-error');
+            if (! err) {
+                err = document.createElement('div');
+                err.id = 'user-select-error';
+                err.className = 'borrow-error-text';
+                err.textContent   = 'Vui lòng chọn một thành viên từ danh sách.';
+                const wrap = document.getElementById('user-search-wrap');
+                if (wrap) wrap.after(err);
+            }
+        }
+
         if (returnDateEl && borrowDateEl && returnDateEl.value < borrowDateEl.value) {
             valid = false;
             returnDateEl.style.outline = '2px solid #ef4444';
@@ -401,6 +609,11 @@ $due14d   = date('Y-m-d', strtotime('+14 days'));
         }
     });
 
+    // ── Khởi tạo: ẩn submit nếu chưa chọn sách ──────────
+    if (submitBtn && ! hiddenBookId.value) {
+        // Không disable hoàn toàn vì Laminas validation sẽ bắt lỗi,
+        // nhưng JS validation sẽ chặn trước khi submit.
+    }
+
 })();
 </script>
-

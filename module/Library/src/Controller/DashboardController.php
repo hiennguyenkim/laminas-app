@@ -68,7 +68,7 @@ class DashboardController extends BaseController
             $categoryMonthlyStats = $this->borrowTable->getCategoryMonthlyStats((int) date('Y'));
         }
 
-        return new ViewModel([
+        $viewModel = new ViewModel([
             'isAdmin'              => $isAdmin,
             'currentUser'          => $currentUser,
             'bookSummary'          => $bookSummary,
@@ -87,6 +87,14 @@ class DashboardController extends BaseController
             'lockReason'           => $lockReason,
             'lockedAt'             => $lockedAt,
         ]);
+
+        if ($isAdmin) {
+            $viewModel->setTemplate('library/dashboard/index-admin');
+        } else {
+            $viewModel->setTemplate('library/dashboard/index');
+        }
+
+        return $viewModel;
     }
 
     public function chatAction(): Response

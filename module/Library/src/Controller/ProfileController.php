@@ -63,7 +63,7 @@ class ProfileController extends BaseController
 
         $history = $isAdmin ? [] : $this->borrowTable->fetchAllWithDetails($filters, $userId, $perPage, $offset);
 
-        return new ViewModel([
+        $viewModel = new ViewModel([
             'user'       => $user,
             'stats'      => $stats,
             'isAdmin'    => $isAdmin,
@@ -75,6 +75,14 @@ class ProfileController extends BaseController
             'perPage'    => $perPage,
             'search'     => $search,
         ]);
+
+        if ($isAdmin) {
+            $viewModel->setTemplate('library/profile/index-admin');
+        } else {
+            $viewModel->setTemplate('library/profile/index');
+        }
+
+        return $viewModel;
     }
 
     public function updateAction(): Response

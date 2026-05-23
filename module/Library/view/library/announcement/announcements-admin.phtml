@@ -1,0 +1,696 @@
+<?php
+$authUser    = $this->currentUser();
+$routePrefix = 'library';
+
+$this->headTitle('Quản lý bản tin');
+$this->layout('layout/library-layout');
+
+$baseRoute = 'library/announcements';
+
+$filters = $filters ?? [];
+$filters['search'] = (string)($filters['search'] ?? '');
+$filters['type'] = (string)($filters['type'] ?? '');
+$filters['status'] = (string)($filters['status'] ?? '');
+
+$typeConfig = [
+    'general' => [
+        'label'    => 'Thông báo',
+        'icon'     => 'bi-info-circle-fill',
+        'emoji'    => '📢',
+        'gradient' => 'linear-gradient(135deg,#6366f1,#8b5cf6)',
+        'glow'     => 'rgba(99,102,241,0.25)',
+        'light'    => 'rgba(99,102,241,0.08)',
+        'border'   => '#6366f1',
+    ],
+    'event' => [
+        'label'    => 'Sự kiện',
+        'icon'     => 'bi-star-fill',
+        'emoji'    => '🎉',
+        'gradient' => 'linear-gradient(135deg,#ec4899,#f43f5e)',
+        'glow'     => 'rgba(236,72,153,0.25)',
+        'light'    => 'rgba(236,72,153,0.08)',
+        'border'   => '#ec4899',
+    ],
+    'contest' => [
+        'label'    => 'Cuộc thi',
+        'icon'     => 'bi-trophy-fill',
+        'emoji'    => '🏆',
+        'gradient' => 'linear-gradient(135deg,#f59e0b,#f97316)',
+        'glow'     => 'rgba(245,158,11,0.25)',
+        'light'    => 'rgba(245,158,11,0.08)',
+        'border'   => '#f59e0b',
+    ],
+    'holiday' => [
+        'label'    => 'Nghỉ lễ',
+        'icon'     => 'bi-balloon-fill',
+        'emoji'    => '🌴',
+        'gradient' => 'linear-gradient(135deg,#10b981,#06b6d4)',
+        'glow'     => 'rgba(16,185,129,0.25)',
+        'light'    => 'rgba(16,185,129,0.08)',
+        'border'   => '#10b981',
+    ],
+];
+
+$activeCount        = (int)($activeCount ?? 0);
+$upcomingCount      = (int)($upcomingCount ?? 0);
+$expiredCount       = (int)($expiredCount ?? 0);
+$hiddenCount        = (int)($hiddenCount ?? 0);
+$page               = (int)($page ?? 1);
+$totalPages         = (int)($totalPages ?? 1);
+$totalCount         = (int)($totalCount ?? 0);
+$perPage            = (int)($perPage ?? 5);
+$totalFilteredCount = (int)($totalFilteredCount ?? 0);
+$typeCounts         = $typeCounts ?? [
+    'general' => 0,
+    'event'   => 0,
+    'contest' => 0,
+    'holiday' => 0,
+];
+
+$typeMeta = [
+    'general' => ['📢', 'Chung',    'linear-gradient(135deg,#6366f1,#8b5cf6)', '#6366f1'],
+    'event'   => ['🎉', 'Sự kiện', 'linear-gradient(135deg,#ec4899,#f43f5e)', '#ec4899'],
+    'contest' => ['🏆', 'Cuộc thi','linear-gradient(135deg,#f59e0b,#f97316)', '#f59e0b'],
+    'holiday' => ['🌴', 'Nghỉ lễ', 'linear-gradient(135deg,#10b981,#06b6d4)', '#10b981'],
+];
+
+$queryBase = [
+    'search' => $filters['search'],
+    'type'   => $filters['type'],
+    'status' => $filters['status'],
+];
+
+$buildPageUrl = function(int $p) use ($queryBase): string {
+    $q = $queryBase;
+    $q['page'] = $p;
+    $q = array_filter($q, fn($v, $k) => $k === 'page' || $v !== '', ARRAY_FILTER_USE_BOTH);
+    return $this->url('library/announcements', [], ['query' => $q]);
+};
+
+$activeUrl = $this->url('library/announcements', [], [
+    'query' => array_filter([
+        'search' => $filters['search'],
+        'type' => $filters['type'],
+        'status' => $filters['status'] === 'active' ? '' : 'active'
+    ])
+]);
+
+$upcomingUrl = $this->url('library/announcements', [], [
+    'query' => array_filter([
+        'search' => $filters['search'],
+        'type' => $filters['type'],
+        'status' => $filters['status'] === 'upcoming' ? '' : 'upcoming'
+    ])
+]);
+
+$expiredUrl = $this->url('library/announcements', [], [
+    'query' => array_filter([
+        'search' => $filters['search'],
+        'type' => $filters['type'],
+        'status' => $filters['status'] === 'expired' ? '' : 'expired'
+    ])
+]);
+
+$hiddenUrl = $this->url('library/announcements', [], [
+    'query' => array_filter([
+        'search' => $filters['search'],
+        'type' => $filters['type'],
+        'status' => $filters['status'] === 'hidden' ? '' : 'hidden'
+    ])
+]);
+?>
+
+<!-- KÊNH THẢO LUẬN -->
+<div class="forum-section">
+    <div class="forum-header">
+        <i class="bi bi-chat-quote-fill forum-header-icon"></i>
+        <h2 class="forum-header-title">Kênh Thảo Luận</h2>
+        <span class="forum-online-badge">
+            <span class="forum-online-dot"></span>
+            Trực tuyến
+        </span>
+    </div>
+
+    <div class="forum-card-wrap">
+        <!-- Pinned Banner -->
+        <div class="forum-pinned-banner" id="forum-pinned-banner" style="display:none;">
+            <div class="forum-pinned-content">
+                <i class="bi bi-pin-angle-fill text-purple"></i>
+                <span class="forum-pinned-text" id="forum-pinned-text"></span>
+            </div>
+            <button class="forum-pinned-unpin-btn" id="forum-pinned-unpin-btn" onclick="unpinCatalogMessage()" title="Gỡ ghim">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+
+        <!-- Message area -->
+        <div class="catalog-chat-messages forum-list" id="catalog-chat-body">
+            <div class="forum-empty">
+                Đang tải thảo luận...
+            </div>
+        </div>
+
+        <!-- Input area -->
+        <div class="forum-footer">
+            <div class="forum-input-row">
+                <div style="position: relative; flex: 1; display: flex; align-items: center;">
+                    <input type="text" id="catalog-chat-input"
+                           placeholder="Viết thảo luận..."
+                           onkeypress="if(event.key==='Enter') sendCatalogMessage()"
+                           oninput="this.nextElementSibling.style.display = this.value ? 'inline-block' : 'none';"
+                           class="forum-input" style="padding-right: 32px; width: 100%;">
+                    <i class="bi bi-x-circle-fill" style="position: absolute; right: 12px; cursor: pointer; color: var(--text-muted); display: none; font-size: 14px; z-index: 5;" onclick="this.previousElementSibling.value = ''; this.style.display = 'none'; this.previousElementSibling.focus();"></i>
+                </div>
+                <button onclick="sendCatalogMessage()"
+                        class="forum-send-btn">
+                    <i class="bi bi-send-fill"></i> Gửi
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ADMIN VIEW -->
+<div class="page-header align-items-center">
+    <div>
+        <h1 class="page-title"><i class="bi bi-megaphone-fill text-purple" style="margin-right: 12px;"></i>Quản lý bản tin</h1>
+        <p class="text-muted settings-header-desc">Đăng tải và quản lý các thông báo, tin tức, sự kiện tới sinh viên toàn trường.</p>
+    </div>
+    <div class="settings-header-badges">
+        <a href="<?= $activeUrl ?>" class="settings-badge-active <?= $filters['status'] === 'active' ? 'active' : '' ?>" title="Lọc các bản tin đang hiển thị">
+            <i class="bi bi-eye"></i> <?= $activeCount ?> đang hiện
+        </a>
+        <a href="<?= $upcomingUrl ?>" class="settings-badge-upcoming <?= $filters['status'] === 'upcoming' ? 'active' : '' ?>" title="Lọc các bản tin chưa đến hạn hiển thị">
+            <i class="bi bi-clock-history"></i> <?= $upcomingCount ?> chưa đến hạn
+        </a>
+        <a href="<?= $expiredUrl ?>" class="settings-badge-expired <?= $filters['status'] === 'expired' ? 'active' : '' ?>" title="Lọc các bản tin đã hết hạn">
+            <i class="bi bi-archive"></i> <?= $expiredCount ?> hết hạn
+        </a>
+        <a href="<?= $hiddenUrl ?>" class="settings-badge-hidden <?= $filters['status'] === 'hidden' ? 'active' : '' ?>" title="Lọc các bản tin đã ẩn">
+            <i class="bi bi-eye-slash"></i> <?= $hiddenCount ?> đã ẩn
+        </a>
+    </div>
+</div>
+
+<div class="card" style="margin-bottom: 24px;">
+    <div class="card-body">
+        <div class="settings-list-header" style="margin-bottom: 20px;">
+            <div class="settings-list-title" style="font-size: 16px; font-weight: 700;">
+                <i class="bi bi-newspaper settings-list-title-icon" style="color: var(--accent-purple); margin-right: 8px;"></i>Danh sách bản tin
+                <span class="settings-list-count" style="margin-left: 8px; font-size: 12px; padding: 4px 10px; background: rgba(124,106,255,0.12); color: var(--accent-purple); border: 1px solid rgba(124,106,255,0.2);">
+                    <?= $totalCount ?> bản tin
+                </span>
+            </div>
+            
+            <a href="<?= $this->url('library/announcements/add') ?>" class="btn btn-primary btn-md">
+                <i class="bi bi-plus-circle-fill" style="margin-right: 6px;"></i> Đăng bản tin mới
+            </a>
+        </div>
+
+        <!-- FILTER TABS & SEARCH -->
+        <div class="user-filters-bar" style="margin-bottom: 20px;">
+            <div class="filter-tabs user-filter-tabs">
+                <a href="<?= $this->url('library/announcements', [], ['query' => array_filter(['search' => $filters['search'], 'status' => $filters['status']])]) ?>" class="filter-tab <?= !$filters['type'] ? 'active' : '' ?>">
+                    Tất cả <span class="count"><?= $totalFilteredCount ?></span>
+                </a>
+                <a href="<?= $this->url('library/announcements', [], ['query' => array_filter(['type' => 'general', 'search' => $filters['search'], 'status' => $filters['status']])]) ?>" class="filter-tab <?= $filters['type'] === 'general' ? 'active' : '' ?>">
+                    📢 Chung <span class="count"><?= $typeCounts['general'] ?></span>
+                </a>
+                <a href="<?= $this->url('library/announcements', [], ['query' => array_filter(['type' => 'event', 'search' => $filters['search'], 'status' => $filters['status']])]) ?>" class="filter-tab <?= $filters['type'] === 'event' ? 'active' : '' ?>">
+                    🎉 Sự kiện <span class="count"><?= $typeCounts['event'] ?></span>
+                </a>
+                <a href="<?= $this->url('library/announcements', [], ['query' => array_filter(['type' => 'contest', 'search' => $filters['search'], 'status' => $filters['status']])]) ?>" class="filter-tab <?= $filters['type'] === 'contest' ? 'active' : '' ?>">
+                    🏆 Cuộc thi <span class="count"><?= $typeCounts['contest'] ?></span>
+                </a>
+                <a href="<?= $this->url('library/announcements', [], ['query' => array_filter(['type' => 'holiday', 'search' => $filters['search'], 'status' => $filters['status']])]) ?>" class="filter-tab <?= $filters['type'] === 'holiday' ? 'active' : '' ?>">
+                    🌴 Nghỉ lễ <span class="count"><?= $typeCounts['holiday'] ?></span>
+                </a>
+            </div>
+            <form method="GET" class="user-search-form">
+                <?php if ($filters['type'] !== ''): ?>
+                    <input type="hidden" name="type" value="<?= htmlspecialchars($filters['type']) ?>">
+                <?php endif; ?>
+                <?php if ($filters['status'] !== ''): ?>
+                    <input type="hidden" name="status" value="<?= htmlspecialchars($filters['status']) ?>">
+                <?php endif; ?>
+                <div class="topbar-search user-search-wrap" style="position: relative;">
+                    <i class="bi bi-search"></i>
+                    <input type="text" name="search" value="<?= htmlspecialchars($filters['search']) ?>" placeholder="Tìm theo tiêu đề, nội dung..." oninput="this.nextElementSibling.style.display = this.value ? 'inline-block' : 'none';" style="padding-right: 28px;">
+                    <i class="bi bi-x-circle-fill search-clear-btn" style="position: absolute; right: 12px; cursor: pointer; color: var(--text-muted); display: <?= !empty($filters['search']) ? 'inline-block' : 'none' ?>; font-size: 14px;" onclick="clearSearchInput(this)"></i>
+                </div>
+                <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-search"></i>Tìm</button>
+            </form>
+        </div>
+
+        <?php if (empty($announcements)): ?>
+            <div class="settings-empty-card" style="padding: 60px 20px; border: 2px dashed var(--border-color); border-radius: 12px; background: rgba(255,255,255,0.01); text-align: center;">
+                <i class="bi bi-inbox settings-empty-icon" style="font-size: 44px; display: block; margin-bottom: 12px; opacity: 0.5;"></i>
+                <?php if ($filters['search'] !== '' || $filters['type'] !== '' || $filters['status'] !== ''): ?>
+                    <div class="settings-empty-title" style="font-weight: 600;">Không tìm thấy bản tin phù hợp</div>
+                    <div class="settings-empty-desc" style="font-size: 12px; opacity: 0.7;">Thử thay đổi từ khóa tìm kiếm hoặc bộ lọc loại bản tin / trạng thái.</div>
+                <?php else: ?>
+                    <div class="settings-empty-title" style="font-weight: 600;">Chưa có bản tin nào</div>
+                    <div class="settings-empty-desc" style="font-size: 12px; opacity: 0.7;">Hãy tạo bản tin đầu tiên của bạn bằng cách click vào nút Đăng bản tin mới ở trên.</div>
+                <?php endif; ?>
+            </div>
+        <?php else: ?>
+        <div class="settings-ann-list" style="display: flex; flex-direction: column; gap: 16px;">
+            <?php foreach ($announcements as $ann):
+                [$emoji, $tLabel, $grad, $clr] = $typeMeta[$ann['type']] ?? $typeMeta['general'];
+                
+                $today = strtotime(date('Y-m-d'));
+                $startDate = $ann['start_date'] ? strtotime($ann['start_date']) : null;
+                $endDate = $ann['end_date'] ? strtotime($ann['end_date']) : null;
+                
+                $isNotStarted = $startDate && $startDate > $today;
+                $isExpired = $endDate && $endDate < $today;
+                $isActive  = (bool)$ann['is_active'];
+                
+                $isShowing = $isActive && !$isNotStarted && !$isExpired;
+
+                $dateStr = '';
+                if ($ann['start_date'] && $ann['end_date'])
+                    $dateStr = date('d/m/Y', strtotime($ann['start_date'])) . ' → ' . date('d/m/Y', strtotime($ann['end_date']));
+                elseif ($ann['start_date'])
+                    $dateStr = 'Từ ' . date('d/m/Y', strtotime($ann['start_date']));
+                elseif ($ann['end_date'])
+                    $dateStr = 'Đến ' . date('d/m/Y', strtotime($ann['end_date']));
+            ?>
+            <div class="ann-admin-card <?= !$isShowing ? 'ann-admin-card--hidden' : '' ?> <?= $isExpired ? 'ann-admin-card--expired' : '' ?>"
+                 style="--card-clr:<?= $clr ?>;--card-grad:<?= $grad ?>">
+
+                <!-- Left gradient strip -->
+                <div class="ann-admin-strip" style="background:<?= $grad ?>">
+                    <span class="ann-admin-emoji"><?= $emoji ?></span>
+                </div>
+
+                <!-- Content -->
+                <div class="ann-admin-body">
+                    <div class="ann-admin-top">
+                        <div class="ann-admin-content-main">
+                            <div class="settings-ann-card-title"><?= htmlspecialchars($ann['title']) ?></div>
+                            <div class="settings-ann-card-excerpt"><?= htmlspecialchars(mb_substr($ann['content'], 0, 160)) ?><?= mb_strlen($ann['content']) > 160 ? '…' : '' ?></div>
+                        </div>
+                        <div class="settings-ann-card-badges">
+                            <span class="settings-ann-card-badge-type"
+                                  style="background:<?= $clr ?>1a;color:<?= $clr ?>;border:1px solid <?= $clr ?>33">
+                                <?= $tLabel ?>
+                            </span>
+                            <?php if ($isNotStarted): ?>
+                                <span class="settings-ann-card-status-hidden" style="color: #3b82f6; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.2);">
+                                    <i class="bi bi-clock-history"></i> Chưa đến hạn (Ẩn)
+                                </span>
+                            <?php elseif ($isExpired): ?>
+                                <span class="settings-ann-card-status-expired">
+                                    <i class="bi bi-archive"></i> Hết hạn (Ẩn)
+                                </span>
+                            <?php elseif ($isShowing): ?>
+                                <span class="settings-ann-card-status-active">
+                                    <i class="bi bi-broadcast"></i> Đang hiện
+                                </span>
+                            <?php else: ?>
+                                <span class="settings-ann-card-status-hidden">
+                                    <i class="bi bi-eye-slash"></i> Đã ẩn
+                                </span>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+
+                    <!-- Footer -->
+                    <div class="ann-admin-footer">
+                        <div class="ann-admin-meta">
+                            <?php if ($dateStr): ?>
+                            <span><i class="bi bi-calendar-range" style="color:<?= $clr ?>"></i> <?= $dateStr ?></span>
+                            <?php endif; ?>
+                            <span><i class="bi bi-clock"></i> <?= date('d/m/Y H:i', strtotime($ann['created_at'])) ?></span>
+                            <?php if ($ann['creator_name']): ?>
+                            <span><i class="bi bi-person"></i> <?= htmlspecialchars($ann['creator_name']) ?></span>
+                            <?php endif; ?>
+                        </div>
+                        <div class="ann-admin-actions">
+                            <a href="<?= $this->url('library/announcements/edit', ['id' => $ann['id']]) ?>"
+                               class="btn btn-outline btn-sm"
+                               title="Sửa bản tin"
+                               style="color: var(--accent-purple); border-color: var(--accent-purple);">
+                                <i class="bi bi-pencil-square"></i> Sửa
+                            </a>
+                            <?php if ($isShowing): ?>
+                                <a href="<?= $this->url('library/announcements/toggle', ['id' => $ann['id']]) ?>"
+                                   class="btn btn-outline btn-sm settings-ann-card-action-btn-toggle"
+                                   title="Ẩn bản tin"
+                                   onclick="return confirm('Bạn có chắc chắn muốn ẩn bản tin này?')">
+                                    <i class="bi bi-eye-slash"></i> Ẩn
+                                </a>
+                            <?php else: ?>
+                                <?php
+                                    $confirmMsg = 'Bạn có chắc chắn muốn hiển thị bản tin này?';
+                                    if ($isNotStarted) {
+                                        $confirmMsg = 'Bản tin này chưa đến thời hạn hiển thị. Bạn có chắc chắn muốn kích hoạt hiển thị ngay bây giờ?';
+                                    } elseif ($isExpired) {
+                                        $confirmMsg = 'Bản tin này đã hết thời hạn hiển thị. Bạn có chắc chắn muốn hiển thị lại bản tin này vô thời hạn?';
+                                    }
+                                ?>
+                                <a href="<?= $this->url('library/announcements/toggle', ['id' => $ann['id']]) ?>"
+                                   class="btn btn-outline btn-sm settings-ann-card-action-btn-toggle"
+                                   title="Hiện bản tin"
+                                   style="color: var(--accent-green); border-color: var(--accent-green);"
+                                   onclick="return confirm('<?= htmlspecialchars($confirmMsg, ENT_QUOTES) ?>')">
+                                    <i class="bi bi-eye"></i> Hiện
+                                </a>
+                            <?php endif; ?>
+                            <a href="<?= $this->url('library/announcements/delete', ['id' => $ann['id']]) ?>"
+                               class="btn btn-sm settings-ann-card-action-btn-delete"
+                               onclick="return confirm('Xóa bản tin này?')">
+                                <i class="bi bi-trash3"></i> Xóa
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <?php endforeach; ?>
+        </div>
+
+        <!-- PAGINATION -->
+        <?php if ($totalPages > 1): ?>
+        <div class="catalog-pagination-bar" style="margin-top:20px; width: 100%;">
+            <div class="catalog-pagination-info">
+                Hiển thị <?= min(($page-1)*$perPage+1,$totalCount) ?> – <?= min($page*$perPage,$totalCount) ?> / <?= $totalCount ?> bản tin
+            </div>
+            <div class="pagination">
+                <a class="page-btn <?= $page<=1?'disabled':'' ?>" href="<?= $page>1?$buildPageUrl($page-1):'#' ?>"><i class="bi bi-chevron-left"></i></a>
+                <?php for ($p=max(1,$page-2); $p<=min($totalPages,$page+2); $p++): ?>
+                <a class="page-btn <?= $p===$page?'active':'' ?>" href="<?= $buildPageUrl($p) ?>"><?= $p ?></a>
+                <?php endfor; ?>
+                <a class="page-btn <?= $page>=$totalPages?'disabled':'' ?>" href="<?= $page<$totalPages?$buildPageUrl($page+1):'#' ?>"><i class="bi bi-chevron-right"></i></a>
+            </div>
+        </div>
+        <?php endif; ?>
+        <?php endif; ?>
+    </div>
+</div>
+
+<style>
+.forum-section {
+    margin-top: 0;
+    margin-bottom: 36px;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    let catalogChatInterval = null;
+    const currentUserId = parseInt(<?= json_encode($authUser['id'] ?? 0) ?>);
+    const currentUserRole = <?= json_encode($authUser['role'] ?? '') ?>;
+    const basePath = <?= json_encode($this->basePath()) ?>;
+    let lastMessagesJson = '';
+
+    function escapeHtml(unsafe) {
+        return (unsafe || '').replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    }
+
+    function renderReactionsHtml(msgId, msgReactions) {
+        let html = '';
+        const emojis = Object.keys(msgReactions);
+        if (emojis.length > 0) {
+            html += `<div class="forum-msg-reactions">`;
+            emojis.forEach(emoji => {
+                const userIds = msgReactions[emoji] || [];
+                if (userIds.length > 0) {
+                    const hasReacted = userIds.includes(currentUserId);
+                    const activeClass = hasReacted ? 'active' : '';
+                    html += `<span class="forum-reaction-badge ${activeClass}" onclick="reactCatalogMessage(${msgId}, '${emoji}')">
+                        ${emoji} ${userIds.length}
+                    </span>`;
+                }
+            });
+            html += `</div>`;
+        }
+        return html;
+    }
+
+    window.toggleReactionPicker = function(event, msgId) {
+        event.stopPropagation();
+        const existing = document.querySelector('.forum-react-picker');
+        if (existing) {
+            existing.remove();
+        }
+        
+        const btn = event.currentTarget;
+        const picker = document.createElement('div');
+        picker.className = 'forum-react-picker';
+        const emojis = ['👍', '❤️', '😂', '😮', '😢'];
+        emojis.forEach(emoji => {
+            const emojiSpan = document.createElement('span');
+            emojiSpan.className = 'forum-react-picker-emoji';
+            emojiSpan.innerText = emoji;
+            emojiSpan.onclick = function(e) {
+                e.stopPropagation();
+                reactCatalogMessage(msgId, emoji);
+                picker.remove();
+            };
+            picker.appendChild(emojiSpan);
+        });
+        btn.appendChild(picker);
+    };
+
+    document.addEventListener('click', function() {
+        const existing = document.querySelector('.forum-react-picker');
+        if (existing) {
+            existing.remove();
+        }
+    });
+
+    async function loadCatalogMessages() {
+        try {
+            const response = await fetch('<?= $this->url("library/dashboard", ["action" => "chat"]) ?>');
+            if (!response.ok) return;
+            const data = await response.json();
+            
+            const messages = data.messages || [];
+            const pinned = data.pinned || null;
+            
+            const messagesJson = JSON.stringify(data);
+            if (messagesJson === lastMessagesJson) {
+                return;
+            }
+            lastMessagesJson = messagesJson;
+
+            // Handle Pinned Banner
+            const pinnedBanner = document.getElementById('forum-pinned-banner');
+            const pinnedText = document.getElementById('forum-pinned-text');
+            const pinnedUnpinBtn = document.getElementById('forum-pinned-unpin-btn');
+            if (pinnedBanner && pinnedText) {
+                if (pinned) {
+                    pinnedText.innerHTML = `<strong>${escapeHtml(pinned.nickname)}:</strong> ${escapeHtml(pinned.message)}`;
+                    pinnedBanner.style.display = 'flex';
+                    if (pinnedUnpinBtn) {
+                        pinnedUnpinBtn.style.display = 'block';
+                    }
+                } else {
+                    pinnedBanner.style.display = 'none';
+                }
+            }
+
+            const container = document.getElementById('catalog-chat-body');
+            if (!container) return;
+            
+            if (messages.length > 0) {
+                const lastMsg = messages[messages.length - 1];
+                localStorage.setItem('catalog_chat_last_seen_id', lastMsg.id);
+            }
+            
+            let html = '';
+            messages.forEach(msg => {
+                const colors = ['#7c6aff','#f97316','#22c55e','#3b82f6','#ec4899','#14b8a6'];
+                let hash = 0;
+                const usernameStr = msg.nickname || '';
+                for (let i = 0; i < usernameStr.length; i++) {
+                    hash = usernameStr.charCodeAt(i) + ((hash << 5) - hash);
+                }
+                const avatarColor = colors[Math.abs(hash) % colors.length];
+                const initial = usernameStr.substring(0, 1).toUpperCase() || '?';
+                const roleBadge = msg.role === 'admin' ? '<span class="badge badge-purple forum-role-badge">Thủ thư</span>' : '';
+                const username = escapeHtml(msg.nickname) + roleBadge;
+                const time = msg.created_at;
+                
+                let msgReactions = {};
+                try {
+                    if (msg.reactions && msg.reactions !== '') {
+                        msgReactions = JSON.parse(msg.reactions);
+                    }
+                } catch (e) {
+                    console.error('Failed to parse reactions:', e);
+                }
+
+                const deleteBtn = `<span onclick="deleteCatalogMessage(${msg.id})" class="forum-msg-delete" title="Xóa"><i class="bi bi-trash"></i></span>`;
+                
+                let pinBtn = '';
+                if (msg.is_pinned === 1) {
+                    pinBtn = `<span onclick="unpinCatalogMessage()" class="forum-msg-pin active" title="Gỡ ghim"><i class="bi bi-pin-fill"></i></span>`;
+                } else {
+                    pinBtn = `<span onclick="pinCatalogMessage(${msg.id})" class="forum-msg-pin" title="Ghim tin nhắn"><i class="bi bi-pin"></i></span>`;
+                }
+
+                let reactBtn = `<span class="forum-msg-react-btn" title="Thả cảm xúc" onclick="toggleReactionPicker(event, ${msg.id})">
+                    <i class="bi bi-emoji-smile"></i>
+                </span>`;
+
+                const actionsHtml = `<div class="forum-msg-meta-actions">
+                    ${pinBtn}
+                    ${reactBtn}
+                    ${deleteBtn}
+                </div>`;
+
+                const message = escapeHtml(msg.message);
+
+                const avatarHtml = msg.avatar_url 
+                    ? `<img src="${basePath + msg.avatar_url}" class="forum-msg-avatar" alt="${escapeHtml(msg.nickname)}" style="object-fit: cover;">`
+                    : `<div style="background:${avatarColor}" class="forum-msg-avatar">${initial}</div>`;
+
+                html += `<div class="forum-msg-row">
+                    ${avatarHtml}
+                    <div class="forum-msg-body">
+                        <div class="forum-msg-meta">
+                            <span class="forum-msg-username">${username}</span>
+                            <span class="forum-msg-time">${time}</span>
+                            ${actionsHtml}
+                        </div>
+                        <div class="forum-msg-text">
+                            ${message}
+                        </div>
+                        ${renderReactionsHtml(msg.id, msgReactions)}
+                    </div>
+                </div>`;
+            });
+            
+            if (html === '') {
+                html = `
+                    <div class="forum-empty-chat">
+                        <i class="bi bi-chat-dots"></i>
+                        <span>Chưa có tin nhắn nào. Hãy gửi tin nhắn đầu tiên để bắt đầu thảo luận!</span>
+                    </div>
+                `;
+            }
+            
+            container.innerHTML = html;
+            const body = document.getElementById('catalog-chat-body');
+            if (body) {
+                body.scrollTop = body.scrollHeight;
+            }
+        } catch (e) {
+            console.error('Failed to load catalog chat messages:', e);
+        }
+    }
+
+    window.sendCatalogMessage = async function() {
+        const input = document.getElementById('catalog-chat-input');
+        if (!input) return;
+        const msg = input.value.trim();
+        if (msg === '') return;
+        input.value = '';
+        const chatClearBtn = input.nextElementSibling;
+        if (chatClearBtn && chatClearBtn.classList.contains('bi-x-circle-fill')) {
+            chatClearBtn.style.display = 'none';
+        }
+        
+        try {
+            const response = await fetch('<?= $this->url("library/dashboard", ["action" => "chat"]) ?>', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: 'message=' + encodeURIComponent(msg)
+            });
+            if (response.ok) {
+                loadCatalogMessages();
+            } else {
+                console.error('Failed to send catalog chat message.');
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
+    window.deleteCatalogMessage = async function(id) {
+        if (!confirm('Bạn có chắc chắn muốn xóa tin nhắn này?')) return;
+        try {
+            const response = await fetch('<?= $this->url("library/dashboard", ["action" => "chat"]) ?>', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `action=delete&id=${id}`
+            });
+            if (response.ok) {
+                loadCatalogMessages();
+            } else {
+                alert('Không thể xóa tin nhắn.');
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
+    window.pinCatalogMessage = async function(id) {
+        if (!confirm('Bạn có chắc chắn muốn ghim tin nhắn này?')) return;
+        try {
+            const response = await fetch('<?= $this->url("library/dashboard", ["action" => "chat"]) ?>', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `action=pin&id=${id}`
+            });
+            if (response.ok) {
+                loadCatalogMessages();
+            } else {
+                alert('Không thể ghim tin nhắn.');
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
+    window.unpinCatalogMessage = async function() {
+        if (!confirm('Bạn có chắc chắn muốn gỡ ghim tin nhắn này?')) return;
+        try {
+            const response = await fetch('<?= $this->url("library/dashboard", ["action" => "chat"]) ?>', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `action=unpin`
+            });
+            if (response.ok) {
+                loadCatalogMessages();
+            } else {
+                alert('Không thể gỡ ghim tin nhắn.');
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
+    window.reactCatalogMessage = async function(id, emoji) {
+        try {
+            const response = await fetch('<?= $this->url("library/dashboard", ["action" => "chat"]) ?>', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `action=react&id=${id}&emoji=${encodeURIComponent(emoji)}`
+            });
+            if (response.ok) {
+                loadCatalogMessages();
+            } else {
+                console.error('Failed to react.');
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
+    loadCatalogMessages();
+    catalogChatInterval = setInterval(loadCatalogMessages, 5000);
+});
+</script>

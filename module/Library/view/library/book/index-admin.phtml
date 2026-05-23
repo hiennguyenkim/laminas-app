@@ -1,10 +1,8 @@
 <?php
-$canBorrow  = (bool) ($canBorrow ?? false);
-$isGuest    = (bool) ($isGuest ?? false);
 $authUser    = $this->currentUser();
-$routePrefix = 'student';
-$indexRoute  = $authUser ? 'student/book' : 'catalog';
-$this->headTitle('Danh mục sách');
+$routePrefix = 'library';
+$indexRoute  = 'library/book';
+$this->headTitle('Quản lý sách');
 $this->layout('layout/library-layout');
 
 $pagination  = is_array($pagination ?? null) ? $pagination : [];
@@ -50,43 +48,18 @@ $catBadgeColors = ['Văn học'=>'badge-purple','Khoa học'=>'badge-blue','Lị
 <!-- PAGE HEADER -->
 <div class="page-header">
     <div>
-        <div class="page-title">Danh mục sách</div>
+        <div class="page-title">Quản lý sách</div>
         <div class="page-subtitle"><?= number_format((int)($summary['total_titles'] ?? 0)) ?> đầu sách trong thư viện</div>
     </div>
-    <?php if ($canBorrow): ?>
-    <a href="<?= $this->url('student/transaction', ['action' => 'borrow']) ?>" class="btn btn-success">
-        <i class="bi bi-bookmark-plus"></i>Mượn sách
-    </a>
-    <?php endif; ?>
-</div>
-
-<?php if (!empty($announcements)): ?>
-<div class="announcement-teaser catalog-teaser">
-    <div class="catalog-teaser-left">
-        <span class="teaser-pulse-dot catalog-teaser-dot"></span>
-        <div class="catalog-teaser-body">
-            <strong class="catalog-teaser-badge">
-                <i class="bi bi-megaphone-fill"></i> Bản tin mới:
-            </strong>
-            <span class="teaser-ticker-items catalog-teaser-text">
-                <?php
-                $teaserTexts = [];
-                foreach (array_slice($announcements, 0, 3) as $ann) {
-                    $teaserTexts[] = htmlspecialchars($ann['title']);
-                }
-                echo implode(' &bull; ', $teaserTexts);
-                ?>
-            </span>
-        </div>
+    <div style="display: flex; gap: 12px; align-items: center;">
+        <a href="<?= $this->url('library/book', ['action' => 'categories']) ?>" class="btn btn-outline" style="font-weight: 600; display: inline-flex; align-items: center; gap: 6px; height: 38px; border-color: rgba(124, 106, 255, 0.4); color: var(--text-primary);">
+            <i class="bi bi-tags-fill" style="color: var(--accent-purple); font-size: 14px;"></i>Danh mục
+        </a>
+        <a href="<?= $this->url('library/book', ['action' => 'add']) ?>" class="btn btn-orange" style="display: inline-flex; align-items: center; gap: 6px; height: 38px; font-weight: 600;">
+            <i class="bi bi-plus-lg"></i>Thêm sách mới
+        </a>
     </div>
-    <?php
-    $annRoute = $authUser ? 'student/announcements' : 'announcements';
-    ?>
-    <a href="<?= $this->url($annRoute) ?>" class="btn btn-outline btn-sm catalog-teaser-btn">
-        Xem tất cả bảng tin <i class="bi bi-arrow-right"></i>
-    </a>
 </div>
-<?php endif; ?>
 
 <style>
 .catalog-filters-left {
@@ -203,6 +176,7 @@ $catBadgeColors = ['Văn học'=>'badge-purple','Khoa học'=>'badge-blue','Lị
     .catalog-category-select-wrapper,
     .catalog-category-select,
     .catalog-search-wrap,
+    .catalog-status-select,
     .catalog-perpage-select,
     .catalog-filter-form button {
         max-width: 100% !important;
@@ -244,7 +218,12 @@ $activeCat = (string) ($filters['category'] ?? '');
             </div>
         </div>
 
-        <input type="hidden" name="status" value="available">
+        <select id="book-status-select" name="status" class="form-select catalog-status-select">
+            <option value="">Tất cả trạng thái</option>
+            <option value="available" <?= ($filters['status']??'')==='available'?'selected':'' ?>>Sẵn sàng</option>
+            <option value="borrowed"  <?= ($filters['status']??'')==='borrowed'?'selected':'' ?>>Đang mượn hết</option>
+            <option value="unavailable" <?= ($filters['status']??'')==='unavailable'?'selected':'' ?>>Tạm khóa</option>
+        </select>
 
         <select id="book-perpage-select" name="perPage" class="form-select catalog-perpage-select">
             <option value="20" <?= (string)$perPageRaw === '20' ? 'selected' : '' ?>>20 sách / trang</option>
@@ -294,7 +273,7 @@ $activeCat = (string) ($filters['category'] ?? '');
                         $coverStyle = $hasCover
                             ? 'background: url(' . htmlspecialchars($coverUrl) . ') center/cover no-repeat;'
                             : 'background: ' . $grad . ';';
-                        $viewUrl = $this->url($routePrefix . '/book', ['action' => 'view', 'id' => $book->id]);
+                        $viewUrl = $this->url('library/book', ['action' => 'view', 'id' => $book->id]);
                         ?>
                         <a href="<?= $viewUrl ?>" class="book-cover book-cover-link" style="<?= $coverStyle ?>">
                             <?php if (!$hasCover): ?>
@@ -320,12 +299,14 @@ $activeCat = (string) ($filters['category'] ?? '');
                             <div class="book-progress book-card-progress-wrap">
                                 <div class="book-progress-bar" style="width:<?= min(100, $leftQty * 20) ?>%;background:<?= $available ? '#22c55e' : '#f97316' ?>"></div>
                             </div>
-                            <?php if ($canBorrow && $available): ?>
-                            <a href="<?= $this->url($routePrefix . '/transaction', ['action' => 'borrow'], ['query' => ['book_id' => (int)$book->id]]) ?>"
-                               class="btn btn-success w-100 btn-sm book-borrow-btn">
-                                <i class="bi bi-bookmark-plus"></i>Mượn sách
-                            </a>
-                            <?php endif; ?>
+                            <div class="book-card-actions">
+                                <a href="<?= $this->url('library/book', ['action' => 'view', 'id' => $book->id]) ?>" class="btn btn-outline btn-sm btn-icon" title="Xem"><i class="bi bi-eye"></i></a>
+                                <a href="<?= $this->url('library/book', ['action' => 'edit', 'id' => $book->id]) ?>" class="btn btn-outline btn-sm btn-icon" title="Sửa"><i class="bi bi-pencil"></i></a>
+                                <form method="POST" action="<?= $this->url('library/book', ['action' => 'delete', 'id' => $book->id]) ?>"
+                                      data-confirm="Xóa sách '<?= htmlspecialchars($book->title) ?>'?" class="book-delete-form">
+                                    <button type="submit" class="btn btn-sm btn-icon book-delete-btn" title="Xóa"><i class="bi bi-trash"></i></button>
+                                </form>
+                            </div>
                         </div>
                     </div>
                     <?php endforeach; ?>
@@ -359,6 +340,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const filterForm = document.getElementById('book-filter-form');
     const searchInput = document.getElementById('book-search-input');
+    const statusSelect = document.getElementById('book-status-select');
     const categorySelect = document.getElementById('book-category-select');
     const perPageSelect = document.getElementById('book-perpage-select');
     
@@ -431,6 +413,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (searchInput && searchInput.value.trim() !== '') {
             params.set('search', searchInput.value.trim());
         }
+        if (statusSelect && statusSelect.value !== '') {
+            params.set('status', statusSelect.value);
+        }
         if (perPageSelect && perPageSelect.value !== '') {
             params.set('perPage', perPageSelect.value);
         }
@@ -443,6 +428,12 @@ document.addEventListener('DOMContentLoaded', () => {
         searchInput.addEventListener('input', debounce(() => {
             reloadFromForm();
         }, 300));
+    }
+
+    if (statusSelect) {
+        statusSelect.addEventListener('change', () => {
+            reloadFromForm();
+        });
     }
 
     if (perPageSelect) {
@@ -578,6 +569,7 @@ document.addEventListener('DOMContentLoaded', () => {
             loadBooks(e.state.url, false);
             const urlObj = new URL(e.state.url);
             if (searchInput) searchInput.value = urlObj.searchParams.get('search') || '';
+            if (statusSelect) statusSelect.value = urlObj.searchParams.get('status') || '';
             if (perPageSelect) perPageSelect.value = urlObj.searchParams.get('perPage') || '20';
             if (categorySelect) {
                 const catVal = urlObj.searchParams.get('category') || '';
