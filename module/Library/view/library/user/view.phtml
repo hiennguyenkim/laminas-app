@@ -43,7 +43,7 @@ $statusMap = [
     <div class="stat-card blue user-stat-card-padding">
         <div class="stat-label user-stat-label-small">Hạn mức còn lại</div>
         <div class="stat-value user-stat-val-med" style="color:<?= $remainingLimit === 0 ? '#ef4444' : 'var(--accent-blue)' ?>">
-            <?= $remainingLimit ?> <span class="user-stat-val-unit">/ 5 cuốn</span>
+            <?= $remainingLimit ?> <span class="user-stat-val-unit">/ <?= (int)$user->borrowLimit ?> cuốn</span>
         </div>
     </div>
 
@@ -93,7 +93,9 @@ $statusMap = [
                 </div>
             <?php endif; ?>
             <div>
-                <h3 style="margin: 0 0 4px 0; font-size: 20px; font-weight: 700; color: var(--text-primary);"><?= htmlspecialchars($user->fullName) ?></h3>
+                <h3 style="margin: 0 0 4px 0; font-size: 20px; font-weight: 700; color: var(--text-primary);">
+                    <?= htmlspecialchars($user->fullName) ?>
+                </h3>
                 <div style="font-size: 13px; color: var(--text-muted);">@<?= htmlspecialchars($user->username) ?> &bull; <?= htmlspecialchars($user->email) ?></div>
             </div>
         </div>
@@ -134,6 +136,12 @@ $statusMap = [
                 <div class="user-info-value-text"><?= htmlspecialchars($user->fullName) ?></div>
             </div>
             <div>
+                <div class="user-info-label">Biệt danh</div>
+                <div class="<?= empty($user->nickname) ? 'user-info-text-muted' : 'user-info-value-text' ?>" style="color: <?= empty($user->nickname) ? '' : 'var(--accent-purple)' ?>">
+                    <?= !empty($user->nickname) ? htmlspecialchars($user->nickname) : 'Chưa thiết lập' ?>
+                </div>
+            </div>
+            <div>
                 <div class="user-info-label">Tên đăng nhập</div>
                 <div><code class="user-info-code">@<?= htmlspecialchars($user->username) ?></code></div>
             </div>
@@ -141,15 +149,11 @@ $statusMap = [
                 <div class="user-info-label">Email</div>
                 <div class="user-info-text-muted"><?= htmlspecialchars($user->email) ?></div>
             </div>
-            <div>
-                <div class="user-info-label">Ngày tạo</div>
-                <div class="user-info-text-muted"><?= htmlspecialchars($user->createdAt !== '' ? $user->createdAt : '—') ?></div>
-            </div>
         </div>
 
         <div class="user-view-divider"></div>
 
-        <div class="d-flex gap-2">
+        <div class="d-flex gap-2 flex-wrap">
             <form method="POST"
                   action="<?= $this->url('library/user', ['action' => 'delete', 'id' => $user->id]) ?>"
                   data-confirm="Bạn có chắc muốn xóa tài khoản '<?= htmlspecialchars($user->fullName) ?>'?"
@@ -174,6 +178,26 @@ $statusMap = [
                         <i class="bi bi-lock"></i>Khóa tài khoản
                     </button>
                 </form>
+                <?php endif; ?>
+
+                <?php if (!empty($user->nickname)): ?>
+                    <form method="POST" action="<?= $this->url('library/user', ['action' => 'clear-nickname', 'id' => $user->id]) ?>" 
+                          data-confirm="Xóa biệt danh '<?= htmlspecialchars($user->nickname) ?>' của thành viên này?"
+                          class="user-action-btn-form">
+                        <button type="submit" class="btn btn-sm btn-outline text-warning">
+                            <i class="bi bi-person-badge"></i> Xóa biệt danh
+                        </button>
+                    </form>
+                <?php endif; ?>
+                
+                <?php if (!empty($user->avatarUrl)): ?>
+                    <form method="POST" action="<?= $this->url('library/user', ['action' => 'clear-avatar', 'id' => $user->id]) ?>" 
+                          data-confirm="Xóa ảnh đại diện của thành viên này?"
+                          class="user-action-btn-form">
+                        <button type="submit" class="btn btn-sm btn-outline text-warning">
+                            <i class="bi bi-image"></i> Xóa ảnh đại diện
+                        </button>
+                    </form>
                 <?php endif; ?>
             <?php endif; ?>
         </div>

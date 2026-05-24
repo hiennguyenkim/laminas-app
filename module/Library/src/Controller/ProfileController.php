@@ -33,18 +33,20 @@ class ProfileController extends BaseController
         $isAdmin = $this->isAdmin();
 
         $stats = [
-            'total_borrowed' => $this->borrowTable->countTotalBorrowedHistory($userId),
-            'active_loans'   => $this->borrowTable->countBorrowed($userId),
-            'overdue_count'  => $this->borrowTable->countOverdue($userId),
+            'total_borrowed' => $this->borrowTable->countTotalBorrowedHistory([], $userId),
+            'active_loans'   => $this->borrowTable->countBorrowed([], $userId),
+            'overdue_count'  => $this->borrowTable->countOverdue([], $userId),
         ];
 
         $adminStats = [];
         if ($isAdmin) {
             $bookSummary = $this->bookTable->getSummary();
             $adminStats = [
-                'total_books'   => $bookSummary['total_copies'],
-                'total_members' => $this->userTable->countByRole('student'),
-                'active_loans'  => $this->borrowTable->countBorrowed(null),
+                'total_categories' => $this->bookTable->countCategories(),
+                'total_titles'     => $bookSummary['total_titles'],
+                'total_books'      => $bookSummary['total_copies'],
+                'total_members'    => $this->userTable->countByRole('student'),
+                'active_loans'     => $this->borrowTable->countBorrowed([], null),
             ];
         }
 

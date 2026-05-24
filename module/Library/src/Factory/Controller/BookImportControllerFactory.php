@@ -6,8 +6,8 @@ namespace Library\Factory\Controller;
 
 use Library\Controller\BookImportController;
 use Library\Model\Table\BookTable;
+use Library\Model\Table\BookImportTable;
 use Library\Session\AuthSessionContainer;
-use Laminas\Db\Adapter\AdapterInterface;
 use Psr\Container\ContainerInterface;
 
 class BookImportControllerFactory
@@ -17,7 +17,7 @@ class BookImportControllerFactory
         return new BookImportController(
             $container->get(AuthSessionContainer::class),
             $container->get(BookTable::class),
-            $container->get(AdapterInterface::class)
+            $container->get(\Laminas\Db\Adapter\AdapterInterface::class)
         );
     }
 }

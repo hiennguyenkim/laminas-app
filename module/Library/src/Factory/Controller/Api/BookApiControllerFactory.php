@@ -8,8 +8,7 @@ use Interop\Container\ContainerInterface;
 use Laminas\ServiceManager\Factory\FactoryInterface;
 use Library\Controller\Api\BookApiController;
 use Library\Model\Table\BookTable;
-
-use Laminas\Db\Adapter\AdapterInterface;
+use Library\Model\Table\ChatLogTable;
 
 class BookApiControllerFactory implements FactoryInterface
 {
@@ -17,7 +16,7 @@ class BookApiControllerFactory implements FactoryInterface
     {
         return new BookApiController(
             $container->get(BookTable::class),
-            $container->get(AdapterInterface::class)
+            $container->get(ChatLogTable::class)
         );
     }
 }

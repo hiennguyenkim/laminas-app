@@ -18,8 +18,10 @@ class BorrowRecord
     // Joined fields
     public string $bookTitle  = '';
     public string $bookIsbn   = '';
+    public string $coverImageUrl = '';
     public string $userFullName = '';
     public string $username   = '';
+    public string $avatarUrl  = '';
 
     public function exchangeArray(array $data): void
     {
@@ -33,8 +35,10 @@ class BorrowRecord
         $this->createdAt    = (string) ($data['created_at'] ?? '');
         $this->bookTitle    = (string) ($data['book_title'] ?? '');
         $this->bookIsbn     = (string) ($data['book_isbn'] ?? '');
+        $this->coverImageUrl = (string) ($data['cover_image_url'] ?? '');
         $this->userFullName = (string) ($data['full_name'] ?? '');
         $this->username     = (string) ($data['username'] ?? '');
+        $this->avatarUrl    = (string) ($data['avatar_url'] ?? '');
     }
 
     public function isOverdue(): bool
@@ -61,8 +65,10 @@ class BorrowRecord
             'created_at'  => $this->createdAt,
             'book_title'  => $this->bookTitle,
             'book_isbn'   => $this->bookIsbn,
+            'cover_image_url' => $this->coverImageUrl,
             'full_name'   => $this->userFullName,
             'username'    => $this->username,
+            'avatar_url'  => $this->avatarUrl,
         ];
     }
 }

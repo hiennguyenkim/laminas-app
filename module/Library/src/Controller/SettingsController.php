@@ -5,15 +5,19 @@ declare(strict_types=1);
 namespace Library\Controller;
 
 use Library\Session\AuthSessionContainer;
+use Library\Model\Table\SystemSettingsTable;
+use Library\Model\Table\BookCategoryTable;
+use Library\Model\Table\BookTable;
 use Laminas\Http\Response;
 use Laminas\View\Model\ViewModel;
-use Laminas\Db\Adapter\AdapterInterface;
 
 class SettingsController extends BaseController
 {
     public function __construct(
         AuthSessionContainer $authSessionContainer,
-        private AdapterInterface $dbAdapter
+        private SystemSettingsTable $systemSettingsTable,
+        private BookCategoryTable $bookCategoryTable,
+        private BookTable $bookTable
     ) {
         parent::__construct($authSessionContainer);
     }
@@ -43,13 +47,8 @@ class SettingsController extends BaseController
         $maintenanceMode = '0';
         $maintenanceUntil = null;
         try {
-            $stmt = $this->dbAdapter->query("SELECT setting_value FROM system_settings WHERE setting_key = ? LIMIT 1");
-            
-            $resMode = iterator_to_array($stmt->execute(['maintenance_mode']));
-            $maintenanceMode = count($resMode) > 0 ? $resMode[0]['setting_value'] : '0';
-
-            $resUntil = iterator_to_array($stmt->execute(['maintenance_until']));
-            $maintenanceUntil = count($resUntil) > 0 ? $resUntil[0]['setting_value'] : null;
+            $maintenanceMode = $this->systemSettingsTable->getSetting('maintenance_mode', '0');
+            $maintenanceUntil = $this->systemSettingsTable->getSetting('maintenance_until');
         } catch (\Throwable $e) {
             // ignore
         }
@@ -149,21 +148,8 @@ class SettingsController extends BaseController
         }
 
         try {
-            $stmtCheck = $this->dbAdapter->query("SELECT COUNT(*) as count FROM system_settings WHERE setting_key = ?");
-            
-            $countMode = (int)$stmtCheck->execute(['maintenance_mode'])->current()['count'];
-            if ($countMode > 0) {
-                $this->dbAdapter->query("UPDATE system_settings SET setting_value = ? WHERE setting_key = ?", [$mode, 'maintenance_mode']);
-            } else {
-                $this->dbAdapter->query("INSERT INTO system_settings (setting_key, setting_value) VALUES (?, ?)", ['maintenance_mode', $mode]);
-            }
-
-            $countUntil = (int)$stmtCheck->execute(['maintenance_until'])->current()['count'];
-            if ($countUntil > 0) {
-                $this->dbAdapter->query("UPDATE system_settings SET setting_value = ? WHERE setting_key = ?", [$until, 'maintenance_until']);
-            } else {
-                $this->dbAdapter->query("INSERT INTO system_settings (setting_key, setting_value) VALUES (?, ?)", ['maintenance_until', $until]);
-            }
+            $this->systemSettingsTable->saveSetting('maintenance_mode', $mode);
+            $this->systemSettingsTable->saveSetting('maintenance_until', $until ?? '');
 
             if ($mode === '1') {
                 $this->flash()->addSuccessMessage('Đã kích hoạt chế độ bảo trì thành công đến ' . date('H:i d/m/Y', strtotime($until)) . '.');
@@ -203,12 +189,11 @@ class SettingsController extends BaseController
 
         try {
             // Check if already exists
-            $stmt = $this->dbAdapter->query("SELECT id FROM book_categories WHERE name = ? LIMIT 1");
-            $exists = $stmt->execute([$name])->current();
+            $exists = $this->bookCategoryTable->getByName($name);
             if ($exists) {
                 $this->flash()->addErrorMessage('Danh mục "' . htmlspecialchars($name) . '" đã tồn tại.');
             } else {
-                $this->dbAdapter->query("INSERT INTO book_categories (name) VALUES (?)", [$name]);
+                $this->bookCategoryTable->insertCategory($name);
                 $this->flash()->addSuccessMessage('Đã thêm danh mục "' . htmlspecialchars($name) . '" thành công.');
             }
         } catch (\Throwable $e) {
@@ -233,8 +218,7 @@ class SettingsController extends BaseController
 
         try {
             // Get category name
-            $stmt = $this->dbAdapter->query("SELECT name FROM book_categories WHERE id = ? LIMIT 1");
-            $cat = $stmt->execute([$id])->current();
+            $cat = $this->bookCategoryTable->getById($id);
             if (!$cat) {
                 $this->flash()->addErrorMessage('Không tìm thấy danh mục cần xóa.');
                 return $this->redirectToRefererOrSettings();
@@ -243,13 +227,12 @@ class SettingsController extends BaseController
             $catName = $cat['name'];
 
             // Check if there are books using this category
-            $stmtCheck = $this->dbAdapter->query("SELECT COUNT(*) as cnt FROM books WHERE category = ?");
-            $count = (int)($stmtCheck->execute([$catName])->current()['cnt'] ?? 0);
+            $count = $this->bookTable->countBooksInCategory($catName);
 
             if ($count > 0) {
                 $this->flash()->addErrorMessage('Không thể xóa danh mục "' . htmlspecialchars($catName) . '" vì có ' . $count . ' đầu sách đang thuộc danh mục này.');
             } else {
-                $this->dbAdapter->query("DELETE FROM book_categories WHERE id = ?", [$id]);
+                $this->bookCategoryTable->deleteCategory($id);
                 $this->flash()->addSuccessMessage('Đã xóa danh mục "' . htmlspecialchars($catName) . '" thành công.');
             }
         } catch (\Throwable $e) {
@@ -291,8 +274,7 @@ class SettingsController extends BaseController
 
         try {
             // Get current category info
-            $stmt = $this->dbAdapter->query("SELECT name FROM book_categories WHERE id = ? LIMIT 1");
-            $cat = $stmt->execute([$id])->current();
+            $cat = $this->bookCategoryTable->getById($id);
             if (!$cat) {
                 $this->flash()->addErrorMessage('Không tìm thấy danh mục cần sửa.');
                 return $this->redirectToRefererOrSettings();
@@ -305,13 +287,12 @@ class SettingsController extends BaseController
             }
 
             // Check if new name already exists
-            $stmtCheck = $this->dbAdapter->query("SELECT id FROM book_categories WHERE name = ? AND id != ? LIMIT 1");
-            $exists = $stmtCheck->execute([$newName, $id])->current();
+            $exists = $this->bookCategoryTable->getDuplicateCategory($newName, $id);
             if ($exists) {
                 $this->flash()->addErrorMessage('Danh mục "' . htmlspecialchars($newName) . '" đã tồn tại.');
             } else {
-                $this->dbAdapter->query("UPDATE book_categories SET name = ? WHERE id = ?", [$newName, $id]);
-                $this->dbAdapter->query("UPDATE books SET category = ? WHERE category = ?", [$newName, $oldName]);
+                $this->bookCategoryTable->updateCategory($id, $newName);
+                $this->bookTable->updateCategoryName($oldName, $newName);
 
                 $this->flash()->addSuccessMessage('Đã đổi tên danh mục "' . htmlspecialchars($oldName) . '" thành "' . htmlspecialchars($newName) . '" thành công.');
             }

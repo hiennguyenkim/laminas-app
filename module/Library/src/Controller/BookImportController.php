@@ -83,9 +83,18 @@ class BookImportController extends BaseController
             $typeCounts['all'] += (int)$row['cnt'];
         }
 
-        // Paginate the imports list (10 per page)
+        // Paginate the imports list (20 per page default)
         $page    = max(1, (int)($this->params()->fromQuery('page', 1)));
-        $perPage = 10;
+        $perPageRaw = $this->queryString('perPage', '20');
+        if ($perPageRaw === 'all') {
+            $perPage = 999999;
+        } else {
+            $perPage = (int)$perPageRaw;
+            if (!in_array($perPage, [10, 20, 50, 100], true)) {
+                $perPage = 20;
+                $perPageRaw = '20';
+            }
+        }
 
         $whereList  = [$periodWhere];
         $paramsList = $periodParams;
@@ -173,6 +182,8 @@ class BookImportController extends BaseController
             'page'             => $page,
             'totalPages'       => $totalPages,
             'totalCount'       => $totalCount,
+            'perPage'          => $perPage,
+            'perPageRaw'       => $perPageRaw,
             'search'           => $search,
             'type'             => $type,
             'period'           => $period,

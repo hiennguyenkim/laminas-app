@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Library\Factory\Controller;
 
 use Library\Controller\TicketController;
+use Library\Model\Table\TicketTable;
+use Library\Model\Table\TicketMessageTable;
+use Library\Model\Table\NotificationTable;
 use Library\Session\AuthSessionContainer;
-use Laminas\Db\Adapter\AdapterInterface;
 use Psr\Container\ContainerInterface;
 
 class TicketControllerFactory
@@ -15,7 +17,9 @@ class TicketControllerFactory
     {
         return new TicketController(
             $container->get(AuthSessionContainer::class),
-            $container->get(AdapterInterface::class)
+            $container->get(TicketTable::class),
+            $container->get(TicketMessageTable::class),
+            $container->get(NotificationTable::class)
         );
     }
 }

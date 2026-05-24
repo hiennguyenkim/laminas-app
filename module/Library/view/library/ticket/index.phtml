@@ -11,16 +11,19 @@ $statusMap = [
     '' => ['Chưa phản hồi', 'badge-orange']
 ];
 
-$page       = (int) ($page ?? 1);
-$perPage    = (int) ($perPage ?? 10);
-$totalCount = (int) ($totalCount ?? 0);
-$totalPages = (int) ($totalPages ?? 1);
+$pagination = $pagination ?? [];
+$page       = (int) ($pagination['page'] ?? 1);
+$perPage    = (int) ($pagination['perPage'] ?? 10);
+$perPageRaw = $pagination['perPage'] ?? '10';
+$totalItems = (int) ($pagination['totalItems'] ?? 0);
+$totalPages = (int) ($pagination['totalPages'] ?? 1);
 
 $queryBase = [
     'search'    => (string) ($filters['search'] ?? ''),
     'status'    => (string) ($filters['status'] ?? ''),
     'sort'      => (string) ($filters['sort'] ?? ''),
     'direction' => (string) ($filters['direction'] ?? ''),
+    'perPage'   => $perPageRaw,
 ];
 
 $buildPageUrl = function(int $p) use ($routePrefix, $queryBase): string {
@@ -80,8 +83,8 @@ $buildTabUrl = function(string $statusVal) use ($filters, $routePrefix) {
     return $this->url($routePrefix . '/ticket', [], ['query' => array_filter($q, fn($v) => $v !== null && $v !== '')]);
 };
 ?>
-<div class="user-filters-bar">
-    <div class="filter-tabs user-filter-tabs">
+<div class="ticket-filters-row" style="display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 24px; width: 100%; flex-wrap: nowrap;">
+    <div class="filter-tabs user-filter-tabs" style="margin-bottom: 0; flex-shrink: 0;">
         <a href="<?= $buildTabUrl('') ?>" class="filter-tab <?= !($filters['status'] ?? '') ? 'active' : '' ?>">
             Tất cả <span class="count"><?= (int)($allCount ?? 0) ?></span>
         </a>
@@ -92,18 +95,20 @@ $buildTabUrl = function(string $statusVal) use ($filters, $routePrefix) {
             Đã phản hồi <span class="count"><?= (int)($answeredCount ?? 0) ?></span>
         </a>
     </div>
-    <form method="GET" class="user-search-form">
+
+    <form method="GET" class="user-search-form" style="display: flex; gap: 8px; align-items: center; flex-wrap: nowrap; flex: 1; justify-content: flex-end; min-width: 0;">
         <?php if (!empty($filters['status'])): ?>
             <input type="hidden" name="status" value="<?= htmlspecialchars($filters['status']) ?>">
         <?php endif; ?>
         <input type="hidden" name="sort" value="<?= htmlspecialchars((string)($filters['sort'] ?? '')) ?>">
         <input type="hidden" name="direction" value="<?= htmlspecialchars((string)($filters['direction'] ?? '')) ?>">
-        <div class="topbar-search user-search-wrap" style="position: relative;">
+
+        <div class="topbar-search catalog-search-wrap" style="position: relative; width: 300px; margin: 0; height: 38px; border-radius: 8px; flex-shrink: 1; min-width: 150px;">
             <i class="bi bi-search"></i>
-            <input type="text" name="search" value="<?= htmlspecialchars($filters['search'] ?? '') ?>" placeholder="Tìm theo tiêu đề, nội dung..." oninput="this.nextElementSibling.style.display = this.value ? 'inline-block' : 'none';" style="padding-right: 28px;">
-            <i class="bi bi-x-circle-fill search-clear-btn" style="position: absolute; right: 12px; cursor: pointer; color: var(--text-muted); display: <?= !empty($filters['search']) ? 'inline-block' : 'none' ?>; font-size: 14px;" onclick="clearSearchInput(this)"></i>
+            <input type="text" name="search" value="<?= htmlspecialchars($filters['search'] ?? '') ?>" placeholder="Tìm tiêu đề, nội dung..." oninput="this.nextElementSibling.style.display = this.value ? 'inline-block' : 'none';" style="padding-right: 28px;">
+            <i class="bi bi-x-circle-fill search-clear-btn" style="position: absolute; right: 12px; cursor: pointer; color: var(--text-muted); display: <?= !empty($filters['search']) ? 'inline-block' : 'none' ?>; font-size: 14px; top: 50%; transform: translateY(-50%);" onclick="const inp=this.previousElementSibling; inp.value=''; this.style.display='none'; this.closest('form').submit();"></i>
         </div>
-        <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-search"></i>Tìm</button>
+        <button type="submit" class="btn btn-primary btn-sm" style="height: 38px; padding: 0 16px; font-weight: 600; flex-shrink: 0;">Tìm kiếm</button>
     </form>
 </div>
 
@@ -132,7 +137,7 @@ $buildTabUrl = function(string $statusVal) use ($filters, $routePrefix) {
                             Trạng thái <?= $renderSortIcon('status') ?>
                         </a>
                     </th>
-                    <th class="ticket-table-th--right">Thao tác</th>
+                    <th class="ticket-table-th--center">Thao tác</th>
                 </tr>
             </thead>
             <tbody>
@@ -151,7 +156,7 @@ $buildTabUrl = function(string $statusVal) use ($filters, $routePrefix) {
                     <td class="ticket-table-td--title"><?= htmlspecialchars($t['title']) ?></td>
                     <td class="ticket-table-td--secondary"><?= date('d/m/Y H:i', strtotime($t['updated_at'])) ?></td>
                     <td class="ticket-table-td"><span class="badge <?= $statusClass ?>"><?= $statusLabel ?></span></td>
-                    <td class="ticket-table-td--right">
+                    <td class="ticket-table-td--center">
                         <a href="<?= $this->url($routePrefix . '/ticket', ['action' => 'view', 'id' => $t['id']]) ?>" class="btn btn-sm btn-outline">
                             Chi tiết
                         </a>
@@ -166,16 +171,31 @@ $buildTabUrl = function(string $statusVal) use ($filters, $routePrefix) {
 
 <!-- PAGINATION -->
 <?php if ($totalPages > 1): ?>
-<div class="catalog-pagination-bar" style="margin-top:20px; width: 100%;">
-    <div class="catalog-pagination-info">
-        Hiển thị <?= min(($page-1)*$perPage+1,$totalCount) ?> – <?= min($page*$perPage,$totalCount) ?> / <?= $totalCount ?> yêu cầu
+<div class="book-import-pagination-row" style="padding: 20px;">
+    <div class="book-import-pagination-info">
+        Hiển thị trang <strong class="book-import-pagination-bold"><?= $page ?></strong> / <?= $totalPages ?>
+        &nbsp;•&nbsp; Tổng <strong class="book-import-pagination-bold"><?= $totalItems ?></strong> yêu cầu
     </div>
-    <div class="pagination">
-        <a class="page-btn <?= $page<=1?'disabled':'' ?>" href="<?= $page>1?$buildPageUrl($page-1):'#' ?>"><i class="bi bi-chevron-left"></i></a>
-        <?php for ($p=max(1,$page-2); $p<=min($totalPages,$page+2); $p++): ?>
-        <a class="page-btn <?= $p===$page?'active':'' ?>" href="<?= $buildPageUrl($p) ?>"><?= $p ?></a>
+    <div class="book-import-pagination-btns">
+        <?php if ($page > 1): ?>
+            <a href="<?= $buildPageUrl(1) ?>" class="btn btn-outline btn-sm book-import-pagination-btn" title="Trang đầu"><i class="bi bi-chevron-double-left"></i></a>
+            <a href="<?= $buildPageUrl($page - 1) ?>" class="btn btn-outline btn-sm book-import-pagination-btn"><i class="bi bi-chevron-left"></i> Trước</a>
+        <?php endif; ?>
+
+        <?php
+        $startPage = max(1, $page - 2);
+        $endPage   = min($totalPages, $page + 2);
+        for ($p = $startPage; $p <= $endPage; $p++):
+        ?>
+            <a href="<?= $buildPageUrl($p) ?>"
+               class="btn btn-sm book-import-pagination-btn <?= $p === $page ? 'btn-primary' : 'btn-outline' ?>"
+               style="min-width:32px;text-align:center"><?= $p ?></a>
         <?php endfor; ?>
-        <a class="page-btn <?= $page>=$totalPages?'disabled':'' ?>" href="<?= $page<$totalPages?$buildPageUrl($page+1):'#' ?>"><i class="bi bi-chevron-right"></i></a>
+
+        <?php if ($page < $totalPages): ?>
+            <a href="<?= $buildPageUrl($page + 1) ?>" class="btn btn-outline btn-sm book-import-pagination-btn">Sau <i class="bi bi-chevron-right"></i></a>
+            <a href="<?= $buildPageUrl($totalPages) ?>" class="btn btn-outline btn-sm book-import-pagination-btn" title="Trang cuối"><i class="bi bi-chevron-double-right"></i></a>
+        <?php endif; ?>
     </div>
 </div>
 <?php endif; ?>

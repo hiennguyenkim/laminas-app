@@ -8,6 +8,7 @@ use Library\Controller\DashboardController;
 use Library\Model\Table\BookTable;
 use Library\Model\Table\BorrowTable;
 use Library\Model\Table\UserTable;
+use Library\Model\Table\PublicChatTable;
 use Library\Session\AuthSessionContainer;
 use Psr\Container\ContainerInterface;
 
@@ -20,7 +21,7 @@ class DashboardControllerFactory
             $container->get(BookTable::class),
             $container->get(BorrowTable::class),
             $container->get(UserTable::class),
-            $container->get(\Laminas\Db\Adapter\AdapterInterface::class)
+            $container->get(PublicChatTable::class)
         );
     }
 }

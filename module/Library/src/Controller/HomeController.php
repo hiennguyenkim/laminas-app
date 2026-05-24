@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Library\Controller;
 
 use Library\Session\AuthSessionContainer;
+use Library\Model\Table\SystemSettingsTable;
 use Laminas\Http\Response;
 use Laminas\View\Model\ViewModel;
 
@@ -16,7 +17,7 @@ class HomeController extends BaseController
 {
     public function __construct(
         AuthSessionContainer $authSessionContainer,
-        private ?\Laminas\Db\Adapter\AdapterInterface $dbAdapter = null
+        private SystemSettingsTable $systemSettingsTable
     ) {
         parent::__construct($authSessionContainer);
     }
@@ -44,14 +45,10 @@ class HomeController extends BaseController
     public function maintenanceAction(): ViewModel
     {
         $maintenanceUntil = null;
-        if ($this->dbAdapter) {
-            try {
-                $statement = $this->dbAdapter->query("SELECT setting_value FROM system_settings WHERE setting_key = ? LIMIT 1");
-                $resultUntil = iterator_to_array($statement->execute(['maintenance_until']));
-                $maintenanceUntil = count($resultUntil) > 0 ? $resultUntil[0]['setting_value'] : null;
-            } catch (\Throwable $t) {
-                // ignore
-            }
+        try {
+            $maintenanceUntil = $this->systemSettingsTable->getSetting('maintenance_until');
+        } catch (\Throwable $t) {
+            // ignore
         }
 
         $this->layout()->setTerminal(true);

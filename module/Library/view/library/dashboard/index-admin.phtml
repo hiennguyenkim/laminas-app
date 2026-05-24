@@ -18,22 +18,41 @@ $statusLabels = [
         <div class="page-subtitle">Bảng điều hành vận hành thư viện dành cho quản trị viên.</div>
     </div>
     <div class="d-flex gap-2">
-        <a href="<?= $this->url('library/book') ?>" class="btn btn-outline"><i class="bi bi-book"></i>Mở kho sách</a>
+        <a href="<?= $this->url('library/book') ?>" class="btn btn-outline"><i class="bi bi-book"></i>Mở kho đầu sách</a>
         <a href="<?= $this->url('library/transaction', ['action' => 'borrow']) ?>" class="btn btn-primary"><i class="bi bi-plus-circle"></i>Lập phiếu mượn</a>
     </div>
 </div>
 
 <!-- STAT CARDS -->
+<style>
+@media (min-width: 1200px) {
+    .stat-cards {
+        grid-template-columns: repeat(5, 1fr) !important;
+    }
+}
+</style>
 <div class="stat-cards">
-    <!-- Card 1: Books -->
+    <!-- Card 0: Categories -->
+    <a href="<?= $this->url('library/book', ['action' => 'categories']) ?>" class="stat-card blue stat-card-link">
+        <div class="stat-icon blue"><i class="bi bi-tags-fill"></i></div>
+        <div class="stat-value"><?= number_format((int)$totalCategories) ?></div>
+        <div class="stat-label">Tổng số thể loại</div>
+    </a>
+    <!-- Card 1: Titles -->
     <a href="<?= $this->url('library/book') ?>" class="stat-card purple stat-card-link">
         <div class="stat-icon purple"><i class="bi bi-book-half"></i></div>
-        <div class="stat-value"><?= number_format((int)$totalBooks) ?></div>
-        <div class="stat-label">Tổng số sách</div>
+        <div class="stat-value"><?= number_format((int)$totalTitles) ?></div>
+        <div class="stat-label">Tổng số đầu sách</div>
+    </a>
+    <!-- Card 1.5: Total Copies -->
+    <a href="<?= $this->url('library/book') ?>" class="stat-card blue stat-card-link">
+        <div class="stat-icon blue"><i class="bi bi-collection-fill"></i></div>
+        <div class="stat-value"><?= number_format((int)$totalCopies) ?></div>
+        <div class="stat-label">Tổng số cuốn sách</div>
     </a>
     <!-- Card 2: Members -->
     <a href="<?= $this->url('library/user') ?>" class="stat-card green stat-card-link">
-        <div class="stat-icon green"><i class="bi bi-bookmark-check-fill"></i></div>
+        <div class="stat-icon green"><i class="bi bi-people-fill"></i></div>
         <div class="stat-value"><?= number_format((int)($totalMembers ?? 0)) ?></div>
         <div class="stat-label">Thành viên</div>
     </a>
@@ -43,12 +62,6 @@ $statusLabels = [
         <div class="stat-value"><?= number_format((int)$totalBorrowed) ?></div>
         <div class="stat-label">Đang mượn</div>
     </a>
-    <!-- Card 4: Overdue -->
-    <a href="<?= $this->url('library/transaction', [], ['query' => ['status' => 'overdue']]) ?>" class="stat-card pink stat-card-link">
-        <div class="stat-icon pink"><i class="bi bi-exclamation-triangle"></i></div>
-        <div class="stat-value"><?= number_format((int)$totalOverdue) ?></div>
-        <div class="stat-label">Quá hạn</div>
-    </a>
 </div>
 
 <!-- CHARTS ROW -->
@@ -56,7 +69,7 @@ $statusLabels = [
 <div class="card" style="margin-bottom: 24px;">
     <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
         <div>
-            <div class="card-title">Thống kê mượn / trả sách</div>
+            <div class="card-title">Thống kê mượn / trả đầu sách</div>
             <div class="card-subtitle" id="borrowChartSubtitle">Theo tháng trong năm <?= date('Y') ?></div>
         </div>
         <div class="d-flex gap-3 align-center flex-wrap">
@@ -95,12 +108,12 @@ $statusLabels = [
 
 <!-- ADMIN CHARTS ROW 2: Two Donut Charts Side-by-Side -->
 <div class="dashboard-double-donuts">
-    <!-- Donut Chart 1: Thể loại sách được mượn -->
+    <!-- Donut Chart 1: Thể loại được mượn -->
     <div class="card" style="margin-bottom: 0;">
         <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
             <div>
-                <div class="card-title">Thể loại sách được mượn</div>
-                <div class="card-subtitle" id="categoryMonthlySubtitle">Chi tiết số lượt mượn của từng thể loại theo thời gian trong năm <?= date('Y') ?></div>
+                <div class="card-title">Thể loại được mượn</div>
+                <div class="card-subtitle" id="categoryMonthlySubtitle">Chi tiết số lượt mượn của từng đầu sách theo thời gian trong năm <?= date('Y') ?></div>
             </div>
             <div class="d-flex gap-2">
                 <select id="categoryMonthlyFilter" style="background: #1e1e2d; color: #a2a5b9; border: 1px solid #2f3049; border-radius: 6px; padding: 6px 12px; outline: none; cursor: pointer; font-size: 13px;">
@@ -138,12 +151,12 @@ $statusLabels = [
         </div>
     </div>
 
-    <!-- Donut Chart 2: Thể loại sách -->
+    <!-- Donut Chart 2: Thể loại -->
     <div class="card" style="margin-bottom: 0;">
         <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
             <div>
-                <div class="card-title">Thể loại sách</div>
-                <div class="card-subtitle">Phân bố danh mục</div>
+                <div class="card-title">Thể loại</div>
+                <div class="card-subtitle">Phân bố đầu sách</div>
             </div>
             <a href="<?= $this->url('library/dashboard', ['action' => 'export-category-stats']) ?>" class="btn btn-outline btn-sm d-flex align-items-center gap-2" title="Xuất Excel (.xlsx)">
                 <i class="bi bi-file-earmark-excel" style="color:#1d6f42;"></i>Xuất .xlsx
@@ -155,7 +168,7 @@ $statusLabels = [
                 <?php $catSumTotal = array_sum($categoryStats ?? []); ?>
                 <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; pointer-events:none; line-height:1.2;">
                     <div style="font-size:22px; font-weight:700; color:#e2e8f0;"><?= number_format($catSumTotal) ?></div>
-                    <div style="font-size:11px; color:#a2a5b9; margin-top:2px;">sách</div>
+                    <div style="font-size:11px; color:#a2a5b9; margin-top:2px;">đầu sách</div>
                 </div>
             </div>
             <?php
@@ -198,7 +211,7 @@ $statusLabels = [
                 <thead>
                     <tr>
                         <th>#ID</th>
-                        <th>Tên sách</th>
+                        <th>Tên đầu sách</th>
                         <th>Thành viên</th>
                         <th>Ngày mượn</th>
                         <th>Hạn trả</th>
@@ -507,9 +520,9 @@ $categoryMonthlyStatsJson = json_encode($categoryMonthlyStats ?? [], JSON_UNESCA
         // Update subtitle text dynamically
         if (subtitle) {
             if (selectedValue === 'year') {
-                subtitle.textContent = 'Chi tiết số lượt mượn của từng thể loại cả năm ' + selectedYear;
+                subtitle.textContent = 'Chi tiết số lượt mượn của từng đầu sách cả năm ' + selectedYear;
             } else {
-                subtitle.textContent = 'Chi tiết số lượt mượn của từng thể loại trong Tháng ' + selectedValue + ' năm ' + selectedYear;
+                subtitle.textContent = 'Chi tiết số lượt mượn của từng đầu sách trong Tháng ' + selectedValue + ' năm ' + selectedYear;
             }
         }
 

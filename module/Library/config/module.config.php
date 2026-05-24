@@ -88,6 +88,21 @@ return [
                         'action'     => 'announcements',
                     ],
                 ],
+                'may_terminate' => true,
+                'child_routes' => [
+                    'view' => [
+                        'type' => Segment::class,
+                        'options' => [
+                            'route' => '/view/:id',
+                            'constraints' => [
+                                'id' => '[0-9]+',
+                            ],
+                            'defaults' => [
+                                'action' => 'viewAnnouncement',
+                            ],
+                        ],
+                    ],
+                ],
             ],
             'library' => [
                 'type'    => Literal::class,
@@ -443,6 +458,16 @@ return [
             BookTable::class          => BookTableFactory::class,
             UserTable::class          => UserTableFactory::class,
             BorrowTable::class        => BorrowTableFactory::class,
+            \Library\Model\Table\AnnouncementTable::class => \Library\Factory\Table\AnnouncementTableFactory::class,
+            \Library\Model\Table\PublicChatTable::class => \Library\Factory\Table\PublicChatTableFactory::class,
+            \Library\Model\Table\TicketTable::class => \Library\Factory\Table\TicketTableFactory::class,
+            \Library\Model\Table\TicketMessageTable::class => \Library\Factory\Table\TicketMessageTableFactory::class,
+            \Library\Model\Table\SystemSettingsTable::class => \Library\Factory\Table\SystemSettingsTableFactory::class,
+            \Library\Model\Table\BookCategoryTable::class => \Library\Factory\Table\BookCategoryTableFactory::class,
+            \Library\Model\Table\NotificationTable::class => \Library\Factory\Table\NotificationTableFactory::class,
+            \Library\Model\Table\ChatLogTable::class => \Library\Factory\Table\ChatLogTableFactory::class,
+            \Library\Model\Table\BookImportTable::class => \Library\Factory\Table\BookImportTableFactory::class,
+            \Library\Model\Table\BookReviewTable::class => \Library\Factory\Table\BookReviewTableFactory::class,
             CirculationService::class => CirculationServiceFactory::class,
             AuthSessionContainer::class => AuthSessionContainerFactory::class,
         ],

@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Library\Factory\Controller;
 
 use Library\Controller\SettingsController;
+use Library\Model\Table\SystemSettingsTable;
+use Library\Model\Table\BookCategoryTable;
+use Library\Model\Table\BookTable;
 use Library\Session\AuthSessionContainer;
-use Laminas\Db\Adapter\AdapterInterface;
 use Psr\Container\ContainerInterface;
 
 class SettingsControllerFactory
@@ -15,7 +17,9 @@ class SettingsControllerFactory
     {
         return new SettingsController(
             $container->get(AuthSessionContainer::class),
-            $container->get(AdapterInterface::class)
+            $container->get(SystemSettingsTable::class),
+            $container->get(BookCategoryTable::class),
+            $container->get(BookTable::class)
         );
     }
 }

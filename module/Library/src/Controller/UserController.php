@@ -42,8 +42,9 @@ class UserController extends BaseController
         }
 
         $filters = [
-            'search' => trim($this->queryString('search')),
-            'role'   => $this->queryString('role'),
+            'search' => trim((string)$this->queryString('search', '')),
+            'role'   => (string)$this->queryString('role', ''),
+            'status' => (string)$this->queryString('status', ''),
         ];
 
         $currentUser = $this->currentUser() ?? [
@@ -62,19 +63,30 @@ class UserController extends BaseController
             $perPage = 999999;
         } else {
             $perPage = (int) $perPageRaw;
-            if (! in_array($perPage, [10, 20, 50], true)) {
+            if (! in_array($perPage, [10, 20, 50, 100], true)) {
                 $perPage = 10;
                 $perPageRaw = '10';
             }
         }
 
-        $totalItems = $this->userTable->countFiltered($filters);
+        $sort = $this->queryString('sort', 'id');
+        $direction = $this->queryString('direction', 'ASC');
+
+        $tableFilters = [
+            'search' => $filters['search'],
+            'role'   => $filters['role'],
+        ];
+        if ($filters['status'] !== '') {
+            $tableFilters['status'] = $filters['status'];
+        }
+
+        $totalItems = $this->userTable->countFiltered($tableFilters);
         $totalPages = max(1, (int) ceil($totalItems / $perPage));
         $page = min($page, $totalPages);
 
         return new ViewModel([
-            'users'     => $this->userTable->fetchPage($filters, $page, $perPage),
-            'filters'   => $filters,
+            'users'     => $this->userTable->fetchPage($tableFilters, $page, $perPage, $sort, $direction),
+            'filters'   => array_merge($filters, ['sort' => $sort, 'direction' => $direction]),
             'isAdmin'   => true,
             'summary'   => [
                 'total'    => $this->userTable->countAll(),
@@ -89,6 +101,96 @@ class UserController extends BaseController
                 'totalPages' => $totalPages,
             ],
         ]);
+    }
+
+    public function exportAction(): Response
+    {
+        if ($response = $this->requireAdmin()) {
+            return $response;
+        }
+
+        $filters = [
+            'search' => trim((string)$this->queryString('search', '')),
+            'role'   => $this->queryString('role'),
+            'status' => $this->queryString('status'),
+        ];
+        
+        $sort = $this->queryString('sort', 'id');
+        $direction = $this->queryString('direction', 'ASC');
+
+        // Fetch all matching users
+        $users = $this->userTable->fetchPage($filters, 1, 999999, $sort, $direction);
+
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $spreadsheet->getProperties()
+            ->setTitle('Danh sach nguoi dung')
+            ->setCreator('Thu vien');
+
+        $hStyle = [
+            'font'      => ['bold' => true, 'color' => ['argb' => 'FFFFFFFF'], 'size' => 11],
+            'fill'      => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => ['argb' => 'FF4472C4']],
+            'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER, 'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER],
+            'borders'   => ['allBorders' => ['borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN, 'color' => ['argb' => 'FFB0BEC5']]],
+        ];
+
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Nguoi dung');
+
+        $sheet->setCellValue('A1', 'ID');
+        $sheet->setCellValue('B1', 'Tên đăng nhập');
+        $sheet->setCellValue('C1', 'Họ tên');
+        $sheet->setCellValue('D1', 'Email');
+        $sheet->setCellValue('E1', 'Vai trò');
+        $sheet->setCellValue('F1', 'Trạng thái');
+        $sheet->setCellValue('G1', 'Ngày tham gia');
+
+        $sheet->getStyle('A1:G1')->applyFromArray($hStyle);
+
+        $rowNum = 2;
+        $roleLabels = [
+            'admin'   => 'Quản trị viên',
+            'student' => 'Sinh viên',
+        ];
+        $statusLabels = [
+            'active' => 'Hoạt động',
+            'locked' => 'Bị khóa',
+        ];
+
+        foreach ($users as $user) {
+            $sheet->setCellValue('A' . $rowNum, $user->id);
+            $sheet->setCellValue('B' . $rowNum, $user->username);
+            $sheet->setCellValue('C' . $rowNum, $user->fullName);
+            $sheet->setCellValue('D' . $rowNum, $user->email);
+            $sheet->setCellValue('E' . $rowNum, $roleLabels[$user->role] ?? $user->role);
+            $sheet->setCellValue('F' . $rowNum, $statusLabels[$user->accountStatus] ?? $user->accountStatus);
+            $sheet->setCellValue('G' . $rowNum, $user->createdAt);
+            $rowNum++;
+        }
+
+        foreach (range('A', 'G') as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+        $fileName = 'danh-sach-nguoi-dung-' . date('Y-m-d-His') . '.xlsx';
+        
+        $tempFile = tempnam(sys_get_temp_dir(), 'xlsx');
+        if ($tempFile === false) {
+             throw new RuntimeException('Cannot create temporary file.');
+        }
+        $writer->save($tempFile);
+
+        $response = new Response();
+        $response->getHeaders()->addHeaders([
+            'Content-Type'        => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition' => 'attachment;filename="' . $fileName . '"',
+            'Cache-Control'       => 'max-age=0',
+        ]);
+        $content = file_get_contents($tempFile);
+        $response->setContent($content !== false ? $content : '');
+        unlink($tempFile);
+
+        return $response;
     }
 
     public function viewAction(): Response|ViewModel
@@ -126,7 +228,7 @@ class UserController extends BaseController
         }
 
         $activeLoans = $this->borrowTable->countActiveLoansForUser($id);
-        $remainingLimit = max(0, 5 - $activeLoans);
+        $remainingLimit = max(0, $user->borrowLimit - $activeLoans);
         $onTimeRate = $this->borrowTable->getOnTimeRateForUser($id);
         $overdueCount = $this->borrowTable->countOverdueOccurrencesForUser($id);
 
@@ -160,7 +262,7 @@ class UserController extends BaseController
             $form->setData($this->postData());
 
             if ($form->isValid()) {
-                /** @var array{username:string, email:string, full_name:string, role:string, password:string} $data */
+                /** @var array{username:string, email:string, full_name:string, role:string, password:string, nickname?:string} $data */
                 $data = $form->getData();
 
                 if ($this->userTable->usernameExists($data['username'])) {
@@ -170,6 +272,9 @@ class UserController extends BaseController
                 } else {
                     $user = new User();
                     $user->exchangeArray($data);
+                    // Ensure borrow_limit is cast to int
+                    $user->borrowLimit = (int)($data['borrow_limit'] ?? 5);
+
                     $this->userTable->saveUser(
                         $user,
                         password_hash($data['password'], PASSWORD_DEFAULT)
@@ -239,6 +344,8 @@ class UserController extends BaseController
                         'email'     => $data['email'],
                         'full_name' => $data['full_name'],
                         'role'      => $data['role'],
+                        'nickname'  => $data['nickname'] ?? '',
+                        'borrow_limit' => (int)($data['borrow_limit'] ?? 5),
                     ]);
 
                     $passwordHash = $data['password'] !== ''
@@ -373,5 +480,69 @@ class UserController extends BaseController
         }
 
         return $this->redirect()->toRoute('library/user');
+    }
+
+    public function clearNicknameAction(): Response
+    {
+        if ($response = $this->requireAdmin()) {
+            return $response;
+        }
+
+        if (!$this->httpRequest()->isPost()) {
+            return $this->redirect()->toRoute('library/user');
+        }
+
+        $id = $this->routeInt('id');
+
+        try {
+            $user = $this->userTable->getUser($id);
+            if ($user->role !== 'student') {
+                $this->flash()->addErrorMessage('Chỉ có thể xóa biệt danh của sinh viên.');
+                return $this->redirect()->toRoute('library/user', ['action' => 'view', 'id' => $id]);
+            }
+
+            $this->userTable->clearNickname($id);
+            $this->flash()->addSuccessMessage('Đã xóa biệt danh của thành viên ' . $user->username . '.');
+        } catch (\Exception $e) {
+            $this->flash()->addErrorMessage($e->getMessage());
+        }
+
+        return $this->redirect()->toRoute('library/user', ['action' => 'view', 'id' => $id]);
+    }
+
+    public function clearAvatarAction(): Response
+    {
+        if ($response = $this->requireAdmin()) {
+            return $response;
+        }
+
+        if (!$this->httpRequest()->isPost()) {
+            return $this->redirect()->toRoute('library/user');
+        }
+
+        $id = $this->routeInt('id');
+
+        try {
+            $user = $this->userTable->getUser($id);
+            if ($user->role !== 'student') {
+                $this->flash()->addErrorMessage('Chỉ có thể xóa ảnh đại diện của sinh viên.');
+                return $this->redirect()->toRoute('library/user', ['action' => 'view', 'id' => $id]);
+            }
+
+            // Delete physical file if it exists locally
+            if ($user->avatarUrl && str_starts_with($user->avatarUrl, '/img/avatars/')) {
+                $path = getcwd() . '/public' . $user->avatarUrl;
+                if (file_exists($path)) {
+                    @unlink($path);
+                }
+            }
+
+            $this->userTable->clearAvatar($id);
+            $this->flash()->addSuccessMessage('Đã xóa ảnh đại diện của thành viên ' . $user->username . '.');
+        } catch (\Exception $e) {
+            $this->flash()->addErrorMessage($e->getMessage());
+        }
+
+        return $this->redirect()->toRoute('library/user', ['action' => 'view', 'id' => $id]);
     }
 }

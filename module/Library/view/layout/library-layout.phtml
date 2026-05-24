@@ -32,7 +32,7 @@ $initials = function(string $name): string {
 $navItems = [];
 if ($authUser) {
     $navItems[] = ['url' => $this->url($routePrefix . '/dashboard'), 'icon' => 'bi-grid-1x2-fill', 'label' => 'Tổng quan', 'key' => 'dashboard', 'color' => '#7c6aff'];
-    $navItems[] = ['url' => $this->url($bookRouteName), 'icon' => 'bi-book', 'label' => $isAdmin ? 'Sách' : 'Danh mục sách', 'key' => 'book', 'color' => '#f97316'];
+    $navItems[] = ['url' => $this->url($bookRouteName), 'icon' => 'bi-book', 'label' => 'Sách', 'key' => 'book', 'color' => '#f97316'];
     $navItems[] = ['url' => $this->url($routePrefix . '/announcements'), 'icon' => 'bi-megaphone-fill', 'label' => 'Bảng tin', 'key' => 'announcements', 'color' => '#ef4444'];
     if ($isAdmin) {
         $navItems[] = ['url' => $this->url('library/user'), 'icon' => 'bi-people', 'label' => 'Thành viên', 'key' => 'user', 'color' => '#22c55e'];
@@ -60,7 +60,7 @@ $activeColor = $pageColors[$activeKey] ?? '#7c6aff';
 
 $pageLabels = [
     'dashboard'    => 'Tổng quan',
-    'book'         => ($isAdmin ? 'Sách' : 'Danh mục sách'),
+    'book'         => 'Sách',
     'announcements'=> 'Bảng tin thư viện',
     'user'         => 'Thành viên',
     'books-import' => 'Nhập sách',

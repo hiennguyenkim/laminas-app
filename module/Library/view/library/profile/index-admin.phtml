@@ -81,12 +81,16 @@ $routePrefix = 'library';
         <!-- Admin Stats -->
         <div class="profile-stats-grid">
             <div class="card profile-stat-card">
-                <div class="profile-stat-val profile-stat-val--purple"><?= number_format($adminStats['total_books']) ?></div>
-                <div class="profile-stat-label">Tổng số bản sách</div>
+                <div class="profile-stat-val profile-stat-val--blue"><?= number_format($adminStats['total_categories']) ?></div>
+                <div class="profile-stat-label">Tổng số thể loại</div>
             </div>
             <div class="card profile-stat-card">
-                <div class="profile-stat-val profile-stat-val--blue"><?= number_format($adminStats['total_members']) ?></div>
-                <div class="profile-stat-label">Số thành viên</div>
+                <div class="profile-stat-val profile-stat-val--green"><?= number_format($adminStats['total_titles']) ?></div>
+                <div class="profile-stat-label">Tổng số đầu sách</div>
+            </div>
+            <div class="card profile-stat-card">
+                <div class="profile-stat-val profile-stat-val--purple"><?= number_format($adminStats['total_books']) ?></div>
+                <div class="profile-stat-label">Tổng số cuốn sách</div>
             </div>
             <div class="card profile-stat-card">
                 <div class="profile-stat-val profile-stat-val--orange"><?= number_format($adminStats['active_loans']) ?></div>
@@ -102,7 +106,7 @@ $routePrefix = 'library';
                 <p class="profile-paragraph">Bạn đang đăng nhập bằng tài khoản <strong>Quản trị viên (Admin)</strong>. Các chức năng chính bạn có thể thực hiện bao gồm:</p>
                 <ul class="profile-list">
                     <li><i class="bi bi-check-circle profile-list-icon"></i> Nhập kho và cập nhật số lượng sách mới về.</li>
-                    <li><i class="bi bi-check-circle profile-list-icon"></i> Quản lý danh mục sách và phê duyệt đăng ký mượn của độc giả.</li>
+                    <li><i class="bi bi-check-circle profile-list-icon"></i> Quản lý danh mục đầu sách và phê duyệt đăng ký mượn của độc giả.</li>
                     <li><i class="bi bi-check-circle profile-list-icon"></i> Xem báo cáo doanh thu, thống kê chi phí chi tiết theo thời gian.</li>
                 </ul>
                 <div class="profile-info-box">

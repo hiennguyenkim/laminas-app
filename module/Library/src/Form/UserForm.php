@@ -50,6 +50,13 @@ class UserForm extends Form
         ]);
 
         $this->add([
+            'name'       => 'nickname',
+            'type'       => Element\Text::class,
+            'options'    => ['label' => 'Biệt danh'],
+            'attributes' => ['class' => 'form-control', 'maxlength' => 100],
+        ]);
+
+        $this->add([
             'name'       => 'role',
             'type'       => Element\Select::class,
             'options'    => [
@@ -60,6 +67,20 @@ class UserForm extends Form
                 ],
             ],
             'attributes' => ['class' => 'form-select', 'required' => true],
+        ]);
+
+        $this->add([
+            'name'       => 'borrow_limit',
+            'type'       => Element\Number::class,
+            'options'    => ['label' => 'Hạn mức mượn'],
+            'attributes' => [
+                'class' => 'form-control',
+                'min' => 1,
+                'max' => 50,
+                'step' => 1,
+                'value' => 5,
+                'required' => true,
+            ],
         ]);
 
         $this->add([
@@ -123,11 +144,29 @@ class UserForm extends Form
             ]],
         ]);
         $filter->add([
+            'name'       => 'nickname',
+            'required'   => false,
+            'filters'    => [['name' => \Laminas\Filter\StringTrim::class]],
+            'validators' => [[
+                'name'    => \Laminas\Validator\StringLength::class,
+                'options' => ['max' => 100],
+            ]],
+        ]);
+        $filter->add([
             'name'       => 'role',
             'required'   => true,
             'validators' => [[
                 'name'    => \Laminas\Validator\InArray::class,
                 'options' => ['haystack' => ['admin', 'student']],
+            ]],
+        ]);
+        $filter->add([
+            'name'       => 'borrow_limit',
+            'required'   => true,
+            'filters'    => [['name' => \Laminas\Filter\ToInt::class]],
+            'validators' => [[
+                'name'    => \Laminas\Validator\Between::class,
+                'options' => ['min' => 1, 'max' => 50],
             ]],
         ]);
         $filter->add([

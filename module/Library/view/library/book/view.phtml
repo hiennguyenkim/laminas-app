@@ -12,10 +12,10 @@ $statusMap = [
 ];
 [$statusLabel, $statusClass] = $statusMap[$book->status] ?? [$book->status, 'badge-gray'];
 ?>
-<div style="max-width:1100px;width:100%;margin:0 auto">
+<div style="width:100%;margin:0">
 <div class="page-header">
     <div class="d-flex align-center gap-3">
-        <a href="<?= $backUrl ?>" class="btn btn-outline btn-icon"><i class="bi bi-arrow-left"></i></a>
+        <a href="<?= $backUrl ?>" class="btn btn-outline btn-icon" title="Quay lại"><i class="bi bi-arrow-left"></i></a>
         <div>
             <div class="page-title">Chi tiết sách</div>
             <div class="page-subtitle">Xem thông tin đầy đủ và trạng thái vận hành của đầu sách trong hệ thống.</div>
@@ -190,23 +190,30 @@ $statusMap = [
         </div>
         <div class="card-body">
             <?php if (isset($currentUser) && $currentUser['role'] === 'student'): ?>
-            <form method="POST" action="<?= $this->url('student/book', ['action' => 'review', 'id' => $book->id]) ?>" class="book-reviews-form">
-                <div class="book-reviews-form-title">Viết nhận xét của bạn</div>
-                <div class="book-reviews-form-rating-row">
-                    <label class="book-reviews-form-rating-label">Đánh giá:</label>
-                    <select name="rating" class="form-select book-reviews-form-rating-select" required>
-                        <option value="5">5 Sao - Rất hay</option>
-                        <option value="4">4 Sao - Hay</option>
-                        <option value="3">3 Sao - Tạm được</option>
-                        <option value="2">2 Sao - Kém</option>
-                        <option value="1">1 Sao - Tệ</option>
-                    </select>
-                </div>
-                <textarea name="comment" class="form-control" rows="3" placeholder="Chia sẻ cảm nghĩ của bạn về cuốn sách này..." required></textarea>
-                <div class="book-reviews-form-submit-row">
-                    <button type="submit" class="btn btn-primary">Gửi nhận xét</button>
-                </div>
-            </form>
+                <?php if ($hasBorrowed): ?>
+                    <form method="POST" action="<?= $this->url('student/book', ['action' => 'review', 'id' => $book->id]) ?>" class="book-reviews-form">
+                        <div class="book-reviews-form-title">Viết nhận xét của bạn</div>
+                        <div class="book-reviews-form-rating-row">
+                            <label class="book-reviews-form-rating-label">Đánh giá:</label>
+                            <select name="rating" class="form-select book-reviews-form-rating-select" required>
+                                <option value="5">5 Sao - Rất hay</option>
+                                <option value="4">4 Sao - Hay</option>
+                                <option value="3">3 Sao - Tạm được</option>
+                                <option value="2">2 Sao - Kém</option>
+                                <option value="1">1 Sao - Tệ</option>
+                            </select>
+                        </div>
+                        <textarea name="comment" class="form-control" rows="3" placeholder="Chia sẻ cảm nghĩ của bạn về cuốn sách này..." required></textarea>
+                        <div class="book-reviews-form-submit-row">
+                            <button type="submit" class="btn btn-primary">Gửi nhận xét</button>
+                        </div>
+                    </form>
+                <?php else: ?>
+                    <div class="alert alert-info" style="font-size: 13.5px; border-radius: 8px;">
+                        <i class="bi bi-info-circle-fill" style="margin-right: 8px;"></i>
+                        Bạn chỉ có thể đánh giá sách sau khi đã hoặc đang mượn cuốn sách này.
+                    </div>
+                <?php endif; ?>
             <?php elseif ($currentUser === null): ?>
             <div class="book-reviews-login-prompt">
                 <i class="bi bi-chat-square-heart"></i>

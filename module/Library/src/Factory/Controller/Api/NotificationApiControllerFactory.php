@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Library\Factory\Controller\Api;
 
 use Library\Controller\Api\NotificationApiController;
+use Library\Model\Table\NotificationTable;
 use Library\Session\AuthSessionContainer;
-use Laminas\Db\Adapter\AdapterInterface;
 use Psr\Container\ContainerInterface;
 
 class NotificationApiControllerFactory
@@ -15,7 +15,7 @@ class NotificationApiControllerFactory
     {
         return new NotificationApiController(
             $container->get(AuthSessionContainer::class),
-            $container->get(AdapterInterface::class)
+            $container->get(NotificationTable::class)
         );
     }
 }

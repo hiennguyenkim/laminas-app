@@ -13,7 +13,6 @@ use Laminas\Db\Adapter\AdapterInterface;
 
 class CirculationService
 {
-    private const MAX_ACTIVE_LOANS_PER_USER = 5;
     private const MAX_LOAN_DAYS = 30;
 
     public function __construct(
@@ -55,10 +54,10 @@ class CirculationService
             throw new DomainException('Sinh viên này đang có sách quá hạn, vui lòng xử lý quá hạn trước khi mượn mới.');
         }
 
-        if ($this->borrowTable->countActiveLoansForUser($userId) >= self::MAX_ACTIVE_LOANS_PER_USER) {
+        if ($this->borrowTable->countActiveLoansForUser($userId) >= $borrower->borrowLimit) {
             throw new DomainException(sprintf(
-                'Mỗi sinh viên chỉ được mượn tối đa %d cuốn cùng lúc.',
-                self::MAX_ACTIVE_LOANS_PER_USER
+                'Sinh viên này đã đạt hạn mức mượn tối đa (%d cuốn).',
+                $borrower->borrowLimit
             ));
         }
 

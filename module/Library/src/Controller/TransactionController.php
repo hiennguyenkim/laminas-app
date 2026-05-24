@@ -77,7 +77,16 @@ class TransactionController extends BaseController
         }
 
         $page        = max(1, (int)($this->params()->fromQuery('page', 1)));
-        $perPage     = 10;
+        $perPageRaw  = $this->queryString('perPage', '20');
+        if ($perPageRaw === 'all') {
+            $perPage = 999999;
+        } else {
+            $perPage = (int)$perPageRaw;
+            if (!in_array($perPage, [10, 20, 50, 100], true)) {
+                $perPage = 20;
+                $perPageRaw = '20';
+            }
+        }
         $totalItems  = $this->borrowTable->countFiltered($filters, $isAdmin ? null : $userId);
         $totalPages  = max(1, (int)ceil($totalItems / $perPage));
         $page        = min($page, $totalPages);
@@ -87,14 +96,14 @@ class TransactionController extends BaseController
 
         $viewModel = new ViewModel([
             'records'     => $records,
-            'summary'     => $this->borrowTable->getSummary($isAdmin ? null : $userId),
+            'summary'     => $this->borrowTable->getSummary($isAdmin ? null : $userId, $filters),
             'filters'     => $filters,
             'isAdmin'     => $isAdmin,
             'currentUser' => $currentUser,
             'users'       => $isAdmin ? $this->userTable->fetchStudentOptions() : [],
             'pagination'  => [
                 'page'       => $page,
-                'perPage'    => $perPage,
+                'perPage'    => $perPageRaw,
                 'totalItems' => $totalItems,
                 'totalPages' => $totalPages,
             ]

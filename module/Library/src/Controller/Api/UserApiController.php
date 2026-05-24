@@ -30,13 +30,7 @@ class UserApiController extends AbstractRestfulController
                 continue;
             }
 
-            $data[] = [
-                'user_id'   => $user->id,
-                'username'  => $user->username,
-                'email'     => $user->email,
-                'full_name' => $user->fullName,
-                'role'      => $user->role,
-            ];
+            $data[] = $user->getArrayCopy();
         }
         return $this->jsonResponse($data);
     }
@@ -47,13 +41,7 @@ class UserApiController extends AbstractRestfulController
 
         try {
             $user = $this->table->getUser((int) $id);
-            return $this->jsonResponse([
-                'user_id'   => $user->id,
-                'username'  => $user->username,
-                'email'     => $user->email,
-                'full_name' => $user->fullName,
-                'role'      => $user->role,
-            ]);
+            return $this->jsonResponse($user->getArrayCopy());
         } catch (\Exception) {
             return $this->jsonResponse(['error' => 'User not found'], 404);
         }

@@ -48,9 +48,9 @@ class UserTable
         return $row;
     }
 
-    public function fetchAll(array $filters = []): \Laminas\Db\ResultSet\ResultSetInterface
+    public function fetchAll(array $filters = [], string $sort = 'id', string $direction = 'ASC'): \Laminas\Db\ResultSet\ResultSetInterface
     {
-        return $this->tableGateway->select(function (Select $select) use ($filters): void {
+        return $this->tableGateway->select(function (Select $select) use ($filters, $sort, $direction): void {
             $select->columns([
                 'user_id',
                 'username',
@@ -66,6 +66,7 @@ class UserTable
                 'lock_reason',
                 'locked_at',
                 'phone',
+                'borrow_limit',
                 'last_returned_at' => new Expression(
                     '(SELECT MAX(br.returned_at) FROM borrow_records br '
                     . 'WHERE br.user_id = users.user_id '
@@ -74,7 +75,8 @@ class UserTable
                 'borrowCount' => new Expression(
                     '(SELECT COUNT(*) FROM borrow_records br '
                     . 'WHERE br.user_id = users.user_id '
-                    . 'AND br.status IN (\'borrowed\', \'overdue\'))'
+                    . 'AND (br.status IN (\'borrowed\', \'overdue\') '
+                    . 'OR (br.status = \'borrowed\' AND br.return_date < CURDATE())))'
                 ),
                 'overdueCount' => new Expression(
                     '(SELECT COUNT(*) FROM borrow_records br '
@@ -85,40 +87,37 @@ class UserTable
                 ),
             ]);
 
-            $searchValue = trim((string) ($filters['search'] ?? ''));
-            if ($searchValue !== '') {
-                $search = '%' . $searchValue . '%';
-                $select->where(function (Where $where) use ($search): void {
-                    $where->nest()
-                        ->like('full_name', $search)
-                        ->or
-                        ->like('username', $search)
-                        ->or
-                        ->like('email', $search)
-                        ->unnest();
-                });
-            }
+            $this->applyFilters($select, $filters);
 
-            $role = trim((string) ($filters['role'] ?? ''));
-            if ($role !== '') {
-                $select->where(['role' => $role]);
-            }
+            $direction = strtoupper($direction) === 'DESC' ? 'DESC' : 'ASC';
+            $sortField = match ($sort) {
+                'username'  => 'users.username',
+                'full_name' => 'users.full_name',
+                'email'     => 'users.email',
+                'role'      => 'users.role',
+                'status'    => 'users.account_status',
+                'created'   => 'users.created_at',
+                'borrow_count' => 'borrowCount',
+                'overdue_count' => 'overdueCount',
+                default     => 'users.user_id',
+            };
 
-            $select->order([
-                new Expression("CASE WHEN role = 'admin' THEN 0 ELSE 1 END"),
-                'full_name ASC',
-                self::PK . ' DESC',
-            ]);
+            $select->order($sortField . ' ' . $direction);
         });
     }
 
-    public function fetchPage(array $filters, int $page, int $perPage): \Laminas\Db\ResultSet\ResultSetInterface
-    {
+    public function fetchPage(
+        array $filters,
+        int $page,
+        int $perPage,
+        string $sort = 'id',
+        string $direction = 'ASC'
+    ): \Laminas\Db\ResultSet\ResultSetInterface {
         $safePage = max(1, $page);
         $safePerPage = max(1, $perPage);
         $offset = ($safePage - 1) * $safePerPage;
 
-        return $this->tableGateway->select(function (Select $select) use ($filters, $safePerPage, $offset): void {
+        return $this->tableGateway->select(function (Select $select) use ($filters, $safePerPage, $offset, $sort, $direction): void {
             $select->columns([
                 'user_id',
                 'username',
@@ -134,6 +133,7 @@ class UserTable
                 'lock_reason',
                 'locked_at',
                 'phone',
+                'borrow_limit',
                 'last_returned_at' => new Expression(
                     '(SELECT MAX(br.returned_at) FROM borrow_records br '
                     . 'WHERE br.user_id = users.user_id '
@@ -142,7 +142,8 @@ class UserTable
                 'borrowCount' => new Expression(
                     '(SELECT COUNT(*) FROM borrow_records br '
                     . 'WHERE br.user_id = users.user_id '
-                    . 'AND br.status IN (\'borrowed\', \'overdue\'))'
+                    . 'AND (br.status IN (\'borrowed\', \'overdue\') '
+                    . 'OR (br.status = \'borrowed\' AND br.return_date < CURDATE())))'
                 ),
                 'overdueCount' => new Expression(
                     '(SELECT COUNT(*) FROM borrow_records br '
@@ -153,30 +154,22 @@ class UserTable
                 ),
             ]);
 
-            $searchValue = trim((string) ($filters['search'] ?? ''));
-            if ($searchValue !== '') {
-                $search = '%' . $searchValue . '%';
-                $select->where(function (Where $where) use ($search): void {
-                    $where->nest()
-                        ->like('full_name', $search)
-                        ->or
-                        ->like('username', $search)
-                        ->or
-                        ->like('email', $search)
-                        ->unnest();
-                });
-            }
+            $this->applyFilters($select, $filters);
 
-            $role = trim((string) ($filters['role'] ?? ''));
-            if ($role !== '') {
-                $select->where(['role' => $role]);
-            }
+            $direction = strtoupper($direction) === 'DESC' ? 'DESC' : 'ASC';
+            $sortField = match ($sort) {
+                'username'  => 'users.username',
+                'full_name' => 'users.full_name',
+                'email'     => 'users.email',
+                'role'      => 'users.role',
+                'status'    => 'users.account_status',
+                'created'   => 'users.created_at',
+                'borrow_count' => 'borrowCount',
+                'overdue_count' => 'overdueCount',
+                default     => 'users.user_id',
+            };
 
-            $select->order([
-                new Expression("CASE WHEN role = 'admin' THEN 0 ELSE 1 END"),
-                'full_name ASC',
-                self::PK . ' DESC',
-            ]);
+            $select->order($sortField . ' ' . $direction);
             $select->limit($safePerPage);
             $select->offset($offset);
         });
@@ -188,6 +181,16 @@ class UserTable
         $select = $sql->select();
         $select->columns(['c' => new Expression('COUNT(*)')]);
 
+        $this->applyFilters($select, $filters);
+
+        $stmt   = $sql->prepareStatementForSqlObject($select);
+        $result = $stmt->execute();
+
+        return $this->extractCount($result->current());
+    }
+
+    private function applyFilters(Select $select, array $filters): void
+    {
         $searchValue = trim((string) ($filters['search'] ?? ''));
         if ($searchValue !== '') {
             $search = '%' . $searchValue . '%';
@@ -207,10 +210,10 @@ class UserTable
             $select->where(['role' => $role]);
         }
 
-        $stmt   = $sql->prepareStatementForSqlObject($select);
-        $result = $stmt->execute();
-
-        return $this->extractCount($result->current());
+        $status = trim((string) ($filters['status'] ?? ''));
+        if ($status !== '') {
+            $select->where(['account_status' => $status]);
+        }
     }
 
     public function fetchStudentOptions(): array
@@ -295,6 +298,16 @@ class UserTable
         ], [self::PK => $id]);
     }
 
+    public function clearNickname(int $id): void
+    {
+        $this->tableGateway->update(['nickname' => null], [self::PK => $id]);
+    }
+
+    public function clearAvatar(int $id): void
+    {
+        $this->tableGateway->update(['avatar_url' => null], [self::PK => $id]);
+    }
+
     public function saveUser(User $user, ?string $passwordHash = null): void
     {
         $data = [
@@ -308,6 +321,7 @@ class UserTable
             'account_status' => $user->accountStatus,
             'lock_reason'    => $user->lockReason !== '' ? $user->lockReason : null,
             'phone'          => $user->phone !== '' ? $user->phone : null,
+            'borrow_limit'   => $user->borrowLimit,
         ];
 
         if ($passwordHash !== null) {

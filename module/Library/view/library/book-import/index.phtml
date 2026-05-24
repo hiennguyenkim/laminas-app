@@ -11,7 +11,7 @@ $buildUrlWithFilter = function(array $newParams) use ($selectedYear, $search, $t
         'sort'      => $sort,
         'direction' => $direction,
     ];
-    
+
     foreach ($newParams as $key => $value) {
         if ($value === null || $value === '') {
             unset($params[$key]);
@@ -19,11 +19,11 @@ $buildUrlWithFilter = function(array $newParams) use ($selectedYear, $search, $t
             $params[$key] = $value;
         }
     }
-    
-    if (!isset($newParams['page']) && (isset($newParams['search']) || isset($newParams['type']) || isset($newParams['year']) || isset($newParams['period']))) {
+
+    if (!isset($newParams['page']) && (isset($newParams['search']) || isset($newParams['type']) || isset($newParams['year']) || isset($newParams['period']))) {    
         $params['page'] = 1;
     }
-    
+
     return $this->url('library/books-import', [], ['query' => array_filter($params, function($val) {
         return $val !== null && $val !== '';
     })]);
@@ -60,75 +60,78 @@ $renderSortIcon = function(string $col) use ($sort, $direction) {
     </div>
 </div>
 
-<!-- STATS REPORT PANEL -->
+<!-- STATS REPORT PANEL (Interactive Cards) -->
 <div class="card book-import-card-margin">
     <div class="card-header book-import-card-header">
-        <div class="card-title"><i class="bi bi-bar-chart book-import-card-title-icon"></i>Thống kê chi tiêu theo Quý</div>
+        <div class="card-title"><i class="bi bi-funnel book-import-card-title-icon"></i>Lọc theo thời gian nhập kho (Năm <?= $selectedYear ?>)</div>
     </div>
     <div class="card-body book-import-card-body">
         <div class="book-import-stats-grid">
-            <!-- Year Summary -->
-            <div class="book-import-stat-card-main">
-                <div class="book-import-stat-label">Tổng chi tiêu năm <?= $selectedYear ?></div>
+            <!-- Year Card -->
+            <a href="<?= $buildUrlWithFilter(['period' => 'year']) ?>" class="book-import-stat-card-main <?= $period === 'year' ? 'active' : '' ?>" style="text-decoration: none; cursor: pointer; transition: var(--transition);">
+                <div class="book-import-stat-label">Cả năm <?= $selectedYear ?></div>
                 <div class="book-import-stat-value-main"><?= number_format($totalSpendYear, 0, ',', '.') ?> đ</div>
-                <div class="book-import-stat-sub-main"><i class="bi bi-journal-plus"></i> Đã nhập <?= $totalImportsYear ?> đầu sách</div>
-            </div>
-            
-            <?php 
+                <div class="book-import-stat-sub-main"><i class="bi bi-journal-plus"></i> <?= $totalImportsYear ?> đầu sách</div>
+            </a>
+
+            <?php
             $quartersNames = [1 => 'Quý I', 2 => 'Quý II', 3 => 'Quý III', 4 => 'Quý IV'];
             $quartersColors = [1 => '#3b82f6', 2 => '#10b981', 3 => '#f59e0b', 4 => '#ec4899'];
-            foreach($quarterlyStats as $qtr => $data): 
+            foreach($quarterlyStats as $qtr => $data):
                 $color = $quartersColors[$qtr];
+                $isQActive = ($period === 'q' . $qtr);
             ?>
-            <div class="book-import-stat-card-quarter">
+            <a href="<?= $buildUrlWithFilter(['period' => 'q' . $qtr]) ?>" class="book-import-stat-card-quarter <?= $isQActive ? 'active' : '' ?>" style="text-decoration: none; cursor: pointer; transition: var(--transition); border-bottom: 3px solid <?= $isQActive ? $color : 'transparent' ?>;">
                 <div class="book-import-stat-quarter-header">
-                    <span class="book-import-stat-quarter-name"><?= $quartersNames[$qtr] ?></span>
-                    <span class="badge book-import-stat-quarter-badge" style="background:<?= $color ?>15;color:<?= $color ?>"><?= $data['count'] ?> yêu cầu</span>
+                    <span class="book-import-stat-quarter-name" style="color: <?= $isQActive ? $color : '' ?>;"><?= $quartersNames[$qtr] ?></span>
+                    <span class="badge book-import-stat-quarter-badge" style="background:<?= $color ?>15;color:<?= $color ?>"><?= $data['count'] ?> đầu sách</span>
                 </div>
                 <div class="book-import-stat-quarter-spend"><?= number_format($data['spend'], 0, ',', '.') ?> đ</div>
                 <!-- Mini Progress Bar -->
-                <?php 
+                <?php
                     $percent = $totalSpendYear > 0 ? ($data['spend'] / $totalSpendYear) * 100 : 0;
                 ?>
-                <div class="book-import-progress-bar-wrap">
+                <div class="book-import-progress-bar-wrap" style="height: 4px;">
                     <div class="book-import-progress-bar-fill" style="width:<?= $percent ?>%;background:<?= $color ?>"></div>
                 </div>
-                <div class="book-import-stat-quarter-pct"><?= number_format($percent, 1) ?>% của năm</div>
-            </div>
+                <div class="book-import-stat-quarter-pct"><?= number_format($percent, 1) ?>% chi tiêu</div>
+            </a>
             <?php endforeach; ?>
         </div>
     </div>
 </div>
 
+<style>
+.book-import-stat-card-main.active { border: 1px solid var(--accent-purple); background: rgba(124, 106, 255, 0.05); }
+.book-import-stat-card-quarter.active { background: rgba(255, 255, 255, 0.03); }
+.book-import-stat-card-main:hover, .book-import-stat-card-quarter:hover { transform: translateY(-3px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); border-color: rgba(255,255,255,0.1); }
+</style>
+
 <!-- FILTER TABS AND SEARCH -->
-<div class="book-import-filters-container">
-    <div class="book-import-filters-left">
-        <!-- Import Type Tabs (3 hình thức) -->
-        <div class="filter-tabs book-import-filter-tabs">
-            <a href="<?= $buildUrlWithFilter(['type' => '']) ?>" class="filter-tab <?= $type === '' ? 'active' : '' ?>">
-                Tất cả hình thức <span class="count"><?= $typeCounts['all'] ?></span>
-            </a>
-            <a href="<?= $buildUrlWithFilter(['type' => 'purchase']) ?>" class="filter-tab <?= $type === 'purchase' ? 'active' : '' ?>">
-                <i class="bi bi-credit-card" style="margin-right: 4px;"></i> Mua sắm <span class="count"><?= $typeCounts['purchase'] ?></span>
-            </a>
-            <a href="<?= $buildUrlWithFilter(['type' => 'donation']) ?>" class="filter-tab <?= $type === 'donation' ? 'active' : '' ?>">
-                <i class="bi bi-gift" style="margin-right: 4px;"></i> Tặng/Biếu <span class="count"><?= $typeCounts['donation'] ?></span>
-            </a>
-            <a href="<?= $buildUrlWithFilter(['type' => 'other']) ?>" class="filter-tab <?= $type === 'other' ? 'active' : '' ?>">
-                <i class="bi bi-circle" style="margin-right: 4px;"></i> Khác <span class="count"><?= $typeCounts['other'] ?></span>
-            </a>
-        </div>
+<div class="book-import-filters-row" style="display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 24px; width: 100%; flex-wrap: nowrap;">
+    <div class="filter-tabs book-import-filter-tabs" style="margin-bottom: 0; flex-shrink: 0;">
+        <a href="<?= $buildUrlWithFilter(['type' => '']) ?>" class="filter-tab <?= $type === '' ? 'active' : '' ?>">
+            Tất cả hình thức <span class="count"><?= $typeCounts['all'] ?></span>
+        </a>
+        <a href="<?= $buildUrlWithFilter(['type' => 'purchase']) ?>" class="filter-tab <?= $type === 'purchase' ? 'active' : '' ?>">
+            <i class="bi bi-credit-card" style="margin-right: 4px;"></i> Mua sắm <span class="count"><?= $typeCounts['purchase'] ?></span>
+        </a>
+        <a href="<?= $buildUrlWithFilter(['type' => 'donation']) ?>" class="filter-tab <?= $type === 'donation' ? 'active' : '' ?>">
+            <i class="bi bi-gift" style="margin-right: 4px;"></i> Tặng/Biếu <span class="count"><?= $typeCounts['donation'] ?></span>
+        </a>
+        <a href="<?= $buildUrlWithFilter(['type' => 'other']) ?>" class="filter-tab <?= $type === 'other' ? 'active' : '' ?>">
+            <i class="bi bi-circle" style="margin-right: 4px;"></i> Khác <span class="count"><?= $typeCounts['other'] ?></span>
+        </a>
     </div>
 
     <!-- Search Form -->
-    <form method="get" class="book-import-search-form">
-        <!-- Preserve selected type -->
+    <form method="get" class="book-import-search-form" style="display: flex; gap: 8px; align-items: center; flex-wrap: nowrap; flex: 1; justify-content: flex-end; min-width: 0;">
         <input type="hidden" name="type" value="<?= htmlspecialchars((string)$type) ?>">
         <input type="hidden" name="sort" value="<?= htmlspecialchars((string)$sort) ?>">
         <input type="hidden" name="direction" value="<?= htmlspecialchars((string)$direction) ?>">
 
         <!-- Year Filter -->
-        <div class="topbar-search" style="max-width: 120px; padding: 8px 12px; gap: 6px;">
+        <div class="topbar-search" style="max-width: 100px; padding: 8px 12px; gap: 6px; height: 38px; border-radius: 8px; flex-shrink: 0;">
             <i class="bi bi-calendar-event" style="color: var(--text-muted);"></i>
             <select name="year" onchange="this.form.submit()" style="background: none; border: none; outline: none; color: var(--text-primary); font-size: 13px; width: 100%; cursor: pointer;">
                 <?php for($y = date('Y') - 5; $y <= date('Y'); $y++): ?>
@@ -137,33 +140,31 @@ $renderSortIcon = function(string $col) use ($sort, $direction) {
             </select>
         </div>
 
-        <!-- Period Filter -->
-        <div class="topbar-search" style="max-width: 160px; padding: 8px 12px; gap: 6px;">
+        <!-- Month Filter (Sets period to mX) -->
+        <div class="topbar-search" style="max-width: 130px; padding: 8px 12px; gap: 6px; height: 38px; border-radius: 8px; flex-shrink: 0;">
             <i class="bi bi-calendar3" style="color: var(--text-muted);"></i>
             <select name="period" onchange="this.form.submit()" style="background: none; border: none; outline: none; color: var(--text-primary); font-size: 13px; width: 100%; cursor: pointer;">
                 <option value="year" <?= $period === 'year' ? 'selected' : '' ?> style="background: var(--bg-card);">Cả năm</option>
-                <optgroup label="Theo Quý" style="background: var(--bg-card); color: var(--text-muted); font-style: normal;">
-                    <option value="q1" <?= $period === 'q1' ? 'selected' : '' ?> style="background: var(--bg-card); color: var(--text-primary);">Quý I</option>
-                    <option value="q2" <?= $period === 'q2' ? 'selected' : '' ?> style="background: var(--bg-card); color: var(--text-primary);">Quý II</option>
-                    <option value="q3" <?= $period === 'q3' ? 'selected' : '' ?> style="background: var(--bg-card); color: var(--text-primary);">Quý III</option>
-                    <option value="q4" <?= $period === 'q4' ? 'selected' : '' ?> style="background: var(--bg-card); color: var(--text-primary);">Quý IV</option>
-                </optgroup>
-                <optgroup label="Theo Tháng" style="background: var(--bg-card); color: var(--text-muted); font-style: normal;">
-                    <?php for ($m = 1; $m <= 12; $m++): ?>
-                        <option value="m<?= $m ?>" <?= $period === 'm' . $m ? 'selected' : '' ?> style="background: var(--bg-card); color: var(--text-primary);">Tháng <?= $m ?></option>
-                    <?php endfor; ?>
-                </optgroup>
+                <?php for ($m = 1; $m <= 12; $m++): $mVal = 'm' . $m; ?>
+                    <option value="<?= $mVal ?>" <?= $period === $mVal ? 'selected' : '' ?> style="background: var(--bg-card);">Tháng <?= $m ?></option>
+                <?php endfor; ?>
             </select>
         </div>
 
+        <select name="perPage" class="form-select" style="width: 145px; height: 38px; flex-shrink: 0;" onchange="this.form.submit()">
+            <option value="20"  <?= (string)$perPageRaw === '20'  ? 'selected' : '' ?>>20 phiếu / trang</option>
+            <option value="50"  <?= (string)$perPageRaw === '50'  ? 'selected' : '' ?>>50 phiếu / trang</option>
+            <option value="100" <?= (string)$perPageRaw === '100' ? 'selected' : '' ?>>100 phiếu / trang</option>
+        </select>
+
         <!-- Search Input -->
-        <div class="topbar-search" style="position: relative;">
+        <div class="topbar-search catalog-search-wrap" style="position: relative; width: 260px; margin: 0; height: 38px; border-radius: 8px; flex-shrink: 1; min-width: 150px;">
             <i class="bi bi-search"></i>
-            <input type="text" name="search" value="<?= htmlspecialchars($search) ?>" placeholder="Tìm tên sách, tác giả, ISBN, hóa đơn..." oninput="this.nextElementSibling.style.display = this.value ? 'inline-block' : 'none';" style="padding-right: 28px;">
-            <i class="bi bi-x-circle-fill search-clear-btn" style="position: absolute; right: 12px; cursor: pointer; color: var(--text-muted); display: <?= !empty($search) ? 'inline-block' : 'none' ?>; font-size: 14px;" onclick="clearSearchInput(this)"></i>
+            <input type="text" name="search" value="<?= htmlspecialchars($search) ?>" placeholder="Tìm tên sách, hóa đơn..." oninput="this.nextElementSibling.style.display = this.value ? 'inline-block' : 'none';" style="padding-right: 28px;">
+            <i class="bi bi-x-circle-fill search-clear-btn" style="position: absolute; right: 12px; cursor: pointer; color: var(--text-muted); display: <?= !empty($search) ? 'inline-block' : 'none' ?>; font-size: 14px; top: 50%; transform: translateY(-50%);" onclick="const inp=this.previousElementSibling; inp.value=''; this.style.display='none'; this.closest('form').submit();"></i>
         </div>
 
-        <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-search"></i>Tìm</button>
+        <button type="submit" class="btn btn-primary btn-sm" style="height: 38px; padding: 0 16px; font-weight: 600; flex-shrink: 0;">Tìm kiếm</button>
     </form>
 </div>
 
@@ -182,7 +183,7 @@ $renderSortIcon = function(string $col) use ($sort, $direction) {
                         </a>
                     </th>
                     <th>
-                        <a href="<?= $buildSortUrl('invoice') ?>" style="text-decoration: none; color: inherit; display: inline-flex; align-items: center;">
+                        <a href="<?= $buildSortUrl('invoice') ?>" style="text-decoration: none; color: inherit; display: inline-flex; align-items: center;">       
                             Hóa đơn <?= $renderSortIcon('invoice') ?>
                         </a>
                     </th>
@@ -192,32 +193,32 @@ $renderSortIcon = function(string $col) use ($sort, $direction) {
                         </a>
                     </th>
                     <th>
-                        <a href="<?= $buildSortUrl('category') ?>" style="text-decoration: none; color: inherit; display: inline-flex; align-items: center;">
+                        <a href="<?= $buildSortUrl('category') ?>" style="text-decoration: none; color: inherit; display: inline-flex; align-items: center;">      
                             Thể loại <?= $renderSortIcon('category') ?>
                         </a>
                     </th>
                     <th>
                         <a href="<?= $buildSortUrl('price') ?>" style="text-decoration: none; color: inherit; display: inline-flex; align-items: center;">
-                            Đơn giá (đ) <?= $renderSortIcon('price') ?>
+                            Đơn giá <?= $renderSortIcon('price') ?>
                         </a>
                     </th>
                     <th>
-                        <a href="<?= $buildSortUrl('quantity') ?>" style="text-decoration: none; color: inherit; display: inline-flex; align-items: center;">
+                        <a href="<?= $buildSortUrl('quantity') ?>" style="text-decoration: none; color: inherit; display: inline-flex; align-items: center;">      
                             Số lượng <?= $renderSortIcon('quantity') ?>
                         </a>
                     </th>
                     <th>
                         <a href="<?= $buildSortUrl('total') ?>" style="text-decoration: none; color: inherit; display: inline-flex; align-items: center;">
-                            Tổng tiền (đ) <?= $renderSortIcon('total') ?>
+                            Tổng tiền <?= $renderSortIcon('total') ?>
                         </a>
                     </th>
                     <th style="color: var(--text-muted);">Hình thức</th>
                     <th>
-                        <a href="<?= $buildSortUrl('status') ?>" style="text-decoration: none; color: inherit; display: inline-flex; align-items: center;">
+                        <a href="<?= $buildSortUrl('status') ?>" style="text-decoration: none; color: inherit; display: inline-flex; align-items: center;">        
                             Trạng thái <?= $renderSortIcon('status') ?>
                         </a>
                     </th>
-                    <th style="color: var(--text-muted);">Hành động</th>
+                    <th style="color: var(--text-muted); text-align: center;">Hành động</th>
                 </tr>
             </thead>
             <tbody>
@@ -226,9 +227,9 @@ $renderSortIcon = function(string $col) use ($sort, $direction) {
                         <td colspan="10" class="book-import-table-empty">
                             <i class="bi bi-box-seam book-import-table-empty-icon"></i>
                             <?php if ($search !== '' || $type !== ''): ?>
-                                Không tìm thấy yêu cầu nhập sách nào phù hợp với bộ lọc hiện tại.
+                                Không tìm thấy phiếu nhập phù hợp.
                             <?php else: ?>
-                                Chưa có yêu cầu nhập sách nào được ghi nhận.
+                                Chưa có phiếu nhập nào.
                             <?php endif; ?>
                         </td>
                     </tr>
@@ -240,21 +241,18 @@ $renderSortIcon = function(string $col) use ($sort, $direction) {
                             <td>
                                 <div class="book-import-item-title"><?= htmlspecialchars($import['title']) ?></div>
                                 <div class="book-import-item-meta">
-                                    <span>Tác giả: <?= htmlspecialchars($import['author']) ?></span>
-                                    <?php if(!empty($import['isbn'])): ?>
-                                        <span class="book-import-item-meta-isbn">• ISBN: <?= htmlspecialchars($import['isbn']) ?></span>
-                                    <?php endif; ?>
+                                    <span>TG: <?= htmlspecialchars($import['author']) ?></span>
                                 </div>
                             </td>
                             <td><span class="badge badge-purple book-import-badge-cat"><?= htmlspecialchars($import['category']) ?></span></td>
                             <td class="fw-medium"><?= number_format((float)$import['price'], 0, ',', '.') ?> đ</td>
                             <td class="text-center"><?= $import['quantity'] ?></td>
-                            <td class="fw-bold book-import-item-price"><?= number_format((float)$import['price'] * $import['quantity'], 0, ',', '.') ?> đ</td>
+                            <td class="fw-bold book-import-item-price"><?= number_format((float)$import['price'] * $import['quantity'], 0, ',', '.') ?> đ</td>    
                             <td>
                                 <?php if($import['import_type'] === 'purchase'): ?>
                                     <span class="book-import-type-badge" style="color:#3b82f6"><i class="bi bi-credit-card book-import-type-badge-icon"></i>Mua sắm</span>
                                 <?php elseif($import['import_type'] === 'donation'): ?>
-                                    <span class="book-import-type-badge" style="color:#10b981"><i class="bi bi-gift book-import-type-badge-icon"></i>Tặng/Biếu</span>
+                                    <span class="book-import-type-badge" style="color:#10b981"><i class="bi bi-gift book-import-type-badge-icon"></i>Tặng biếu</span>
                                 <?php else: ?>
                                     <span class="book-import-type-badge" style="color:var(--text-muted)"><i class="bi bi-circle book-import-type-badge-icon"></i>Khác</span>
                                 <?php endif; ?>
@@ -263,22 +261,18 @@ $renderSortIcon = function(string $col) use ($sort, $direction) {
                                 <?php if($import['status'] === 'pending'): ?>
                                     <span class="badge badge-yellow">Chờ duyệt</span>
                                 <?php elseif($import['status'] === 'approved'): ?>
-                                    <span class="badge badge-green">Đã nhập kho</span>
+                                    <span class="badge badge-green">Đã nhập</span>
                                 <?php else: ?>
-                                    <span class="badge badge-red">Đã từ chối</span>
+                                    <span class="badge badge-red">Từ chối</span>
                                 <?php endif; ?>
                             </td>
                             <td>
-                                <div class="book-import-row-actions">
+                                <div class="book-import-row-actions" style="justify-content: center;">
                                     <?php if ($import['status'] === 'pending'): ?>
-                                        <a href="<?= $this->url('library/books-import', ['action' => 'update', 'id' => $import['import_id']], ['query' => ['status' => 'approved']]) ?>" class="btn btn-success btn-sm book-import-row-btn"><i class="bi bi-check-lg book-import-row-btn-icon"></i>Nhập kho</a>
-                                        <a href="<?= $this->url('library/books-import', ['action' => 'update', 'id' => $import['import_id']], ['query' => ['status' => 'rejected']]) ?>" class="btn btn-danger btn-sm book-import-row-btn" onclick="return confirm('Bạn có chắc chắn muốn từ chối yêu cầu này?')"><i class="bi bi-x-circle book-import-row-btn-icon"></i>Từ chối</a>
+                                        <a href="<?= $this->url('library/books-import', ['action' => 'update', 'id' => $import['import_id']], ['query' => ['status' => 'approved']]) ?>" class="btn btn-success btn-xs" title="Nhập kho"><i class="bi bi-check-lg"></i></a>
+                                        <a href="<?= $this->url('library/books-import', ['action' => 'update', 'id' => $import['import_id']], ['query' => ['status' => 'rejected']]) ?>" class="btn btn-danger btn-xs" title="Từ chối" onclick="return confirm('Từ chối y/c này?')"><i class="bi bi-x-lg"></i></a>
                                     <?php else: ?>
-                                        <?php if ($import['status'] === 'approved'): ?>
-                                            <span class="book-import-status-text"><i class="bi bi-check2-circle book-import-status-icon-approved"></i>Đã vào kho (ID: <?= $import['book_id'] ?>)</span>
-                                        <?php else: ?>
-                                            <span class="book-import-status-text"><i class="bi bi-slash-circle book-import-status-icon-rejected"></i>Không xử lý</span>
-                                        <?php endif; ?>
+                                        <span class="text-muted small"><i class="bi bi-check2-circle"></i> Xong</span>
                                     <?php endif; ?>
                                 </div>
                             </td>
@@ -291,7 +285,7 @@ $renderSortIcon = function(string $col) use ($sort, $direction) {
 </div>
 
 <?php if ($totalPages > 1): ?>
-<div class="book-import-pagination-row">
+<div class="book-import-pagination-row" style="padding: 20px;">
     <div class="book-import-pagination-info">
         Hiển thị trang <strong class="book-import-pagination-bold"><?= $page ?></strong> / <?= $totalPages ?>
         &nbsp;•&nbsp; Tổng <strong class="book-import-pagination-bold"><?= $totalCount ?></strong> phiếu nhập
@@ -319,30 +313,3 @@ $renderSortIcon = function(string $col) use ($sort, $direction) {
     </div>
 </div>
 <?php endif; ?>
-
-
-
-<style>
-.book-import-filters-container {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 16px;
-    margin-bottom: 24px;
-}
-.book-import-filters-left {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
-.book-import-filter-tabs {
-    margin-bottom: 0 !important;
-}
-.book-import-search-form {
-    display: flex;
-    gap: 10px;
-    align-items: center;
-    flex-wrap: wrap;
-}
-</style>

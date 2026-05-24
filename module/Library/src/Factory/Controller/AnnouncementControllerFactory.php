@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Library\Factory\Controller;
 
 use Library\Controller\AnnouncementController;
+use Library\Model\Table\AnnouncementTable;
+use Library\Model\Table\BorrowTable;
 use Library\Session\AuthSessionContainer;
 use Psr\Container\ContainerInterface;
 
@@ -14,7 +16,8 @@ class AnnouncementControllerFactory
     {
         return new AnnouncementController(
             $container->get(AuthSessionContainer::class),
-            $container->get(\Laminas\Db\Adapter\AdapterInterface::class)
+            $container->get(AnnouncementTable::class),
+            $container->get(BorrowTable::class)
         );
     }
 }

@@ -1,50 +1,50 @@
 <?php
-$this->headTitle('Quản lý danh mục sách');
+$this->headTitle('Quản lý thể loại sách');
 $this->layout('layout/library-layout');
 ?>
 
 <!-- PAGE HEADER -->
 <div class="page-header">
     <div class="d-flex align-center gap-3" style="display: flex; align-items: center; gap: 12px;">
-        <a href="<?= $this->url('library/book') ?>" class="btn btn-outline btn-icon" title="Quay lại danh sách sách"><i class="bi bi-arrow-left"></i></a>
+        <a href="<?= $this->url('library/book') ?>" class="btn btn-outline btn-icon" title="Quay lại danh sách đầu sách"><i class="bi bi-arrow-left"></i></a>
         <div>
-            <div class="page-title" style="margin: 0; line-height: 1.2;"><i class="bi bi-tags-fill" style="color: var(--accent-purple); margin-right: 8px;"></i>Quản lý danh mục sách</div>
-            <p class="text-muted" style="font-size: 13px; margin: 4px 0 0 0;">Xem, tìm kiếm, thêm, sửa, xóa các danh mục sách của thư viện.</p>
+            <div class="page-title" style="margin: 0; line-height: 1.2;"><i class="bi bi-tags-fill" style="color: var(--accent-purple); margin-right: 8px;"></i>Quản lý thể loại</div>
+            <p class="text-muted" style="font-size: 13px; margin: 4px 0 0 0;">Xem, tìm kiếm, thêm, sửa, xóa các thể loại sách của thư viện.</p>
         </div>
     </div>
 </div>
 
 <div class="settings-grid" style="display: grid; grid-template-columns: 1fr 1.5fr; gap: 24px; align-items: start;">
     
-    <!-- CỘT TRÁI: THÊM DANH MỤC MỚI -->
+    <!-- CỘT TRÁI: THÊM THỂ LOẠI MỚI -->
     <div class="card">
         <div class="card-header" style="border-bottom: 2px solid rgba(139,92,246,.15);">
             <div class="card-title" style="font-size: 16px; font-weight: 700;">
-                <i class="bi bi-plus-circle" style="color: var(--accent-purple); margin-right: 8px;"></i>Thêm danh mục mới
+                <i class="bi bi-plus-circle" style="color: var(--accent-purple); margin-right: 8px;"></i>Thêm thể loại mới
             </div>
         </div>
         <div class="card-body" style="padding: 24px;">
             <form method="POST" action="<?= $this->url('library/settings', ['action' => 'add-category']) ?>">
                 <div class="form-group mb-3">
-                    <label class="form-label" style="font-weight: 600; font-size: 12.5px;">Tên danh mục *</label>
-                    <input type="text" name="category_name" class="form-control" placeholder="Nhập tên danh mục..." required autocomplete="off" style="background: var(--bg-secondary); border: 1px solid var(--border-color); color: var(--text-primary); padding: 10px 14px; font-size: 14px; border-radius: var(--radius-sm);">
+                    <label class="form-label" style="font-weight: 600; font-size: 12.5px;">Tên thể loại *</label>
+                    <input type="text" name="category_name" class="form-control" placeholder="Nhập tên thể loại..." required autocomplete="off" style="background: var(--bg-secondary); border: 1px solid var(--border-color); color: var(--text-primary); padding: 10px 14px; font-size: 14px; border-radius: var(--radius-sm);">
                 </div>
                 <button type="submit" class="btn btn-primary w-100" style="padding: 10px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
-                    <i class="bi bi-plus-lg"></i>Thêm danh mục
+                    <i class="bi bi-plus-lg"></i>Thêm thể loại
                 </button>
             </form>
         </div>
     </div>
 
-    <!-- CỘT PHẢI: DANH SÁCH DANH MỤC HIỆN TẠI -->
+    <!-- CỘT PHẢI: DANH SÁCH THỂ LOẠI HIỆN TẠI -->
     <div class="card">
         <div class="card-header" style="border-bottom: 2px solid rgba(139,92,246,.15); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 14px 22px;">
             <div class="card-title" style="font-size: 16px; font-weight: 700;">
-                <i class="bi bi-list-stars" style="color: var(--accent-purple); margin-right: 8px;"></i>Danh sách danh mục
+                <i class="bi bi-list-stars" style="color: var(--accent-purple); margin-right: 8px;"></i>Danh sách thể loại
             </div>
             <!-- Search bar -->
             <div style="position: relative; width: 220px; display: flex; align-items: center;">
-                <input type="text" id="category-search-input" placeholder="Tìm danh mục..." style="width: 100%; height: 32px; padding: 4px 24px 4px 30px; font-size: 12.5px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-primary); outline: none; transition: var(--transition);">
+                <input type="text" id="category-search-input" placeholder="Tìm thể loại..." style="width: 100%; height: 32px; padding: 4px 24px 4px 30px; font-size: 12.5px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-primary); outline: none; transition: var(--transition);">
                 <i class="bi bi-search" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 12px; pointer-events: none;"></i>
                 <span id="category-search-clear" style="position: absolute; right: 10px; cursor: pointer; color: var(--text-muted); font-size: 14px; display: none; align-items: center; justify-content: center; transition: var(--transition);" title="Xóa tìm kiếm">
                     <i class="bi bi-x"></i>
@@ -54,7 +54,7 @@ $this->layout('layout/library-layout');
         <div class="card-body" style="padding: 24px;">
             <div class="category-list-wrapper" style="border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: rgba(0, 0, 0, 0.15); max-height: 400px; overflow-y: auto;">
                 <?php if (empty($categoriesWithId)): ?>
-                    <div style="padding: 24px; text-align: center; color: var(--text-muted); font-style: italic; font-size: 13.5px;">Chưa có danh mục nào.</div>
+                    <div style="padding: 24px; text-align: center; color: var(--text-muted); font-style: italic; font-size: 13.5px;">Chưa có thể loại nào.</div>
                 <?php else: ?>
                     <?php foreach ($categoriesWithId as $cat): ?>
                         <div class="category-item-row" id="cat-item-<?= $cat['id'] ?>" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 18px; border-bottom: 1px solid var(--border-color); transition: var(--transition);">
@@ -67,8 +67,8 @@ $this->layout('layout/library-layout');
                                     </button>
                                     <a href="<?= $this->url('library/settings', ['action' => 'delete-category', 'id' => $cat['id']]) ?>" 
                                        class="category-item-delete-btn"
-                                       title="Xóa danh mục"
-                                       onclick="return confirm('Bạn có chắc chắn muốn xóa danh mục này?')"
+                                       title="Xóa thể loại"
+                                       onclick="return confirm('Bạn có chắc chắn muốn xóa thể loại này?')"
                                        style="color: var(--text-muted); display: inline-flex; align-items: center; text-decoration: none; transition: var(--transition);">
                                         <i class="bi bi-trash" style="font-size: 14px;"></i>
                                     </a>

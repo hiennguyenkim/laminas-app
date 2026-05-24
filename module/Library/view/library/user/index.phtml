@@ -1,28 +1,44 @@
 <?php
-$this->headTitle($isAdmin ? 'Quản lý thành viên' : 'Thành viên');
+$this->headTitle('Quản lý thành viên');
 $this->layout('layout/library-layout');
 
-$pagination = $pagination ?? [];
+$pagination = is_array($pagination ?? null) ? $pagination : [];
 $page       = (int) ($pagination['page'] ?? 1);
-$perPageRaw = $pagination['perPage'] ?? '10';
-$perPage    = $perPageRaw === 'all' ? 999999 : (int) $perPageRaw;
+$perPage    = (int) ($pagination['perPage'] ?? 20);
+$perPageRaw = $pagination['perPage'] ?? '20';
 $totalItems = (int) ($pagination['totalItems'] ?? 0);
 $totalPages = (int) ($pagination['totalPages'] ?? 1);
 
-$queryBase = [
-    'search'  => (string) ($filters['search'] ?? ''),
-    'role'    => (string) ($filters['role'] ?? ''),
-    'perPage' => $perPageRaw,
-];
+$currentSort = $filters['sort'] ?? 'id';
+$currentDir  = strtoupper($filters['direction'] ?? 'ASC');
 
-$filterQuery = function(array $params): array {
-    return array_filter($params, fn($v) => $v !== null && $v !== '');
+$buildPageUrl = function($p) use ($filters, $perPageRaw) {
+    return $this->url('library/user', ['action' => 'index'], [
+        'query' => array_merge($filters, ['page' => $p, 'perPage' => $perPageRaw])
+    ]);
 };
 
-$buildPageUrl = function(int $p) use ($queryBase, $filterQuery): string {
-    $q = $queryBase;
-    $q['page'] = $p;
-    return $this->url('library/user', [], ['query' => $filterQuery($q)]);
+$buildSortUrl = function($field) use ($filters, $perPageRaw, $currentSort, $currentDir) {
+    $dir = ($currentSort === $field && $currentDir === 'ASC') ? 'DESC' : 'ASC';
+    return $this->url('library/user', ['action' => 'index'], [
+        'query' => array_merge($filters, ['sort' => $field, 'direction' => $dir, 'page' => 1, 'perPage' => $perPageRaw])
+    ]);
+};
+
+$getSortIcon = function($field) use ($currentSort, $currentDir) {
+    if ($currentSort !== $field) return '<i class="bi bi-arrow-down-up ms-1" style="opacity:0.3; font-size:10px;"></i>';
+    return $currentDir === 'ASC' 
+        ? '<i class="bi bi-sort-up ms-1 text-primary"></i>' 
+        : '<i class="bi bi-sort-down ms-1 text-primary"></i>';
+};
+
+$activeRole = (string)($filters['role'] ?? '');
+$filterStatus = (string)($filters['status'] ?? '');
+
+$buildTabUrl = function(string $roleVal) use ($filters, $perPageRaw) {
+    return $this->url('library/user', ['action' => 'index'], [
+        'query' => array_merge($filters, ['role' => $roleVal, 'page' => 1, 'perPage' => $perPageRaw])
+    ]);
 };
 
 $avatarColors = ['#7c6aff','#22c55e','#f97316','#ec4899','#3b82f6','#14b8a6','#ef4444','#fbbf24'];
@@ -35,158 +51,209 @@ $initials = function(string $name): string {
 
 <!-- PAGE HEADER -->
 <div class="page-header">
-    <div>
-        <div class="page-title">Quản lý thành viên</div>
-        <div class="page-subtitle"><?= number_format((int)($summary['total'] ?? 0)) ?> thành viên đã đăng ký</div>
+    <div class="d-flex align-center gap-3">
+        <div>
+            <div class="page-title">Quản lý thành viên</div>
+            <div class="page-subtitle"><?= number_format((int)($summary['total'] ?? 0)) ?> thành viên trong hệ thống</div>
+        </div>
     </div>
-    <a href="<?= $this->url('library/user', ['action' => 'add']) ?>" class="btn btn-success">
-        <i class="bi bi-person-plus"></i>Thêm thành viên
-    </a>
+    <div style="display: flex; gap: 12px; align-items: center;">
+        <a href="<?= $this->url('library/user', ['action' => 'export'], ['query' => $filters]) ?>" class="btn btn-outline d-flex align-items-center gap-2" title="Xuất Excel (.xlsx)" style="font-weight: 600; height: 38px;">
+            <i class="bi bi-file-earmark-excel" style="color:#1d6f42;"></i>Xuất .xlsx
+        </a>
+        <a href="<?= $this->url('library/user', ['action' => 'add']) ?>" class="btn btn-orange" style="display: inline-flex; align-items: center; gap: 6px; height: 38px; font-weight: 600;">
+            <i class="bi bi-person-plus"></i>Thêm thành viên mới
+        </a>
+    </div>
 </div>
 
-<div class="user-filters-bar">
-    <div class="filter-tabs user-filter-tabs">
-        <a href="<?= $this->url('library/user', [], ['query' => $filterQuery(['search' => $filters['search']??'', 'perPage' => $perPageRaw])]) ?>" class="filter-tab <?= !($filters['role']??'') ? 'active' : '' ?>">
-            Tất cả <span class="count"><?= (int)($summary['total']??0) ?></span>
+<style>
+th.sortable { cursor: pointer; user-select: none; transition: background 0.2s; }
+th.sortable:hover { background: rgba(255,255,255,0.05) !important; }
+th.sortable a { display: flex; align-items: center; text-decoration: none; color: inherit; width: 100%; height: 100%; }
+.user-filter-tabs { margin-bottom: 20px; }
+.catalog-filter-form { display: flex; justify-content: space-between; width: 100%; align-items: center; gap: 20px; }
+@media (max-width: 992px) { .catalog-filter-form { flex-direction: column; align-items: stretch; } }
+</style>
+
+<div class="user-filters-row" style="display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 24px; width: 100%; flex-wrap: nowrap;">
+    <div class="filter-tabs user-filter-tabs" style="margin-bottom: 0; flex-shrink: 0;">
+        <a href="<?= $buildTabUrl('') ?>" class="filter-tab <?= $activeRole === '' ? 'active' : '' ?>">
+            Tất cả <span class="count"><?= number_format((int)($summary['total'] ?? 0)) ?></span>
         </a>
-        <a href="<?= $this->url('library/user', [], ['query' => $filterQuery(['role' => 'student', 'search' => $filters['search']??'', 'perPage' => $perPageRaw])]) ?>" class="filter-tab <?= ($filters['role']??'')==='student'?'active':'' ?>">
-            Độc giả <span class="count"><?= (int)($summary['students']??0) ?></span>
+        <a href="<?= $buildTabUrl('student') ?>" class="filter-tab <?= $activeRole === 'student' ? 'active' : '' ?>">
+            Sinh viên <span class="count"><?= number_format((int)($summary['students'] ?? 0)) ?></span>
         </a>
-        <a href="<?= $this->url('library/user', [], ['query' => $filterQuery(['role' => 'admin', 'search' => $filters['search']??'', 'perPage' => $perPageRaw])]) ?>" class="filter-tab <?= ($filters['role']??'')==='admin'?'active':'' ?>">
-            Quản trị viên <span class="count"><?= (int)($summary['admins']??0) ?></span>
+        <a href="<?= $buildTabUrl('admin') ?>" class="filter-tab <?= $activeRole === 'admin' ? 'active' : '' ?>">
+            Quản trị viên <span class="count"><?= number_format((int)($summary['admins'] ?? 0)) ?></span>
         </a>
     </div>
-    <form method="GET" class="user-search-form">
-        <input type="hidden" name="role" value="<?= htmlspecialchars($filters['role']??'') ?>">
-        
-        <select name="perPage" class="form-select user-perpage-select" style="max-width: 125px; border-radius: 8px; font-size: 13px; background-color: var(--bg-input); color: var(--text-primary); border: 1px solid var(--border-color); padding: 4px 10px; cursor: pointer;" onchange="this.form.submit()">
-            <option value="10" <?= $perPageRaw === '10' ? 'selected' : '' ?>>10 / trang</option>
-            <option value="20" <?= $perPageRaw === '20' ? 'selected' : '' ?>>20 / trang</option>
-            <option value="50" <?= $perPageRaw === '50' ? 'selected' : '' ?>>50 / trang</option>
-            <option value="all" <?= $perPageRaw === 'all' ? 'selected' : '' ?>>Tất cả</option>
+
+    <form method="GET" id="user-filter-form" style="display: flex; gap: 8px; align-items: center; flex-wrap: nowrap; flex: 1; justify-content: flex-end; min-width: 0;">
+        <input type="hidden" name="role" value="<?= htmlspecialchars($activeRole) ?>">
+        <input type="hidden" name="sort" value="<?= htmlspecialchars($currentSort) ?>">
+        <input type="hidden" name="direction" value="<?= htmlspecialchars($currentDir) ?>">
+
+        <select name="status" class="form-select" style="width: 125px; height: 38px; flex-shrink: 0;" onchange="this.form.submit()">
+            <option value="">Trạng thái</option>
+            <option value="active" <?= $filterStatus === 'active' ? 'selected' : '' ?>>Hoạt động</option>
+            <option value="locked" <?= $filterStatus === 'locked' ? 'selected' : '' ?>>Bị khóa</option>
         </select>
 
-        <div class="topbar-search user-search-wrap" style="position: relative;">
+        <select name="perPage" class="form-select" style="width: 145px; height: 38px; flex-shrink: 0;" onchange="this.form.submit()">
+            <option value="20"  <?= (string)$perPageRaw === '20'  ? 'selected' : '' ?>>20 người / trang</option>
+            <option value="50"  <?= (string)$perPageRaw === '50'  ? 'selected' : '' ?>>50 người / trang</option>
+            <option value="100" <?= (string)$perPageRaw === '100' ? 'selected' : '' ?>>100 người / trang</option>
+            <option value="all" <?= (string)$perPageRaw === 'all' ? 'selected' : '' ?>>Tất cả</option>
+        </select>
+
+        <div class="topbar-search catalog-search-wrap" style="position: relative; width: 260px; margin: 0; height: 38px; border-radius: 8px; flex-shrink: 1; min-width: 150px;">
             <i class="bi bi-search"></i>
-            <input type="text" name="search" value="<?= htmlspecialchars($filters['search']??'') ?>" placeholder="Tìm theo tên, username..." oninput="this.nextElementSibling.style.display = this.value ? 'inline-block' : 'none';" style="padding-right: 28px;">
-            <i class="bi bi-x-circle-fill search-clear-btn" style="position: absolute; right: 12px; cursor: pointer; color: var(--text-muted); display: <?= !empty($filters['search']) ? 'inline-block' : 'none' ?>; font-size: 14px;" onclick="clearSearchInput(this)"></i>
+            <input type="text" name="search" value="<?= htmlspecialchars($filters['search'] ?? '') ?>" placeholder="Tìm tên, mã, email..." oninput="this.nextElementSibling.style.display = this.value ? 'inline-block' : 'none';" style="padding-right: 28px;">
+            <i class="bi bi-x-circle-fill search-clear-btn" style="position: absolute; right: 12px; cursor: pointer; color: var(--text-muted); display: <?= !empty($filters['search']) ? 'inline-block' : 'none' ?>; font-size: 14px; top: 50%; transform: translateY(-50%);" onclick="const inp=this.previousElementSibling; inp.value=''; this.style.display='none'; this.closest('form').submit();"></i>
         </div>
-        <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-search"></i>Tìm</button>
+        <button type="submit" class="btn btn-primary btn-sm" style="height: 38px; padding: 0 16px; font-weight: 600; flex-shrink: 0;">Tìm kiếm</button>
     </form>
 </div>
 
-<!-- MEMBER CARDS GRID -->
-<div class="member-grid">
-<?php if (!count($users)): ?>
-    <div class="user-empty-grid">
-        <i class="bi bi-people user-empty-icon"></i>
-        Không tìm thấy thành viên phù hợp.
+<div class="card">
+    <div class="card-header">
+        <div class="card-title"><i class="bi bi-people settings-title-icon" style="color: var(--accent-purple); margin-right: 8px;"></i>Danh sách thành viên</div>
     </div>
-<?php else: ?>
-    <?php $idx = 0; foreach ($users as $user): ?>
-    <?php
-    $color   = $avatarColors[$idx % count($avatarColors)];
-    $isNew   = isset($user->createdAt) && strtotime($user->createdAt) > strtotime('-30 days');
-    if ($user->role === 'admin') {
-        $statusBadge = '<span class="badge badge-orange"><span class="user-status-dot user-status-dot--admin"></span>Admin</span>';
-    } elseif ($user->isLocked()) {
-        $statusBadge = '<span class="badge badge-red"><span class="user-status-dot user-status-dot--locked"></span>Đã khóa</span>';
-    } else {
-        $statusBadge = '<span class="badge badge-green"><span class="user-status-dot user-status-dot--active"></span>Hoạt động</span>';
-    }
-    $borrowCount = (int)($user->borrowCount ?? 0);
-    $overdueCount = (int)($user->overdueCount ?? 0);
-    $idx++;
-    ?>
-    <div class="member-card <?= $user->isLocked() ? 'locked' : '' ?>">
-        <div class="member-card-top">
-            <div class="d-flex gap-3 align-center">
-                <?php if (!empty($user->avatarUrl)): ?>
-                    <div class="member-avatar-lg" style="background: transparent; overflow: hidden; position: relative;">
-                        <img src="<?= $this->basePath() . $user->avatarUrl ?>" alt="<?= htmlspecialchars($user->fullName) ?>" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
-                        <?php if ($user->role === 'admin'): ?><span class="star" style="z-index: 2;">⭐</span><?php endif; ?>
-                    </div>
-                <?php else: ?>
-                    <div class="member-avatar-lg" style="background:<?= $color ?>; position: relative;">
-                        <?= $initials(htmlspecialchars($user->fullName)) ?>
-                        <?php if ($user->role === 'admin'): ?><span class="star" style="z-index: 2;">⭐</span><?php endif; ?>
-                    </div>
-                <?php endif; ?>
-                <div>
-                    <div class="member-name"><?= htmlspecialchars($user->fullName) ?></div>
-                    <div class="member-email"><?= htmlspecialchars($user->email) ?></div>
-                </div>
-            </div>
-            <?= $statusBadge ?>
-        </div>
-        <div class="member-stats">
-            <div class="member-stat-box">
-                <div class="member-stat-value"><?= $borrowCount ?></div>
-                <div class="member-stat-label">Đang mượn</div>
-            </div>
-            <div class="member-stat-box <?= $overdueCount > 0 ? 'member-stat-box--overdue' : '' ?>">
-                <div class="member-stat-value"><?= $overdueCount ?></div>
-                <div class="member-stat-label">Số lần trễ</div>
-            </div>
-        </div>
-        <div class="member-join">
-            <i class="bi bi-calendar3"></i>
-            Tham gia <?= htmlspecialchars($user->createdAt ?? date('d/m/Y')) ?>
-        </div>
-        <?php if ($user->isLocked()): ?>
-        <div class="user-lock-banner">
-            <i class="bi bi-shield-exclamation user-lock-icon"></i>
-            <div>
-                <strong>Lý do khóa:</strong> <?= htmlspecialchars($user->lockReason !== '' ? $user->lockReason : 'Vi phạm nội quy') ?>
-                <?php if ($user->lockedAt !== ''): ?>
-                    <br><span class="user-lock-time">Thời gian: <?= htmlspecialchars(date('d/m/Y H:i', strtotime($user->lockedAt))) ?></span>
-                <?php endif; ?>
-            </div>
-        </div>
-        <?php endif; ?>
-        <div class="user-actions-wrap">
-            <a href="<?= $this->url('library/user', ['action' => 'view', 'id' => $user->id]) ?>" class="btn btn-outline btn-sm user-action-btn">
-                <i class="bi bi-eye"></i>Chi tiết
-            </a>
-            <a href="<?= $this->url('library/user', ['action' => 'edit', 'id' => $user->id]) ?>" class="btn btn-primary btn-sm user-action-btn">
-                <i class="bi bi-pencil"></i>Sửa
-            </a>
-        </div>
-        <?php if ($user->role === 'student'): ?>
-            <div class="user-actions-wrap-secondary">
-                <?php if ($user->isLocked()): ?>
-                <form method="POST" action="<?= $this->url('library/user', ['action' => 'unlock', 'id' => $user->id]) ?>" class="user-action-btn-form">
-                    <button type="submit" class="btn btn-outline btn-sm user-btn-w100 btn-outline--success">
-                        <i class="bi bi-unlock"></i>Mở khóa
-                    </button>
-                </form>
-                <?php else: ?>
-                <form method="POST" action="<?= $this->url('library/user', ['action' => 'lock', 'id' => $user->id]) ?>" class="user-action-btn-form">
-                    <input type="hidden" name="reason" value="Vi phạm nội quy">
-                    <button type="submit" class="btn btn-outline btn-sm user-btn-w100 btn-outline--danger" onclick="const reason = prompt('Nhập lý do khóa thẻ:', 'Vi phạm nội quy thư viện'); if (reason === null) return false; this.form.reason.value = reason; return true;">
-                        <i class="bi bi-lock"></i>Khóa thẻ
-                    </button>
-                </form>
-                <?php endif; ?>
-            </div>
-        <?php endif; ?>
+    <div class="book-import-table-container">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th style="width: 60px;" class="sortable"><a href="<?= $buildSortUrl('id') ?>">#ID <?= $getSortIcon('id') ?></a></th>
+                    <th style="min-width: 200px;" class="sortable"><a href="<?= $buildSortUrl('full_name') ?>">Thành viên <?= $getSortIcon('full_name') ?></a></th>
+                    <th class="sortable"><a href="<?= $buildSortUrl('role') ?>">Vai trò <?= $getSortIcon('role') ?></a></th>
+                    <th class="sortable"><a href="<?= $buildSortUrl('borrow_count') ?>">Lượt mượn <?= $getSortIcon('borrow_count') ?></a></th>
+                    <th class="sortable"><a href="<?= $buildSortUrl('overdue_count') ?>">Trễ hạn <?= $getSortIcon('overdue_count') ?></a></th>
+                    <th class="sortable"><a href="<?= $buildSortUrl('status') ?>">Trạng thái <?= $getSortIcon('status') ?></a></th>
+                    <th>Hành động</th>
+                </tr>
+            </thead>
+            <tbody>
+            <?php if (count($users) === 0): ?>
+                <tr>
+                    <td colspan="7" class="text-center py-5">
+                        <div class="empty-state">
+                            <i class="bi bi-people" style="font-size: 3rem; opacity: 0.2;"></i>
+                            <p class="mt-3 text-muted">Không tìm thấy thành viên phù hợp.</p>
+                        </div>
+                    </td>
+                </tr>
+            <?php else: ?>
+                <?php $idx = 0; foreach ($users as $user): ?>
+                <?php 
+                    $color = $avatarColors[$idx % count($avatarColors)];
+                    $idx++;
+                    $borrowCount = (int)($user->borrowCount ?? 0);
+                    $overdueCount = (int)($user->overdueCount ?? 0);
+                    
+                    if ($user->role === 'admin') {
+                        $roleBadge = '<span class="badge badge-orange">Quản trị viên</span>';
+                    } else {
+                        $roleBadge = '<span class="badge badge-gray">Sinh viên</span>';
+                    }
+
+                    if ($user->accountStatus === 'locked') {
+                        $statusBadge = '<span class="badge badge-red">Đã khóa</span>';
+                    } else {
+                        $statusBadge = '<span class="badge badge-green">Hoạt động</span>';
+                    }
+                ?>
+                <tr>
+                    <td class="text-muted">#<?= (int)$user->id ?></td>
+                    <td>
+                        <div class="avatar-row">
+                            <?php if (!empty($user->avatarUrl)): ?>
+                                <div class="avatar" style="width: 40px; height: 40px; border-radius: 50%; background: transparent; overflow: hidden;">
+                                    <img src="<?= $this->basePath() . $user->avatarUrl ?>" alt="Avatar" style="width: 100%; height: 100%; object-fit: cover;">
+                                </div>
+                            <?php else: ?>
+                                <div class="avatar" style="width: 40px; height: 40px; border-radius: 50%; background:<?= $color ?>; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 14px;">
+                                    <?= $initials(htmlspecialchars($user->fullName)) ?>
+                                </div>
+                            <?php endif; ?>
+                            <div>
+                                <div class="fw-medium"><?= htmlspecialchars($user->fullName) ?></div>
+                                <div class="text-muted small"><?= htmlspecialchars($user->username) ?></div>
+                            </div>
+                        </div>
+                    </td>
+                    <td><?= $roleBadge ?></td>
+                    <td class="fw-medium text-center"><?= $borrowCount ?></td>
+                    <td class="fw-medium text-center <?= $overdueCount > 0 ? 'text-danger' : '' ?>"><?= $overdueCount ?></td>
+                    <td><?= $statusBadge ?></td>
+                    <td>
+                        <div class="d-flex gap-2">
+                            <a href="<?= $this->url('library/user', ['action' => 'view', 'id' => $user->id]) ?>" class="btn btn-outline btn-sm btn-icon" title="Xem chi tiết"><i class="bi bi-eye"></i></a>
+                            <a href="<?= $this->url('library/user', ['action' => 'edit', 'id' => $user->id]) ?>" class="btn btn-outline btn-sm btn-icon" title="Chỉnh sửa"><i class="bi bi-pencil"></i></a>
+                            
+                            <?php if ($user->role === 'student' && $user->id !== $currentId): ?>
+                                <?php if ($user->isLocked()): ?>
+                                    <form method="POST" action="<?= $this->url('library/user', ['action' => 'unlock', 'id' => $user->id]) ?>" style="display:inline;">
+                                        <button type="submit" class="btn btn-outline btn-sm btn-icon text-success" title="Mở khóa"><i class="bi bi-unlock"></i></button>
+                                    </form>
+                                <?php else: ?>
+                                    <form method="POST" action="<?= $this->url('library/user', ['action' => 'lock', 'id' => $user->id]) ?>" style="display:inline;">
+                                        <input type="hidden" name="reason" value="Vi phạm nội quy">
+                                        <button type="submit" class="btn btn-outline btn-sm btn-icon text-warning" title="Khóa thẻ" onclick="const reason = prompt('Nhập lý do khóa thẻ:', 'Vi phạm nội quy thư viện'); if (reason === null) return false; this.form.reason.value = reason; return true;"><i class="bi bi-lock"></i></button>
+                                    </form>
+                                <?php endif; ?>
+                                
+                                <form action="<?= $this->url('library/user', ['action' => 'delete', 'id' => $user->id]) ?>" method="POST" onsubmit="return confirm('Bạn có chắc muốn xóa thành viên \'<?= htmlspecialchars($user->fullName) ?>\'?')" style="display:inline;">
+                                    <button type="submit" class="btn btn-outline btn-sm btn-icon text-danger" title="Xóa"><i class="bi bi-trash"></i></button>
+                                </form>
+                            <?php endif; ?>
+                        </div>
+                    </td>
+                </tr>
+                <?php endforeach; ?>
+            <?php endif; ?>
+            </tbody>
+        </table>
     </div>
-    <?php endforeach; ?>
-<?php endif; ?>
 </div>
 
 <!-- PAGINATION -->
 <?php if ($totalPages > 1): ?>
-<div class="catalog-pagination-bar" style="margin-top:20px; width: 100%;">
-    <div class="catalog-pagination-info">
-        Hiển thị <?= min(($page-1)*$perPage+1,$totalItems) ?> – <?= min($page*$perPage,$totalItems) ?> / <?= $totalItems ?> thành viên
+<div class="book-import-pagination-row" style="padding: 20px;">
+    <div class="book-import-pagination-info">
+        Hiển thị trang <strong class="book-import-pagination-bold"><?= $page ?></strong> / <?= $totalPages ?>
+        &nbsp;•&nbsp; Tổng <strong class="book-import-pagination-bold"><?= $totalItems ?></strong> thành viên
     </div>
-    <div class="pagination">
-        <a class="page-btn <?= $page<=1?'disabled':'' ?>" href="<?= $page>1?$buildPageUrl($page-1):'#' ?>"><i class="bi bi-chevron-left"></i></a>
-        <?php for ($p=max(1,$page-2); $p<=min($totalPages,$page+2); $p++): ?>
-        <a class="page-btn <?= $p===$page?'active':'' ?>" href="<?= $buildPageUrl($p) ?>"><?= $p ?></a>
+    <div class="book-import-pagination-btns">
+        <?php if ($page > 1): ?>
+            <a href="<?= $buildPageUrl(1) ?>" class="btn btn-outline btn-sm book-import-pagination-btn" title="Trang đầu"><i class="bi bi-chevron-double-left"></i></a>
+            <a href="<?= $buildPageUrl($page - 1) ?>" class="btn btn-outline btn-sm book-import-pagination-btn"><i class="bi bi-chevron-left"></i> Trước</a>
+        <?php endif; ?>
+
+        <?php
+        $startPage = max(1, $page - 2);
+        $endPage   = min($totalPages, $page + 2);
+        for ($p = $startPage; $p <= $endPage; $p++):
+        ?>
+            <a href="<?= $buildPageUrl($p) ?>"
+               class="btn btn-sm book-import-pagination-btn <?= $p === $page ? 'btn-primary' : 'btn-outline' ?>"
+               style="min-width:32px;text-align:center"><?= $p ?></a>
         <?php endfor; ?>
-        <a class="page-btn <?= $page>=$totalPages?'disabled':'' ?>" href="<?= $page<$totalPages?$buildPageUrl($page+1):'#' ?>"><i class="bi bi-chevron-right"></i></a>
+
+        <?php if ($page < $totalPages): ?>
+            <a href="<?= $buildPageUrl($page + 1) ?>" class="btn btn-outline btn-sm book-import-pagination-btn">Sau <i class="bi bi-chevron-right"></i></a>
+            <a href="<?= $buildPageUrl($totalPages) ?>" class="btn btn-outline btn-sm book-import-pagination-btn" title="Trang cuối"><i class="bi bi-chevron-double-right"></i></a>
+        <?php endif; ?>
     </div>
 </div>
 <?php endif; ?>
+
+<script>
+function clearSearchInput(btn) {
+    const input = btn.previousElementSibling;
+    input.value = '';
+    btn.style.display = 'none';
+    input.focus();
+    input.form.submit();
+}
+</script>

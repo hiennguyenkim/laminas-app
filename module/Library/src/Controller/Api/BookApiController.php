@@ -12,15 +12,17 @@ use Library\Model\Table\BookTable;
 /**
  * @psalm-suppress PropertyNotSetInConstructor
  */
+use Library\Model\Table\ChatLogTable;
+
+/**
+ * @psalm-suppress PropertyNotSetInConstructor
+ */
 class BookApiController extends AbstractRestfulController
 {
-    private BookTable $table;
-    private \Laminas\Db\Adapter\AdapterInterface $dbAdapter;
-
-    public function __construct(BookTable $table, \Laminas\Db\Adapter\AdapterInterface $dbAdapter = null)
-    {
-        $this->table = $table;
-        $this->dbAdapter = $dbAdapter ?: \Laminas\Db\TableGateway\Feature\GlobalAdapterFeature::getStaticAdapter();
+    public function __construct(
+        private BookTable $table,
+        private ChatLogTable $chatLogTable
+    ) {
     }
 
     // GET /api/books
@@ -238,14 +240,11 @@ class BookApiController extends AbstractRestfulController
             }
         }
 
-        // Save to DB
-        if ($this->dbAdapter) {
-            try {
-                $sql = 'INSERT INTO chat_logs (user_id, message, response, created_at) VALUES (?, ?, ?, NOW())';
-                $this->dbAdapter->query($sql, [$userId, $message, $responseMsg]);
-            } catch (\Exception $e) {
-                // ignore
-            }
+        // Save to DB via ChatLogTable
+        try {
+            $this->chatLogTable->insertLog($userId, $message, $responseMsg);
+        } catch (\Exception $e) {
+            // ignore
         }
 
         return $this->jsonResponse([
@@ -253,6 +252,7 @@ class BookApiController extends AbstractRestfulController
             'suggestions' => $suggestions
         ]);
     }
+
 
     /**
      * @return array<string, mixed>

@@ -226,6 +226,49 @@ class AnnouncementControllerTest extends AbstractHttpControllerTestCase
         $this->assertMatchedRouteName('announcements');
     }
 
+    public function testViewAnnouncementActionForAdmin(): void
+    {
+        $this->mockLoginAsRole('admin');
+
+        $dbMock = $this->createMock(\Laminas\Db\Adapter\Adapter::class);
+
+        $stmtMock = $this->createMock(StatementInterface::class);
+        $resultMock = $this->createMock(ResultInterface::class);
+        $resultMock->method('current')->willReturn([
+            'id' => 5,
+            'title' => 'Test View Ann',
+            'content' => 'Test Content to View',
+            'type' => 'general',
+            'start_date' => null,
+            'end_date' => null,
+            'is_active' => 1,
+            'created_at' => '2026-05-23 12:00:00',
+            'creator_name' => 'Quản trị viên'
+        ]);
+        $stmtMock->method('execute')->willReturn($resultMock);
+
+        $dbMock->method('query')->willReturnCallback(function($sql) use ($stmtMock) {
+            if (strpos($sql, 'SELECT a.*, COALESCE') !== false) {
+                return $stmtMock;
+            }
+            // Ignore other maintenance mode checks
+            $stmtEmpty = $this->createMock(StatementInterface::class);
+            $resEmpty = $this->createMock(ResultInterface::class);
+            $resEmpty->method('rewind')->willReturnCallback(function() {});
+            $resEmpty->method('valid')->willReturn(false);
+            $stmtEmpty->method('execute')->willReturn($resEmpty);
+            return $stmtEmpty;
+        });
+
+        $serviceLocator = $this->getApplicationServiceLocator();
+        $serviceLocator->setAllowOverride(true);
+        $serviceLocator->setService(AdapterInterface::class, $dbMock);
+
+        $this->dispatch('/announcements/view/5', 'GET');
+        $this->assertResponseStatusCode(200);
+        $this->assertMatchedRouteName('announcements/view');
+    }
+
     private function mockLoginAsRole(string $role): void
     {
         /** @var AuthSessionContainer $authSession */

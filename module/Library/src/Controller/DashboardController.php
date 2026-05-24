@@ -20,20 +20,20 @@ class DashboardController extends BaseController
     private BookTable $bookTable;
     private BorrowTable $borrowTable;
     private UserTable $userTable;
-    private \Laminas\Db\Adapter\AdapterInterface $dbAdapter;
+    private \Library\Model\Table\PublicChatTable $publicChatTable;
 
     public function __construct(
         AuthSessionContainer $authSessionContainer,
         BookTable $bookTable,
         BorrowTable $borrowTable,
         UserTable $userTable,
-        \Laminas\Db\Adapter\AdapterInterface $dbAdapter
+        \Library\Model\Table\PublicChatTable $publicChatTable
     ) {
         parent::__construct($authSessionContainer);
         $this->bookTable   = $bookTable;
         $this->borrowTable = $borrowTable;
         $this->userTable   = $userTable;
-        $this->dbAdapter   = $dbAdapter;
+        $this->publicChatTable = $publicChatTable;
     }
 
     /**
@@ -73,11 +73,13 @@ class DashboardController extends BaseController
             'currentUser'          => $currentUser,
             'bookSummary'          => $bookSummary,
             'loanSummary'          => $loanSummary,
-            'totalBooks'           => $bookSummary['total_titles'],
-            'totalBorrowed'        => $loanSummary['borrowed'],
-            'totalOverdue'         => $loanSummary['overdue'],
-            'totalReturned'        => $loanSummary['returned'],
-            'dueSoon'              => $loanSummary['due_soon'],
+            'totalCategories'      => $this->bookTable->countCategories(),
+            'totalTitles'          => $bookSummary['total_titles'] ?? 0,
+            'totalCopies'          => $bookSummary['total_copies'] ?? 0,
+            'totalBorrowed'        => $loanSummary['borrowed'] ?? 0,
+            'totalOverdue'         => $loanSummary['overdue'] ?? 0,
+            'totalReturned'        => $loanSummary['returned'] ?? 0,
+            'dueSoon'              => $loanSummary['due_soon'] ?? 0,
             'totalMembers'         => $isAdmin ? $this->userTable->countByRole('student') : 0,
             'recentBorrows'        => $this->borrowTable->fetchAllWithDetails([], $isAdmin ? null : $userId, 6),
             'monthlyStats'         => $this->borrowTable->getMonthlyStats((int) date('Y'), $isAdmin ? null : $userId),
@@ -117,11 +119,9 @@ class DashboardController extends BaseController
                 $userId = (int)$currentUser['id'];
 
                 if ($isAdmin) {
-                    $sql = "DELETE FROM public_chats WHERE id = ?";
-                    $this->dbAdapter->query($sql, [$messageId]);
+                    $this->publicChatTable->deleteMessage($messageId);
                 } else {
-                    $sql = "DELETE FROM public_chats WHERE id = ? AND user_id = ?";
-                    $this->dbAdapter->query($sql, [$messageId, $userId]);
+                    $this->publicChatTable->deleteUserMessage($messageId, $userId);
                 }
                 return $this->jsonResponse(['success' => true]);
             }
@@ -137,9 +137,9 @@ class DashboardController extends BaseController
                 }
 
                 // Unpin everything first
-                $this->dbAdapter->query("UPDATE public_chats SET is_pinned = 0", []);
+                $this->publicChatTable->unpinAll();
                 // Pin the target message
-                $this->dbAdapter->query("UPDATE public_chats SET is_pinned = 1 WHERE id = ?", [$messageId]);
+                $this->publicChatTable->pinMessage($messageId);
 
                 return $this->jsonResponse(['success' => true]);
             }
@@ -151,7 +151,7 @@ class DashboardController extends BaseController
                 }
 
                 // Unpin everything
-                $this->dbAdapter->query("UPDATE public_chats SET is_pinned = 0", []);
+                $this->publicChatTable->unpinAll();
 
                 return $this->jsonResponse(['success' => true]);
             }
@@ -164,14 +164,11 @@ class DashboardController extends BaseController
                 }
 
                 // Fetch message
-                $sql = "SELECT reactions FROM public_chats WHERE id = ?";
-                $stmt = $this->dbAdapter->query($sql);
-                $row = $stmt->execute([$messageId])->current();
-                if (!$row) {
+                $reactionsStr = $this->publicChatTable->getReactions($messageId);
+                if ($reactionsStr === null) {
                     return $this->jsonResponse(['error' => 'Message not found'], 404);
                 }
 
-                $reactionsStr = $row['reactions'] ?? '';
                 $reactions = [];
                 if ($reactionsStr !== '') {
                     $reactions = json_decode($reactionsStr, true) ?? [];
@@ -198,8 +195,7 @@ class DashboardController extends BaseController
                 }
 
                 $newReactionsStr = json_encode($reactions, JSON_UNESCAPED_UNICODE);
-                $sql = "UPDATE public_chats SET reactions = ? WHERE id = ?";
-                $this->dbAdapter->query($sql, [$newReactionsStr, $messageId]);
+                $this->publicChatTable->updateReactions($messageId, $newReactionsStr);
 
                 return $this->jsonResponse(['success' => true]);
             }
@@ -214,21 +210,20 @@ class DashboardController extends BaseController
             }
 
             $userId = (int)$currentUser['id'];
-            $sql = "INSERT INTO public_chats (user_id, message, created_at) VALUES (?, ?, NOW())";
-            $this->dbAdapter->query($sql, [$userId, $message]);
+            $this->publicChatTable->insertMessage($userId, $message);
 
             return $this->jsonResponse(['success' => true]);
         }
 
         // Fetch pinned message if any
-        $pinnedSql = "SELECT c.*, COALESCE(NULLIF(u.nickname, ''), u.full_name, CONCAT('Độc giả #', u.user_id)) AS nickname, u.role, u.avatar_url 
-                      FROM public_chats c 
-                      JOIN users u ON c.user_id = u.user_id 
-                      WHERE c.is_pinned = 1 
-                      LIMIT 1";
-        $pinnedResult = $this->dbAdapter->query($pinnedSql)->execute()->current();
+        $pinnedResult = $this->publicChatTable->getPinnedMessage();
         $formattedPinned = null;
         if ($pinnedResult) {
+            $timestamp = strtotime($pinnedResult['created_at']);
+            $dateLabel = '';
+            if (date('Y-m-d', $timestamp) !== date('Y-m-d')) {
+                $dateLabel = ' ' . date('d/m', $timestamp);
+            }
             $formattedPinned = [
                 'id'         => $pinnedResult['id'],
                 'user_id'    => $pinnedResult['user_id'],
@@ -238,23 +233,26 @@ class DashboardController extends BaseController
                 'avatar_url' => $pinnedResult['avatar_url'] ?? '',
                 'is_pinned'  => (int)($pinnedResult['is_pinned'] ?? 0),
                 'reactions'  => $pinnedResult['reactions'] ?? '',
-                'created_at' => date('H:i', strtotime($pinnedResult['created_at']))
+                'created_at' => date('H:i', $timestamp),
+                'date_label' => $dateLabel,
             ];
         }
 
         // Fetch last 50 messages joining with users to get nickname securely
-        $sql = "SELECT * FROM (
-                    SELECT c.*, COALESCE(NULLIF(u.nickname, ''), u.full_name, CONCAT('Độc giả #', u.user_id)) AS nickname, u.role, u.avatar_url 
-                    FROM public_chats c 
-                    JOIN users u ON c.user_id = u.user_id 
-                    ORDER BY c.id DESC 
-                    LIMIT 50
-                ) sub
-                ORDER BY sub.id ASC";
-        $results = iterator_to_array($this->dbAdapter->query($sql)->execute());
+        $beforeId = (int)$this->queryString('before_id', '0');
+        if ($beforeId > 0) {
+            $results = $this->publicChatTable->fetchMessagesBefore($beforeId, 50);
+        } else {
+            $results = $this->publicChatTable->fetchRecentMessages(50);
+        }
 
         // Format for display
         $formattedResults = array_map(function($row) {
+            $timestamp = strtotime($row['created_at']);
+            $dateLabel = '';
+            if (date('Y-m-d', $timestamp) !== date('Y-m-d')) {
+                $dateLabel = ' ' . date('d/m', $timestamp);
+            }
             return [
                 'id'         => $row['id'],
                 'user_id'    => $row['user_id'],
@@ -264,7 +262,8 @@ class DashboardController extends BaseController
                 'avatar_url' => $row['avatar_url'] ?? '',
                 'is_pinned'  => (int)($row['is_pinned'] ?? 0),
                 'reactions'  => $row['reactions'] ?? '',
-                'created_at' => date('H:i', strtotime($row['created_at']))
+                'created_at' => date('H:i', $timestamp),
+                'date_label' => $dateLabel,
             ];
         }, $results);
 

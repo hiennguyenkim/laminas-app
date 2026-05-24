@@ -20,7 +20,7 @@ $filterStatus = (string)($filters['status']??'');
 
 $pagination = $pagination ?? [];
 $page       = (int) ($pagination['page'] ?? 1);
-$perPage    = (int) ($pagination['perPage'] ?? 10);
+$perPageRaw = (string) ($pagination['perPage'] ?? '20');
 $totalItems = (int) ($pagination['totalItems'] ?? 0);
 $totalPages = (int) ($pagination['totalPages'] ?? 1);
 
@@ -32,6 +32,7 @@ $queryBase = [
     'week'      => (string) ($filters['week'] ?? ''),
     'sort'      => (string) ($filters['sort'] ?? ''),
     'direction' => (string) ($filters['direction'] ?? ''),
+    'perPage'   => $perPageRaw,
 ];
 $queryBase['user_id'] = (string) ($filters['user_id'] ?? '');
 
@@ -69,25 +70,18 @@ $renderSortIcon = function(string $col) use ($queryBase): string {
 };
 ?>
 
-<!-- PAGE HEADER -->
-<div class="page-header">
-    <div>
-        <div class="page-title">Lịch sử mượn / trả (Quản trị)</div>
-        <div class="page-subtitle"><?= number_format((int)($summary['total'] ?? count((array)($records ?? [])))) ?> giao dịch gần đây</div>
-    </div>
-    <div class="d-flex gap-2">
-        <a href="<?= $this->url($routePrefix . '/transaction', ['action' => 'export'], ['query' => $queryBase]) ?>" class="btn btn-outline d-flex align-items-center gap-2" title="Xuất Excel (.xlsx)">
-            <i class="bi bi-file-earmark-excel" style="color:#1d6f42;"></i>Xuất .xlsx
-        </a>
-        <a href="<?= $this->url($routePrefix . '/transaction', ['action' => 'borrow']) ?>" class="btn btn-primary">
-            <i class="bi bi-plus-lg"></i>Tạo phiếu mượn
-        </a>
-    </div>
-</div>
-
 <!-- MINI STAT CARDS -->
-<div class="stat-cards tx-stat-cards">
-    <a href="<?= $this->url($routePrefix . '/transaction', [], ['query' => ['status' => 'borrowed']]) ?>" class="stat-card purple tx-stat-card-link">
+<div class="stat-cards tx-stat-cards" style="margin-bottom: 24px;">
+    <a href="<?= $this->url($routePrefix . '/transaction') ?>" class="stat-card orange tx-stat-card-link <?= $filterStatus === '' ? 'active' : '' ?>">
+        <div class="d-flex align-center gap-3">
+            <div class="stat-icon orange tx-stat-icon"><i class="bi bi-lightning-charge"></i></div>
+            <div>
+                <div class="stat-value tx-stat-value"><?= (int)($summary['borrowed']??0)+(int)($summary['returned']??0)+(int)($summary['overdue']??0)+(int)($summary['pending']??0) ?></div>
+                <div class="stat-label">Tổng lượt mượn</div>
+            </div>
+        </div>
+    </a>
+    <a href="<?= $this->url($routePrefix . '/transaction', [], ['query' => ['status' => 'borrowed']]) ?>" class="stat-card purple tx-stat-card-link <?= $filterStatus === 'borrowed' ? 'active' : '' ?>">
         <div class="d-flex align-center gap-3">
             <div class="stat-icon purple tx-stat-icon"><i class="bi bi-bookmark-check"></i></div>
             <div>
@@ -96,7 +90,7 @@ $renderSortIcon = function(string $col) use ($queryBase): string {
             </div>
         </div>
     </a>
-    <a href="<?= $this->url($routePrefix . '/transaction', [], ['query' => ['status' => 'pending']]) ?>" class="stat-card warning tx-stat-card-link">
+    <a href="<?= $this->url($routePrefix . '/transaction', [], ['query' => ['status' => 'pending']]) ?>" class="stat-card warning tx-stat-card-link <?= $filterStatus === 'pending' ? 'active' : '' ?>">
         <div class="d-flex align-center gap-3">
             <div class="stat-icon warning tx-stat-icon tx-stat-icon-warning"><i class="bi bi-hourglass-split"></i></div>
             <div>
@@ -105,7 +99,7 @@ $renderSortIcon = function(string $col) use ($queryBase): string {
             </div>
         </div>
     </a>
-    <a href="<?= $this->url($routePrefix . '/transaction', [], ['query' => ['status' => 'returned']]) ?>" class="stat-card green tx-stat-card-link">
+    <a href="<?= $this->url($routePrefix . '/transaction', [], ['query' => ['status' => 'returned']]) ?>" class="stat-card green tx-stat-card-link <?= $filterStatus === 'returned' ? 'active' : '' ?>">
         <div class="d-flex align-center gap-3">
             <div class="stat-icon green tx-stat-icon"><i class="bi bi-check-circle"></i></div>
             <div>
@@ -114,7 +108,7 @@ $renderSortIcon = function(string $col) use ($queryBase): string {
             </div>
         </div>
     </a>
-    <a href="<?= $this->url($routePrefix . '/transaction', [], ['query' => ['status' => 'overdue']]) ?>" class="stat-card pink tx-stat-card-link">
+    <a href="<?= $this->url($routePrefix . '/transaction', [], ['query' => ['status' => 'overdue']]) ?>" class="stat-card pink tx-stat-card-link <?= $filterStatus === 'overdue' ? 'active' : '' ?>">
         <div class="d-flex align-center gap-3">
             <div class="stat-icon pink tx-stat-icon"><i class="bi bi-exclamation-triangle"></i></div>
             <div>
@@ -123,55 +117,26 @@ $renderSortIcon = function(string $col) use ($queryBase): string {
             </div>
         </div>
     </a>
-    <a href="<?= $this->url($routePrefix . '/transaction') ?>" class="stat-card orange tx-stat-card-link">
-        <div class="d-flex align-center gap-3">
-            <div class="stat-icon orange tx-stat-icon"><i class="bi bi-lightning-charge"></i></div>
-            <div>
-                <div class="stat-value tx-stat-value"><?= (int)($summary['borrowed']??0)+(int)($summary['returned']??0)+(int)($summary['overdue']??0)+(int)($summary['pending']??0) ?></div>
-                <div class="stat-label">Tổng</div>
-            </div>
-        </div>
-    </a>
 </div>
 
-<!-- FILTER TABS + SEARCH -->
-<?php
-$buildTabUrl = function(string $statusVal) use ($filters, $routePrefix) {
-    $q = [
-        'search'    => $filters['search'] ?? '',
-        'status'    => $statusVal,
-        'year'      => $filters['year'] ?? '',
-        'period'    => $filters['period'] ?? '',
-        'week'      => $filters['week'] ?? '',
-        'sort'      => $filters['sort'] ?? '',
-        'direction' => $filters['direction'] ?? '',
-    ];
-    if (!empty($filters['user_id'])) {
-        $q['user_id'] = $filters['user_id'];
-    }
-    return $this->url($routePrefix . '/transaction', [], ['query' => array_filter($q, fn($v) => $v !== null && $v !== '')]);
-};
-?>
-<div class="tx-filters-bar">
-    <div class="filter-tabs tx-filter-tabs">
-        <a href="<?= $buildTabUrl('') ?>" class="filter-tab <?= $filterStatus===''?'active':'' ?>">
-            Tất cả <span class="count"><?= (int)($summary['borrowed']??0)+(int)($summary['returned']??0)+(int)($summary['overdue']??0)+(int)($summary['pending']??0) ?></span>
+<!-- PAGE HEADER -->
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Mượn / Trả sách</h1>
+        <p class="page-subtitle">Quản lý lịch sử mượn trả và phê duyệt yêu cầu từ sinh viên.</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="<?= $this->url($routePrefix . '/transaction', ['action' => 'export'], ['query' => $queryBase]) ?>" class="btn btn-outline d-flex align-items-center gap-2" title="Xuất Excel (.xlsx)">
+            <i class="bi bi-file-earmark-excel" style="color:#1d6f42;"></i>Xuất .xlsx
         </a>
-        <a href="<?= $buildTabUrl('borrowed') ?>" class="filter-tab <?= $filterStatus==='borrowed'?'active':'' ?>">
-            Đang mượn <span class="count"><?= (int)($summary['borrowed']??0) ?></span>
-        </a>
-        <a href="<?= $buildTabUrl('pending') ?>" class="filter-tab <?= $filterStatus==='pending'?'active':'' ?>">
-            Chờ duyệt <span class="count"><?= (int)($summary['pending']??0) ?></span>
-        </a>
-        <a href="<?= $buildTabUrl('returned') ?>" class="filter-tab <?= $filterStatus==='returned'?'active':'' ?>">
-            Đã trả <span class="count"><?= (int)($summary['returned']??0) ?></span>
-        </a>
-        <a href="<?= $buildTabUrl('overdue') ?>" class="filter-tab <?= $filterStatus==='overdue'?'active':'' ?>">
-            Quá hạn <span class="count"><?= (int)($summary['overdue']??0) ?></span>
+        <a href="<?= $this->url($routePrefix . '/transaction', ['action' => 'borrow']) ?>" class="btn btn-primary">
+            <i class="bi bi-plus-lg"></i>Lập phiếu mượn
         </a>
     </div>
-    <form method="GET" class="tx-filter-form" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-        <!-- Preserve selected status -->
+</div>
+
+<div class="tx-filters-bar" style="margin-bottom: 24px;">
+    <form method="GET" class="tx-filter-form" style="display: flex; gap: 8px; align-items: center; flex-wrap: nowrap; width: 100%; justify-content: flex-end;">    
         <input type="hidden" name="status" value="<?= htmlspecialchars($filterStatus) ?>">
         <?php if (!empty($filters['user_id'])): ?>
             <input type="hidden" name="user_id" value="<?= htmlspecialchars((string)$filters['user_id']) ?>">
@@ -180,24 +145,24 @@ $buildTabUrl = function(string $statusVal) use ($filters, $routePrefix) {
         <input type="hidden" name="direction" value="<?= htmlspecialchars((string)($filters['direction'] ?? '')) ?>">
 
         <!-- Year Filter -->
-        <div class="topbar-search" style="max-width: 130px; padding: 8px 12px; gap: 6px;">
+        <div class="topbar-search" style="max-width: 110px; padding: 8px 12px; gap: 6px; height: 38px; border-radius: 8px; flex-shrink: 0;">
             <i class="bi bi-calendar-event" style="color: var(--text-muted);"></i>
             <select name="year" onchange="this.form.submit()" style="background: none; border: none; outline: none; color: var(--text-primary); font-size: 13px; width: 100%; cursor: pointer;">
-                <option value="all" <?= $filters['year'] === 'all' ? 'selected' : '' ?> style="background: var(--bg-card);">Tất cả năm</option>
-                <?php 
+                <option value="all" <?= $filters['year'] === 'all' ? 'selected' : '' ?> style="background: var(--bg-card); color: var(--text-primary);">Tất cả năm</option>
+                <?php
                 $currYear = (int)date('Y');
-                for($y = $currYear - 5; $y <= $currYear; $y++): 
+                for($y = $currYear - 5; $y <= $currYear; $y++):
                 ?>
-                    <option value="<?= $y ?>" <?= $y === (int)$filters['year'] ? 'selected' : '' ?> style="background: var(--bg-card);"><?= $y ?></option>
+                    <option value="<?= $y ?>" <?= $y === (int)$filters['year'] ? 'selected' : '' ?> style="background: var(--bg-card); color: var(--text-primary);"><?= $y ?></option>
                 <?php endfor; ?>
             </select>
         </div>
 
         <!-- Period Filter -->
-        <div class="topbar-search" style="max-width: 170px; padding: 8px 12px; gap: 6px;">
+        <div class="topbar-search" style="max-width: 130px; padding: 8px 12px; gap: 6px; height: 38px; border-radius: 8px; flex-shrink: 0;">
             <i class="bi bi-calendar3" style="color: var(--text-muted);"></i>
             <select name="period" id="periodSelect" onchange="onPeriodChange()" style="background: none; border: none; outline: none; color: var(--text-primary); font-size: 13px; width: 100%; cursor: pointer;">
-                <option value="year" <?= $filters['period'] === 'year' ? 'selected' : '' ?> style="background: var(--bg-card);">Cả năm</option>
+                <option value="year" <?= $filters['period'] === 'year' ? 'selected' : '' ?> style="background: var(--bg-card); color: var(--text-primary);">Cả năm</option>
                 <optgroup label="Theo Quý" style="background: var(--bg-card); color: var(--text-muted); font-style: normal;">
                     <option value="q1" <?= $filters['period'] === 'q1' ? 'selected' : '' ?> style="background: var(--bg-card); color: var(--text-primary);">Quý I</option>
                     <option value="q2" <?= $filters['period'] === 'q2' ? 'selected' : '' ?> style="background: var(--bg-card); color: var(--text-primary);">Quý II</option>
@@ -213,33 +178,43 @@ $buildTabUrl = function(string $statusVal) use ($filters, $routePrefix) {
         </div>
 
         <!-- Week Filter -->
-        <div class="topbar-search" style="max-width: 140px; padding: 8px 12px; gap: 6px;">
+        <div class="topbar-search" style="max-width: 120px; padding: 8px 12px; gap: 6px; height: 38px; border-radius: 8px; flex-shrink: 0;">
             <i class="bi bi-calendar-week" style="color: var(--text-muted);"></i>
             <select name="week" id="weekSelect" onchange="this.form.submit()" style="background: none; border: none; outline: none; color: var(--text-primary); font-size: 13px; width: 100%; cursor: pointer;">
-                <option value="all" <?= ($filters['week'] ?? 'all') === 'all' ? 'selected' : '' ?> style="background: var(--bg-card);">Tất cả tuần</option>
+                <option value="all" <?= ($filters['week'] ?? 'all') === 'all' ? 'selected' : '' ?> style="background: var(--bg-card); color: var(--text-primary);">Cả tuần</option>
                 <?php for ($w = 1; $w <= 53; $w++): ?>
-                    <option value="<?= $w ?>" <?= (string)($filters['week'] ?? '') === (string)$w ? 'selected' : '' ?> style="background: var(--bg-card);" data-week="<?= $w ?>">Tuần <?= $w ?></option>
+                    <option value="<?= $w ?>" <?= (string)($filters['week'] ?? '') === (string)$w ? 'selected' : '' ?> style="background: var(--bg-card); color: var(--text-primary);" data-week="<?= $w ?>">Tuần <?= $w ?></option>
                 <?php endfor; ?>
             </select>
         </div>
 
-        <div class="topbar-search tx-search-wrap" style="position: relative;">
+        <select name="perPage" class="form-select" style="width: 145px; height: 38px; flex-shrink: 0;" onchange="this.form.submit()">
+            <option value="20"  <?= $perPageRaw === '20'  ? 'selected' : '' ?>>20 phiếu / trang</option>
+            <option value="50"  <?= $perPageRaw === '50'  ? 'selected' : '' ?>>50 phiếu / trang</option>
+            <option value="100" <?= $perPageRaw === '100' ? 'selected' : '' ?>>100 phiếu / trang</option>
+            <option value="all" <?= $perPageRaw === 'all' ? 'selected' : '' ?>>Tất cả</option>
+        </select>
+
+        <div class="topbar-search catalog-search-wrap" style="position: relative; width: 280px; margin: 0; height: 38px; border-radius: 8px; flex-shrink: 1; min-width: 150px;">
             <i class="bi bi-search"></i>
-            <input type="text" name="search" value="<?= htmlspecialchars($filters['search']??'') ?>" placeholder="Tìm theo sách, thành viên..." oninput="this.nextElementSibling.style.display = this.value ? 'inline-block' : 'none';" style="padding-right: 28px;">
-            <i class="bi bi-x-circle-fill search-clear-btn" style="position: absolute; right: 12px; cursor: pointer; color: var(--text-muted); display: <?= !empty($filters['search']) ? 'inline-block' : 'none' ?>; font-size: 14px;" onclick="clearSearchInput(this)"></i>
+            <input type="text" name="search" value="<?= htmlspecialchars($filters['search']??'') ?>" placeholder="Tìm tên sách, thành viên..." oninput="this.nextElementSibling.style.display = this.value ? 'inline-block' : 'none';" style="padding-right: 28px;">
+            <i class="bi bi-x-circle-fill search-clear-btn" style="position: absolute; right: 12px; cursor: pointer; color: var(--text-muted); display: <?= !empty($filters['search']) ? 'inline-block' : 'none' ?>; font-size: 14px; top: 50%; transform: translateY(-50%);" onclick="const inp=this.previousElementSibling; inp.value=''; this.style.display='none'; this.closest('form').submit();"></i>
         </div>
-        <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-search"></i>Tìm</button>
+        <button type="submit" class="btn btn-primary btn-sm" style="height: 38px; padding: 0 16px; font-weight: 600; flex-shrink: 0;">Tìm kiếm</button>
     </form>
 </div>
 
 <!-- TRANSACTION TABLE -->
 <div class="card">
-    <div class="tx-table-responsive">
+    <div class="card-header">
+        <div class="card-title"><i class="bi bi-arrow-left-right settings-title-icon" style="color: var(--accent-purple); margin-right: 8px;"></i>Danh sách phiếu mượn</div>
+    </div>
+    <div class="book-import-table-container">
         <table class="data-table">
             <thead>
                 <tr>
                     <th>
-                        <a href="<?= $buildSortUrl('member') ?>" style="text-decoration: none; color: inherit; display: inline-flex; align-items: center;">
+                        <a href="<?= $buildSortUrl('member') ?>" style="text-decoration: none; color: inherit; display: inline-flex; align-items: center;">        
                             Thành viên <?= $renderSortIcon('member') ?>
                         </a>
                     </th>
@@ -249,29 +224,31 @@ $buildTabUrl = function(string $statusVal) use ($filters, $routePrefix) {
                         </a>
                     </th>
                     <th>
-                        <a href="<?= $buildSortUrl('borrow_date') ?>" style="text-decoration: none; color: inherit; display: inline-flex; align-items: center;">
+                        <a href="<?= $buildSortUrl('borrow_date') ?>" style="text-decoration: none; color: inherit; display: inline-flex; align-items: center;">   
                             Ngày mượn <?= $renderSortIcon('borrow_date') ?>
                         </a>
                     </th>
                     <th>
-                        <a href="<?= $buildSortUrl('return_date') ?>" style="text-decoration: none; color: inherit; display: inline-flex; align-items: center;">
+                        <a href="<?= $buildSortUrl('return_date') ?>" style="text-decoration: none; color: inherit; display: inline-flex; align-items: center;">   
                             Hạn trả <?= $renderSortIcon('return_date') ?>
                         </a>
                     </th>
                     <th>
-                        <a href="<?= $buildSortUrl('status') ?>" style="text-decoration: none; color: inherit; display: inline-flex; align-items: center;">
+                        <a href="<?= $buildSortUrl('status') ?>" style="text-decoration: none; color: inherit; display: inline-flex; align-items: center;">        
                             Trạng thái <?= $renderSortIcon('status') ?>
                         </a>
                     </th>
-                    <th style="color: var(--text-muted);">Thao tác</th>
+                    <th style="color: var(--text-muted); text-align: center;">Thao tác</th>
                 </tr>
             </thead>
             <tbody>
-            <?php if ($records === []): ?>
+            <?php if (empty($records)): ?>
                 <tr>
-                    <td colspan="6" class="tx-empty-state">
-                        <i class="bi bi-inbox tx-empty-icon"></i>
-                        Chưa có phiếu mượn nào.
+                    <td colspan="6" class="text-center py-5">
+                        <div class="empty-state">
+                            <i class="bi bi-inbox" style="font-size: 3rem; opacity: 0.2;"></i>
+                            <p class="mt-3 text-muted">Chưa có phiếu mượn nào.</p>
+                        </div>
                     </td>
                 </tr>
             <?php else: ?>
@@ -286,43 +263,55 @@ $buildTabUrl = function(string $statusVal) use ($filters, $routePrefix) {
                 <tr>
                     <td>
                         <div class="avatar-row">
-                            <div class="avatar" style="background:<?= $aColor ?>">
-                                <?= substr($initials(htmlspecialchars($record->userFullName)),0,2) ?>
+                            <div class="avatar" style="background:<?= $aColor ?>; overflow: hidden; display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 50%; color: white; font-weight: 600; font-size: 12px;">
+                                <?php if (!empty($record->avatarUrl)): ?>
+                                    <img src="<?= $this->basePath($record->avatarUrl) ?>" alt="Avatar" style="width: 100%; height: 100%; object-fit: cover;">      
+                                <?php else: ?>
+                                    <?= substr($initials(htmlspecialchars($record->userFullName)),0,2) ?>
+                                <?php endif; ?>
                             </div>
                             <div>
-                                <div class="fw-medium"><?= htmlspecialchars($record->userFullName) ?></div>
-                                <div class="text-muted"><?= htmlspecialchars($record->username) ?></div>
+                                <div class="fw-medium" style="font-size: 13px;"><?= htmlspecialchars($record->userFullName) ?></div>
+                                <div class="text-muted small">@<?= htmlspecialchars($record->username) ?></div>
                             </div>
                         </div>
                     </td>
                     <td>
                         <div class="avatar-row">
-                            <div class="avatar tx-book-avatar" style="background:<?= $bColor ?>">
-                                <i class="bi bi-book tx-book-icon"></i>
+                            <div class="avatar" style="background:<?= $bColor ?>; overflow: hidden; display: flex; align-items: center; justify-content: center; width: 32px; height: 44px; border-radius: 4px;">
+                                <?php if (!empty($record->coverImageUrl)): ?>
+                                    <?php
+                                        $coverUrl = $record->coverImageUrl;
+                                        if (!str_starts_with($coverUrl, 'http://') && !str_starts_with($coverUrl, 'https://')) {
+                                            $coverUrl = $this->basePath(ltrim($coverUrl, '/'));
+                                        }
+                                    ?>
+                                    <img src="<?= htmlspecialchars($coverUrl) ?>" alt="Cover" style="width: 100%; height: 100%; object-fit: cover;">
+                                <?php else: ?>
+                                    <i class="bi bi-book" style="color: white; opacity: 0.7;"></i>
+                                <?php endif; ?>
                             </div>
-                            <div>
-                                <div class="fw-medium"><?= htmlspecialchars($record->bookTitle) ?></div>
-                                <div class="text-muted"><?= htmlspecialchars($record->bookIsbn !== '' ? $record->bookIsbn : '—') ?></div>
+                            <div style="min-width: 0; flex: 1;">
+                                <div class="fw-medium text-truncate" style="font-size: 13px;" title="<?= htmlspecialchars($record->bookTitle) ?>"><?= htmlspecialchars($record->bookTitle) ?></div>
+                                <div class="text-muted small"><?= htmlspecialchars($record->bookIsbn !== '' ? $record->bookIsbn : '—') ?></div>
                             </div>
                         </div>
                     </td>
-                    <td>
+                    <td style="font-size: 13px;">
                         <div class="d-flex align-center gap-2">
-                            <i class="bi bi-calendar3 tx-icon-muted"></i>
                             <?= htmlspecialchars(($record->borrowDate && $record->borrowDate !== '0000-00-00') ? date('d/m/Y', strtotime($record->borrowDate)) : '—') ?>
                         </div>
                     </td>
-                    <td>
-                        <div class="d-flex align-center gap-2 <?= $isOverdue ? 'tx-overdue-alert' : '' ?>">
-                            <i class="bi bi-clock <?= $isOverdue ? 'tx-color-danger' : 'tx-color-muted' ?>"></i>
+                    <td style="font-size: 13px;">
+                        <div class="d-flex align-center gap-2 <?= $isOverdue ? 'text-danger fw-bold' : '' ?>">
                             <?= htmlspecialchars(($record->returnDate && $record->returnDate !== '0000-00-00') ? date('d/m/Y', strtotime($record->returnDate)) : '—') ?>
                         </div>
                     </td>
                     <td><span class="badge <?= $statusClass ?>"><?= $statusLabel ?></span></td>
                     <td>
+                        <div class="d-flex gap-2 justify-content-center">
                         <?php if ($record->status === 'pending'): ?>
-                        <div class="tx-actions-row">
-                            <button type="button" class="btn btn-primary btn-sm tx-btn-tiny"
+                            <button type="button" class="btn btn-primary btn-xs"
                                     onclick="openApproveModal(
                                         '<?= $this->url($routePrefix . '/transaction', ['action' => 'approve', 'id' => $record->id]) ?>',
                                         '<?= addslashes(htmlspecialchars($record->userFullName ?? '')) ?>',
@@ -330,29 +319,21 @@ $buildTabUrl = function(string $statusVal) use ($filters, $routePrefix) {
                                         '<?= htmlspecialchars($record->borrowDate) ?>',
                                         '<?= htmlspecialchars($record->returnDate) ?>'
                                     )">
-                                <i class="bi bi-patch-check"></i>Duyệt
+                                Duyệt
                             </button>
                             <form method="POST" action="<?= $this->url($routePrefix . '/transaction', ['action' => 'reject', 'id' => $record->id]) ?>"
-                                  data-confirm="Từ chối duyệt yêu cầu mượn sách '<?= htmlspecialchars($record->bookTitle) ?>' của '<?= htmlspecialchars($record->userFullName ?? '') ?>'?" class="tx-form-inline">
-                                <button type="submit" class="btn btn-sm btn-outline tx-btn-tiny-danger">
-                                    <i class="bi bi-x-circle"></i>Từ chối
-                                </button>
+                                  data-confirm="Từ chối yêu cầu này?" style="display:inline;">
+                                <button type="submit" class="btn btn-xs btn-outline-danger">Từ chối</button>
                             </form>
-                        </div>
                         <?php elseif (in_array($record->status, ['borrowed','overdue'], true)): ?>
-                        <form method="POST" action="<?= $this->url($routePrefix . '/transaction', ['action' => 'return', 'id' => $record->id]) ?>"
-                              data-confirm="Xác nhận '<?= htmlspecialchars($record->userFullName ?? '') ?>' đã trả sách '<?= htmlspecialchars($record->bookTitle) ?>'?">
-                            <button type="submit" class="btn btn-success btn-sm">
-                                <i class="bi bi-check-circle"></i>Xác nhận trả
-                            </button>
-                        </form>
+                            <form method="POST" action="<?= $this->url($routePrefix . '/transaction', ['action' => 'return', 'id' => $record->id]) ?>"
+                                  data-confirm="Xác nhận sinh viên đã trả sách?" style="display:inline;">
+                                <button type="submit" class="btn btn-success btn-xs">Xác nhận trả</button>
+                            </form>
                         <?php else: ?>
-                        <?php if ($record->returnedAt): ?>
-                        <span class="tx-status-hint">Trả: <?= htmlspecialchars($record->returnedAt) ?></span>
-                        <?php else: ?>
-                        <span class="tx-status-hint">Hoàn tất</span>
+                            <span class="text-muted small"><?= $record->returnedAt ? date('d/m/Y', strtotime($record->returnedAt)) : 'Xong' ?></span>
                         <?php endif; ?>
-                        <?php endif; ?>
+                        </div>
                     </td>
                 </tr>
                 <?php endforeach; ?>
@@ -364,16 +345,31 @@ $buildTabUrl = function(string $statusVal) use ($filters, $routePrefix) {
 
 <!-- PAGINATION -->
 <?php if ($totalPages > 1): ?>
-<div class="catalog-pagination-bar" style="margin-top:20px; width: 100%;">
-    <div class="catalog-pagination-info">
-        Hiển thị <?= min(($page-1)*$perPage+1,$totalItems) ?> – <?= min($page*$perPage,$totalItems) ?> / <?= $totalItems ?> giao dịch
+<div class="book-import-pagination-row" style="padding: 20px;">
+    <div class="book-import-pagination-info">
+        Hiển thị trang <strong class="book-import-pagination-bold"><?= $page ?></strong> / <?= $totalPages ?>
+        &nbsp;•&nbsp; Tổng <strong class="book-import-pagination-bold"><?= $totalItems ?></strong> giao dịch
     </div>
-    <div class="pagination">
-        <a class="page-btn <?= $page<=1?'disabled':'' ?>" href="<?= $page>1?$buildPageUrl($page-1):'#' ?>"><i class="bi bi-chevron-left"></i></a>
-        <?php for ($p=max(1,$page-2); $p<=min($totalPages,$page+2); $p++): ?>
-        <a class="page-btn <?= $p===$page?'active':'' ?>" href="<?= $buildPageUrl($p) ?>"><?= $p ?></a>
+    <div class="book-import-pagination-btns">
+        <?php if ($page > 1): ?>
+            <a href="<?= $buildPageUrl(1) ?>" class="btn btn-outline btn-sm book-import-pagination-btn" title="Trang đầu"><i class="bi bi-chevron-double-left"></i></a>
+            <a href="<?= $buildPageUrl($page - 1) ?>" class="btn btn-outline btn-sm book-import-pagination-btn"><i class="bi bi-chevron-left"></i> Trước</a>
+        <?php endif; ?>
+
+        <?php
+        $startPage = max(1, $page - 2);
+        $endPage   = min($totalPages, $page + 2);
+        for ($p = $startPage; $p <= $endPage; $p++):
+        ?>
+            <a href="<?= $buildPageUrl($p) ?>"
+               class="btn btn-sm book-import-pagination-btn <?= $p === $page ? 'btn-primary' : 'btn-outline' ?>"
+               style="min-width:32px;text-align:center"><?= $p ?></a>
         <?php endfor; ?>
-        <a class="page-btn <?= $page>=$totalPages?'disabled':'' ?>" href="<?= $page<$totalPages?$buildPageUrl($page+1):'#' ?>"><i class="bi bi-chevron-right"></i></a>
+
+        <?php if ($page < $totalPages): ?>
+            <a href="<?= $buildPageUrl($page + 1) ?>" class="btn btn-outline btn-sm book-import-pagination-btn">Sau <i class="bi bi-chevron-right"></i></a>
+            <a href="<?= $buildPageUrl($totalPages) ?>" class="btn btn-outline btn-sm book-import-pagination-btn" title="Trang cuối"><i class="bi bi-chevron-double-right"></i></a>
+        <?php endif; ?>
     </div>
 </div>
 <?php endif; ?>
@@ -446,59 +442,6 @@ function closeApproveModal() {
         modal.classList.add('d-none');
     }, 220);
 }
-</script>
-
-<script>
-// Period to week numbers mapping
-const periodToWeeks = {
-    'year': { min: 1, max: 53 },
-    'q1': { min: 1, max: 13 },
-    'q2': { min: 14, max: 26 },
-    'q3': { min: 27, max: 39 },
-    'q4': { min: 40, max: 53 },
-    'm1': { min: 1, max: 5 },
-    'm2': { min: 5, max: 9 },
-    'm3': { min: 9, max: 14 },
-    'm4': { min: 14, max: 18 },
-    'm5': { min: 18, max: 22 },
-    'm6': { min: 22, max: 27 },
-    'm7': { min: 27, max: 31 },
-    'm8': { min: 31, max: 36 },
-    'm9': { min: 36, max: 40 },
-    'm10': { min: 40, max: 44 },
-    'm11': { min: 44, max: 49 },
-    'm12': { min: 49, max: 53 }
-};
-
-function updateWeekOptions(selectedPeriod, currentWeekVal) {
-    const weekSelect = document.getElementById('weekSelect');
-    if (!weekSelect) return;
-    
-    const range = periodToWeeks[selectedPeriod] || { min: 1, max: 53 };
-    const options = weekSelect.querySelectorAll('option[data-week]');
-    
-    let isCurrentWeekValid = (currentWeekVal === 'all');
-    
-    options.forEach(opt => {
-        const w = parseInt(opt.getAttribute('data-week'), 10);
-        if (w >= range.min && w <= range.max) {
-            opt.style.display = '';
-            opt.disabled = false;
-            opt.hidden = false;
-            if (String(w) === String(currentWeekVal)) {
-                isCurrentWeekValid = true;
-            }
-        } else {
-            opt.style.display = 'none';
-            opt.disabled = true;
-            opt.hidden = true;
-        }
-    });
-    
-    if (!isCurrentWeekValid) {
-        weekSelect.value = 'all';
-    }
-}
 
 function onPeriodChange() {
     const periodSelect = document.getElementById('periodSelect');
@@ -507,11 +450,37 @@ function onPeriodChange() {
     periodSelect.form.submit();
 }
 
+function updateWeekOptions(selectedPeriod, currentWeekVal) {
+    const weekSelect = document.getElementById('weekSelect');
+    if (!weekSelect) return;
+    const periodToWeeks = {
+        'year': { min: 1, max: 53 }, 'q1': { min: 1, max: 13 }, 'q2': { min: 14, max: 26 }, 'q3': { min: 27, max: 39 }, 'q4': { min: 40, max: 53 },
+        'm1': { min: 1, max: 5 }, 'm2': { min: 5, max: 9 }, 'm3': { min: 9, max: 14 }, 'm4': { min: 14, max: 18 }, 'm5': { min: 18, max: 22 }, 'm6': { min: 22, max: 27 },
+        'm7': { min: 27, max: 31 }, 'm8': { min: 31, max: 36 }, 'm9': { min: 36, max: 40 }, 'm10': { min: 40, max: 44 }, 'm11': { min: 44, max: 49 }, 'm12': { min: 49, max: 53 }
+    };
+    const range = periodToWeeks[selectedPeriod] || { min: 1, max: 53 };
+    const options = weekSelect.querySelectorAll('option[data-week]');
+    let isCurrentWeekValid = (currentWeekVal === 'all');
+    options.forEach(opt => {
+        const w = parseInt(opt.getAttribute('data-week'), 10);
+        if (w >= range.min && w <= range.max) { opt.style.display = ''; opt.disabled = false; if (String(w) === String(currentWeekVal)) isCurrentWeekValid = true; }
+        else { opt.style.display = 'none'; opt.disabled = true; }
+    });
+    if (!isCurrentWeekValid) weekSelect.value = 'all';
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     const periodSelect = document.getElementById('periodSelect');
     const weekSelect = document.getElementById('weekSelect');
-    if (periodSelect && weekSelect) {
-        updateWeekOptions(periodSelect.value, weekSelect.value);
-    }
+    if (periodSelect && weekSelect) updateWeekOptions(periodSelect.value, weekSelect.value);
 });
+
+function clearSearchInput(btn) {
+    const input = btn.previousElementSibling;
+    input.value = '';
+    btn.style.display = 'none';
+    input.focus();
+    const form = btn.closest('form');
+    if (form) form.submit();
+}
 </script>

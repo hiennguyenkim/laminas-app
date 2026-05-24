@@ -8,50 +8,40 @@ $this->headTitle('Danh mục sách');
 $this->layout('layout/library-layout');
 
 $pagination  = is_array($pagination ?? null) ? $pagination : [];
-$page        = (int) ($pagination['page'] ?? 1);
-$perPageRaw  = $pagination['perPage'] ?? 20;
-$perPage     = $perPageRaw === 'all' ? 999999 : (int) $perPageRaw;
-$totalItems  = (int) ($pagination['totalItems'] ?? 0);
-$totalPages  = (int) ($pagination['totalPages'] ?? 1);
+$page        = (int)($pagination['page'] ?? 1);
+$perPage     = (int)($pagination['perPage'] ?? 20);
+$perPageRaw  = $pagination['perPage'] ?? '20';
+$totalItems  = (int)($pagination['totalItems'] ?? 0);
+$totalPages  = (int)($pagination['totalPages'] ?? 1);
 
-$queryBase = [
-    'search'   => (string) ($filters['search'] ?? ''),
-    'category' => (string) ($filters['category'] ?? ''),
-    'status'   => (string) ($filters['status'] ?? ''),
-    'perPage'  => $perPageRaw,
-];
+$currentSort = $filters['sort'] ?? 'id';
+$currentDir  = strtoupper($filters['direction'] ?? 'ASC');
 
-$buildPageUrl = function(int $p) use ($queryBase, $indexRoute): string {
-    $q = $queryBase; $q['page'] = $p;
-    $q = array_filter($q, fn($v, $k) => $k === 'page' || $v !== '', ARRAY_FILTER_USE_BOTH);
-    return $this->url($indexRoute, [], ['query' => $q]);
+$buildPageUrl = function($p) use ($filters, $perPageRaw, $indexRoute) {
+    return $this->url($indexRoute, [], [
+        'query' => array_merge($filters, ['page' => $p, 'perPage' => $perPageRaw])
+    ]);
 };
 
-$coverGradients = [
-    'purple'  => 'linear-gradient(135deg,#7c6aff,#5b4fcf)',
-    'orange'  => 'linear-gradient(135deg,#f97316,#ea580c)',
-    'teal'    => 'linear-gradient(135deg,#14b8a6,#0d9488)',
-    'blue'    => 'linear-gradient(135deg,#3b82f6,#2563eb)',
-    'pink'    => 'linear-gradient(135deg,#ec4899,#db2777)',
-    'green'   => 'linear-gradient(135deg,#22c55e,#16a34a)',
-];
-$gradKeys = array_keys($coverGradients);
-$gradVals = array_values($coverGradients);
-
-$statusMap = [
-    'available'   => ['Sẵn sàng',       'badge-green'],
-    'borrowed'    => ['Đang mượn hết',   'badge-orange'],
-    'unavailable' => ['Tạm khóa',        'badge-gray'],
+$gradVals = [
+    'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+    'linear-gradient(135deg, #5ee7df 0%, #b490ca 100%)',
+    'linear-gradient(135deg, #c31432 0%, #240b36 100%)',
+    'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+    'linear-gradient(135deg, #6a11cb 0%, #2575fc 100%)',
 ];
 
-$catBadgeColors = ['Văn học'=>'badge-purple','Khoa học'=>'badge-blue','Lịch sử'=>'badge-orange','Kỹ thuật'=>'badge-green','Tâm lý'=>'badge-pink'];
+$activeCat = (string)($filters['category'] ?? '');
 ?>
 
 <!-- PAGE HEADER -->
 <div class="page-header">
-    <div>
-        <div class="page-title">Danh mục sách</div>
-        <div class="page-subtitle"><?= number_format((int)($summary['total_titles'] ?? 0)) ?> đầu sách trong thư viện</div>
+    <div class="d-flex align-center gap-3">
+        <div>
+            <div class="page-title">Danh mục sách</div>
+            <div class="page-subtitle"><?= number_format((int)($summary['total_titles'] ?? 0)) ?> đầu sách trong thư viện</div>
+        </div>
     </div>
     <?php if ($canBorrow): ?>
     <a href="<?= $this->url('student/transaction', ['action' => 'borrow']) ?>" class="btn btn-success">
@@ -89,190 +79,130 @@ $catBadgeColors = ['Văn học'=>'badge-purple','Khoa học'=>'badge-blue','Lị
 <?php endif; ?>
 
 <style>
-.catalog-filters-left {
-    display: flex;
-    align-items: center;
-}
-.filter-label {
-    font-size: 14.5px;
-    font-weight: 600;
-    color: var(--text-secondary);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-.filter-label i {
-    color: var(--accent-purple);
-    font-size: 16px;
-}
+/* Custom style for Searchable Category Dropdown */
 .catalog-category-select-wrapper {
     position: relative;
-    width: auto;
     min-width: 200px;
 }
 .catalog-category-select-wrapper .input-with-icon {
     position: relative;
     display: flex;
     align-items: center;
-    width: 100%;
 }
 .catalog-category-select-wrapper .input-with-icon i.bi-tags-fill {
-    position: absolute;
-    left: 12px;
-    color: var(--text-muted);
-    font-size: 14px;
-    pointer-events: none;
-    opacity: 0.85;
+    position: absolute; left: 12px; color: var(--text-muted); font-size: 14px; pointer-events: none; opacity: 0.85;
 }
 .catalog-category-select-wrapper .input-with-icon i.select-dropdown-arrow {
-    position: absolute;
-    right: 12px;
-    color: var(--text-muted);
-    font-size: 11px;
-    pointer-events: none;
-    transition: transform 0.2s ease;
+    position: absolute; right: 12px; color: var(--text-muted); font-size: 12px; pointer-events: none;
 }
-.catalog-category-select-wrapper.open .select-dropdown-arrow {
-    transform: rotate(180deg);
+.catalog-category-select-wrapper input.form-select-custom {
+    padding-left: 36px; padding-right: 32px; cursor: pointer; background-color: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary); width: 100%; height: 38px; border-radius: 8px; font-size: 13.5px; outline: none; transition: all 0.2s;
 }
-.catalog-category-select-wrapper .catalog-category-select {
+.catalog-category-select-wrapper input.form-select-custom:focus {
+    border-color: var(--accent-purple); box-shadow: 0 0 0 3px rgba(124, 106, 255, 0.15);
+}
+.searchable-select-dropdown {
+    position: absolute; top: 100%; left: 0; right: 0; background: #1e1e2d; border: 1px solid #2f3049; border-radius: 8px; margin-top: 6px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); z-index: 1000; max-height: 300px; overflow-y: auto; display: none;
+}
+.dropdown-option { padding: 10px 14px; cursor: pointer; font-size: 13.5px; color: #a2a5b9; transition: all 0.15s; }
+.dropdown-option:hover { background: rgba(124, 106, 255, 0.1); color: #fff; }
+.dropdown-option.selected { background: var(--accent-purple); color: #fff; }
+.dropdown-no-results { padding: 12px; text-align: center; font-size: 13px; color: var(--text-muted); }
+
+/* Layout fixes */
+.catalog-filter-form {
+    display: flex;
+    justify-content: space-between;
     width: 100%;
-    padding-left: 34px !important;
-    padding-right: 30px !important;
-    cursor: pointer;
-    text-overflow: ellipsis;
+    align-items: center;
+    gap: 20px;
 }
-.catalog-category-select-wrapper .searchable-select-dropdown {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    width: 100%;
-    background: var(--bg-card);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-sm);
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
-    z-index: 1000;
-    max-height: 250px;
-    overflow-y: auto;
-    margin-top: 4px;
-    display: none;
-    scrollbar-width: thin;
-    scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
-}
-.catalog-category-select-wrapper.open .searchable-select-dropdown {
-    display: block;
-    animation: fadeInDropdown 0.15s ease-out;
-}
-.catalog-category-select-wrapper .dropdown-option {
-    padding: 10px 14px;
-    font-size: 13.5px;
-    color: var(--text-secondary);
-    cursor: pointer;
-    transition: var(--transition);
-}
-.catalog-category-select-wrapper .dropdown-option:hover {
-    background: rgba(124, 106, 255, 0.08);
-    color: var(--text-primary);
-}
-.catalog-category-select-wrapper .dropdown-option.selected {
-    background: var(--accent-purple);
-    color: #fff;
-    font-weight: 500;
-}
-.catalog-category-select-wrapper .dropdown-option.hidden {
-    display: none;
-}
-.catalog-category-select-wrapper .dropdown-no-results {
-    padding: 12px 14px;
-    font-size: 13px;
-    color: var(--text-muted);
-    text-align: center;
-    font-style: italic;
-}
-@media (max-width: 900px) {
-    .catalog-filters-bar {
+@media (max-width: 992px) {
+    .catalog-filter-form {
         flex-direction: column;
         align-items: stretch;
-        gap: 16px;
-    }
-    .catalog-filter-form {
-        flex-wrap: wrap;
-        width: 100%;
-        gap: 10px;
-    }
-    .catalog-category-select-wrapper,
-    .catalog-category-select,
-    .catalog-search-wrap,
-    .catalog-perpage-select,
-    .catalog-filter-form button {
-        max-width: 100% !important;
-        width: 100% !important;
-        flex: unset !important;
     }
 }
-.catalog-perpage-select {
-    width: auto;
+
+/* Book card tweaks */
+.book-card { display: flex; flex-direction: column; height: 100%; }
+.book-cover { height: 180px !important; flex-shrink: 0; }
+.book-info { flex: 1; display: flex; flex-direction: column; }
+.book-author { margin-bottom: auto !important; }
+
+/* Uniform height for filters */
+.form-select-uniform {
+    height: 38px !important;
+    border-radius: 8px !important;
+    font-size: 13.5px !important;
+    padding: 0 12px !important;
+    background-color: var(--bg-input) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid var(--border-color) !important;
+    cursor: pointer !important;
 }
 </style>
 
-<!-- FILTER SELECT DROPDOWN -->
-<?php
-$allCats = $categories ?? [];
-$activeCat = (string) ($filters['category'] ?? '');
-?>
 <div class="catalog-filters-bar">
-    <div class="catalog-filters-left">
-        <span class="filter-label"><i class="bi bi-filter-circle-fill"></i> Bộ lọc &amp; Tìm kiếm</span>
-    </div>
-
     <form method="GET" id="book-filter-form" class="catalog-filter-form">
-        <div class="searchable-select-wrapper catalog-category-select-wrapper" id="categorySelectWrapper">
-            <div class="input-with-icon">
-                <i class="bi bi-tags-fill"></i>
-                <input type="text" id="categorySearchInput" class="form-control catalog-category-select"
-                       placeholder="Tất cả thể loại" value="<?= htmlspecialchars($activeCat) ?>" autocomplete="off">
-                <i class="bi bi-chevron-down select-dropdown-arrow"></i>
+        <div class="d-flex align-center gap-2 flex-wrap">
+            <div class="catalog-category-select-wrapper" id="categorySelectWrapper">
+                <div class="input-with-icon">
+                    <i class="bi bi-tags-fill"></i>
+                    <input type="text" id="categorySearchInput" class="form-select-custom" 
+                           placeholder="Tất cả thể loại" value="<?= htmlspecialchars($activeCat) ?>" 
+                           autocomplete="off">
+                    <i class="bi bi-chevron-down select-dropdown-arrow"></i>
+                </div>
+                <input type="hidden" name="category" id="book-category-hidden" value="<?= htmlspecialchars($activeCat) ?>">
+                
+                <div class="searchable-select-dropdown" id="categoryDropdown">
+                    <div class="dropdown-option <?= $activeCat === '' ? 'selected' : '' ?>" data-value="">Tất cả thể loại</div>
+                    <?php foreach ($categories as $cat): ?>
+                        <div class="dropdown-option <?= $activeCat === $cat ? 'selected' : '' ?>" data-value="<?= htmlspecialchars($cat) ?>"><?= htmlspecialchars($cat) ?></div>
+                    <?php endforeach; ?>
+                    <div class="dropdown-no-results" id="categoryNoResults" style="display: none;">Không tìm thấy thể loại phù hợp.</div>
+                </div>
             </div>
-            <input type="hidden" name="category" id="book-category-select" value="<?= htmlspecialchars($activeCat) ?>">
-            
-            <div class="searchable-select-dropdown" id="categoryDropdown">
-                <div class="dropdown-option <?= $activeCat === '' ? 'selected' : '' ?>" data-value="">Tất cả thể loại</div>
-                <?php foreach ($allCats as $cat): ?>
-                    <div class="dropdown-option <?= $activeCat === $cat ? 'selected' : '' ?>" data-value="<?= htmlspecialchars($cat) ?>"><?= htmlspecialchars($cat) ?></div>
-                <?php endforeach; ?>
-                <div class="dropdown-no-results" id="categoryNoResults" style="display: none;">Không tìm thấy thể loại phù hợp</div>
+
+            <!-- SORT OPTIONS -->
+            <div class="d-flex align-center gap-2">
+                <select name="sort" class="form-select form-select-uniform" style="width: 150px;" onchange="this.form.submit()">
+                    <option value="id" <?= $currentSort === 'id' ? 'selected' : '' ?>>Mặc định</option>
+                    <option value="title" <?= $currentSort === 'title' && $currentDir === 'ASC' ? 'selected' : '' ?> data-dir="ASC">Tên sách A-Z</option>
+                    <option value="title" <?= $currentSort === 'title' && $currentDir === 'DESC' ? 'selected' : '' ?> data-dir="DESC">Tên sách Z-A</option>
+                    <option value="rating" <?= $currentSort === 'rating' ? 'selected' : '' ?>>Đánh giá (Sao)</option>
+                </select>
+                <input type="hidden" name="direction" id="sort-direction-hidden" value="<?= htmlspecialchars($currentDir) ?>">
             </div>
         </div>
 
-        <input type="hidden" name="status" value="available">
+        <div class="d-flex align-center gap-2">
+            <select name="perPage" class="form-select form-select-uniform" style="width: 160px;" onchange="this.form.submit()">
+                <option value="20"  <?= (string)$perPageRaw === '20'  ? 'selected' : '' ?>>20 sách / trang</option>
+                <option value="50"  <?= (string)$perPageRaw === '50'  ? 'selected' : '' ?>>50 sách / trang</option>
+                <option value="100" <?= (string)$perPageRaw === '100' ? 'selected' : '' ?>>100 sách / trang</option>
+                <option value="all" <?= (string)$perPageRaw === 'all' ? 'selected' : '' ?>>Tất cả</option>
+            </select>
 
-        <select id="book-perpage-select" name="perPage" class="form-select catalog-perpage-select">
-            <option value="20" <?= (string)$perPageRaw === '20' ? 'selected' : '' ?>>20 sách / trang</option>
-            <option value="50" <?= (string)$perPageRaw === '50' ? 'selected' : '' ?>>50 sách / trang</option>
-            <option value="100" <?= (string)$perPageRaw === '100' ? 'selected' : '' ?>>100 sách / trang</option>
-            <option value="all" <?= (string)$perPageRaw === 'all' ? 'selected' : '' ?>>Tất cả</option>
-        </select>
-
-        <div class="topbar-search catalog-search-wrap" style="position: relative;">
-            <i class="bi bi-search"></i>
-            <input type="text" id="book-search-input" name="search" value="<?= htmlspecialchars($filters['search'] ?? '') ?>" placeholder="Tìm sách, tác giả..." oninput="this.nextElementSibling.style.display = this.value ? 'inline-block' : 'none';" style="padding-right: 28px;">
-            <i class="bi bi-x-circle-fill search-clear-btn" style="position: absolute; right: 12px; cursor: pointer; color: var(--text-muted); display: <?= !empty($filters['search']) ? 'inline-block' : 'none' ?>; font-size: 14px;" onclick="clearSearchInput(this)"></i>
+            <div class="topbar-search catalog-search-wrap" style="max-width: 300px; margin: 0;">
+                <i class="bi bi-search"></i>
+                <input type="text" id="book-search-input" name="search" value="<?= htmlspecialchars($filters['search'] ?? '') ?>" placeholder="Tìm tên sách, tác giả...">
+            </div>
+            <button type="submit" class="btn btn-primary">Tìm kiếm</button>
         </div>
-
-        <button type="submit" class="btn btn-primary"><i class="bi bi-search"></i>Tìm kiếm</button>
     </form>
 </div>
 
-<div class="catalog-layout catalog-layout-wrap">
-    <div style="display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap; width: 100%;">
-        <div class="catalog-main catalog-main-panel" style="flex: 1; min-width: 0;">
-            <div id="book-list-container" class="catalog-list-container">
-                <!-- BOOK GRID -->
-                <div class="book-grid">
-                <?php if (!count($books)): ?>
+<div class="catalog-layout-wrap">
+    <div class="catalog-main-panel">
+        <div id="book-list-container" class="catalog-list-container">
+            <div class="book-grid">
+                <?php if (empty($books)): ?>
                     <div class="catalog-empty">
-                        <i class="bi bi-inbox"></i>
-                        Không tìm thấy đầu sách phù hợp.
+                        <i class="bi bi-book"></i>
+                        <div class="catalog-empty-title">Không tìm thấy sách phù hợp</div>
+                        <div class="catalog-empty-desc">Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm của bạn.</div>
                     </div>
                 <?php else: ?>
                     <?php $idx = 0; foreach ($books as $book): ?>
@@ -280,8 +210,6 @@ $activeCat = (string) ($filters['category'] ?? '');
                     $grad     = $gradVals[$idx % count($gradVals)];
                     $leftQty  = (int) $book->quantity;
                     $available = $book->status === 'available' && $leftQty >= 1;
-                    [$statusLabel, $statusClass] = $statusMap[$book->status] ?? [$book->status, 'badge-gray'];
-                    $catClass = $catBadgeColors[$book->category] ?? 'badge-gray';
                     $idx++;
                     ?>
                     <div class="book-card">
@@ -310,19 +238,18 @@ $activeCat = (string) ($filters['category'] ?? '');
                             <a href="<?= $viewUrl ?>" class="book-title book-title-link"><?= htmlspecialchars($book->title) ?></a>
                             <div class="book-author"><?= htmlspecialchars($book->author) ?></div>
                             <div class="book-meta">
-                                <span class="badge <?= $catClass ?> book-card-category-badge"><?= htmlspecialchars($book->category) ?></span>
-                                <div class="book-rating"><i class="bi bi-star-fill"></i><?= number_format(4.5 + ($idx%5)*.1, 1) ?></div>
+                                <span class="badge badge-gray"><?= htmlspecialchars($book->category) ?></span>
+                                <div class="book-rating">
+                                    <i class="bi bi-star-fill"></i>
+                                    <?= number_format((float)($book->avg_rating ?? (4.0 + ($idx%5)*.2)), 1) ?>
+                                </div>
                             </div>
-                            <div class="book-card-meta-row">
-                                <span><i class="bi bi-arrow-left-right"></i><?= (int)$book->borrowCount ?> lượt</span>
-                                <span><?= htmlspecialchars($book->publishedYear ?: date('Y')) ?></span>
-                            </div>
-                            <div class="book-progress book-card-progress-wrap">
+                            <div class="book-progress">
                                 <div class="book-progress-bar" style="width:<?= min(100, $leftQty * 20) ?>%;background:<?= $available ? '#22c55e' : '#f97316' ?>"></div>
                             </div>
                             <?php if ($canBorrow && $available): ?>
                             <a href="<?= $this->url($routePrefix . '/transaction', ['action' => 'borrow'], ['query' => ['book_id' => (int)$book->id]]) ?>"
-                               class="btn btn-success w-100 btn-sm book-borrow-btn">
+                               class="btn btn-success btn-sm book-borrow-btn w-100">
                                 <i class="bi bi-bookmark-plus"></i>Mượn sách
                             </a>
                             <?php endif; ?>
@@ -330,281 +257,101 @@ $activeCat = (string) ($filters['category'] ?? '');
                     </div>
                     <?php endforeach; ?>
                 <?php endif; ?>
-                </div>
-
-                <!-- PAGINATION -->
-                <?php if ($totalPages > 1): ?>
-                <div class="catalog-pagination-bar">
-                    <div class="catalog-pagination-info">
-                        Hiển thị <?= min(($page-1)*$perPage+1,$totalItems) ?> – <?= min($page*$perPage,$totalItems) ?> / <?= $totalItems ?> sách
-                    </div>
-                    <div class="pagination">
-                        <a class="page-btn <?= $page<=1?'disabled':'' ?>" href="<?= $page>1?$buildPageUrl($page-1):'#' ?>"><i class="bi bi-chevron-left"></i></a>
-                        <?php for ($p=max(1,$page-2); $p<=min($totalPages,$page+2); $p++): ?>
-                        <a class="page-btn <?= $p===$page?'active':'' ?>" href="<?= $buildPageUrl($p) ?>"><?= $p ?></a>
-                        <?php endfor; ?>
-                        <a class="page-btn <?= $page>=$totalPages?'disabled':'' ?>" href="<?= $page<$totalPages?$buildPageUrl($page+1):'#' ?>"><i class="bi bi-chevron-right"></i></a>
-                    </div>
-                </div>
-                <?php endif; ?>
             </div>
+
+            <!-- PAGINATION -->
+            <?php if ($totalPages > 1): ?>
+            <div class="catalog-pagination-bar" style="display: flex; align-items: center; justify-content: space-between; padding: 20px;">
+                <div class="catalog-pagination-info" style="font-size: 13px; color: var(--text-muted);">
+                    Hiển thị <?= min(($page-1)*$perPage+1,$totalItems) ?> – <?= min($page*$perPage,$totalItems) ?> / <?= $totalItems ?> đầu sách
+                </div>
+                <div class="pagination">
+                    <a class="page-btn <?= $page<=1?'disabled':'' ?>" href="<?= $page>1?$buildPageUrl($page-1):'#' ?>"><i class="bi bi-chevron-left"></i></a>
+                    <?php for ($p=max(1,$page-2); $p<=min($totalPages,$page+2); $p++): ?>
+                    <a class="page-btn <?= $p===$page?'active':'' ?>" href="<?= $buildPageUrl($p) ?>"><?= $p ?></a>
+                    <?php endfor; ?>
+                    <a class="page-btn <?= $page>=$totalPages?'disabled':'' ?>" href="<?= $page<$totalPages?$buildPageUrl($page+1):'#' ?>"><i class="bi bi-chevron-right"></i></a>
+                </div>
+            </div>
+            <?php endif; ?>
         </div>
     </div>
 </div>
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-    const container = document.getElementById('book-list-container');
-    if (!container) return;
-
-    const filterForm = document.getElementById('book-filter-form');
-    const searchInput = document.getElementById('book-search-input');
-    const categorySelect = document.getElementById('book-category-select');
-    const perPageSelect = document.getElementById('book-perpage-select');
+    const wrapper = document.getElementById('categorySelectWrapper');
+    if (!wrapper) return;
     
-    // Custom searchable dropdown elements
-    const categoryWrapper = document.getElementById('categorySelectWrapper');
-    const categorySearchInput = document.getElementById('categorySearchInput');
-    const categoryDropdown = document.getElementById('categoryDropdown');
-    const categoryOptions = categoryDropdown ? categoryDropdown.querySelectorAll('.dropdown-option') : [];
-    const categoryNoResults = document.getElementById('categoryNoResults');
+    const input = document.getElementById('categorySearchInput');
+    const hidden = document.getElementById('book-category-hidden');
+    const dropdown = document.getElementById('categoryDropdown');
+    const options = dropdown.querySelectorAll('.dropdown-option');
+    const noResults = document.getElementById('categoryNoResults');
+    const form = document.getElementById('book-filter-form');
+    
+    let lastCategoryValue = hidden.value;
 
-    let debounceTimer;
-    function debounce(func, delay) {
-        return function(...args) {
-            clearTimeout(debounceTimer);
-            debounceTimer = setTimeout(() => func.apply(this, args), delay);
-        };
-    }
+    input.addEventListener('click', (e) => {
+        e.stopPropagation();
+        dropdown.style.display = 'block';
+    });
 
-    async function loadBooks(url, updateHistory = true) {
-        try {
-            container.style.opacity = '0.5';
-            
-            const response = await fetch(url, {
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            });
-            if (!response.ok) throw new Error('Network error');
-            const text = await response.text();
-            
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(text, 'text/html');
-            const newContent = doc.getElementById('book-list-container');
-            if (newContent) {
-                container.innerHTML = newContent.innerHTML;
-            }
-            container.style.opacity = '1';
-
-            if (updateHistory) {
-                history.pushState({ url }, '', url);
-            }
-
-            bindEvents();
-        } catch (e) {
-            console.error('AJAX book load failed:', e);
-            container.style.opacity = '1';
-        }
-    }
-
-    function bindEvents() {
-        const pageBtns = container.querySelectorAll('.page-btn');
-        pageBtns.forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const href = btn.getAttribute('href');
-                if (href && href !== '#' && !btn.classList.contains('disabled')) {
-                    e.preventDefault();
-                    loadBooks(href);
-                }
-            });
-        });
-    }
-
-    function reloadFromForm() {
-        const params = new URLSearchParams();
-        
-        if (categorySelect && categorySelect.value !== '') {
-            params.set('category', categorySelect.value);
-        }
-
-        if (searchInput && searchInput.value.trim() !== '') {
-            params.set('search', searchInput.value.trim());
-        }
-        if (perPageSelect && perPageSelect.value !== '') {
-            params.set('perPage', perPageSelect.value);
-        }
-        
-        const newUrl = window.location.pathname + '?' + params.toString();
-        loadBooks(newUrl);
-    }
-
-    if (searchInput) {
-        searchInput.addEventListener('input', debounce(() => {
-            reloadFromForm();
-        }, 300));
-    }
-
-    if (perPageSelect) {
-        perPageSelect.addEventListener('change', () => {
-            reloadFromForm();
-        });
-    }
-
-    let lastCategoryValue = categorySelect ? categorySelect.value : '';
-
-    if (categorySearchInput && categorySelect && categoryWrapper) {
-        const triggerReload = debounce(() => {
-            if (categorySelect.value !== lastCategoryValue) {
-                lastCategoryValue = categorySelect.value;
-                reloadFromForm();
-            }
-        }, 300);
-
-        function filterCategoryOptions() {
-            const query = categorySearchInput.value.toLowerCase().trim();
-            let matches = 0;
-
-            categoryOptions.forEach(opt => {
-                const text = opt.textContent.toLowerCase();
-                if (text.includes(query) || opt.dataset.value === "") {
-                    opt.classList.remove('hidden');
-                    if (opt.dataset.value !== "") matches++;
-                } else {
-                    opt.classList.add('hidden');
-                }
-            });
-
-            if (matches === 0 && query !== "") {
-                if (categoryNoResults) categoryNoResults.style.display = 'block';
+    input.addEventListener('input', () => {
+        const query = input.value.toLowerCase().trim();
+        let count = 0;
+        options.forEach(opt => {
+            const text = opt.textContent.toLowerCase();
+            if (text.includes(query)) {
+                opt.style.display = 'block';
+                count++;
             } else {
-                if (categoryNoResults) categoryNoResults.style.display = 'none';
-            }
-        }
-
-        function selectCategory(value, text) {
-            categorySelect.value = value;
-            categorySearchInput.value = value === "" ? "" : text;
-            
-            categoryOptions.forEach(o => {
-                if (o.dataset.value === value) {
-                    o.classList.add('selected');
-                } else {
-                    o.classList.remove('selected');
-                }
-            });
-            
-            categoryWrapper.classList.remove('open');
-            triggerReload();
-        }
-
-        function syncCategoryInputAndHidden() {
-            const typed = categorySearchInput.value.trim().toLowerCase();
-            let matchedOpt = null;
-
-            categoryOptions.forEach(opt => {
-                if (opt.dataset.value !== "" && opt.textContent.toLowerCase() === typed) {
-                    matchedOpt = opt;
-                }
-            });
-
-            if (matchedOpt) {
-                selectCategory(matchedOpt.dataset.value, matchedOpt.textContent);
-            } else {
-                categorySelect.value = categorySearchInput.value.trim();
-                triggerReload();
-            }
-        }
-
-        categorySearchInput.addEventListener('focus', () => {
-            categoryWrapper.classList.add('open');
-            filterCategoryOptions();
-        });
-
-        document.addEventListener('click', (e) => {
-            if (!categoryWrapper.contains(e.target)) {
-                categoryWrapper.classList.remove('open');
-                syncCategoryInputAndHidden();
+                opt.style.display = 'none';
             }
         });
+        noResults.style.display = count === 0 ? 'block' : 'none';
+        dropdown.style.display = 'block';
+    });
 
-        categorySearchInput.addEventListener('input', () => {
-            categoryWrapper.classList.add('open');
-            filterCategoryOptions();
-            categorySelect.value = categorySearchInput.value.trim();
-            triggerReload();
+    options.forEach(opt => {
+        opt.addEventListener('click', () => {
+            const val = opt.dataset.value;
+            hidden.value = val;
+            input.value = val === "" ? "" : opt.textContent;
+            dropdown.style.display = 'none';
+            if (val !== lastCategoryValue) { form.submit(); }
         });
+    });
 
-        categorySearchInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') {
-                categoryWrapper.classList.remove('open');
-                categorySearchInput.blur();
-            } else if (e.key === 'Enter') {
-                e.preventDefault();
-                if (categoryWrapper.classList.contains('open')) {
-                    const visibleOpts = Array.from(categoryOptions).filter(o => !o.classList.contains('hidden'));
-                    if (visibleOpts.length > 0) {
-                        selectCategory(visibleOpts[0].dataset.value, visibleOpts[0].textContent);
-                    } else {
-                        categorySelect.value = categorySearchInput.value.trim();
-                        categoryWrapper.classList.remove('open');
-                        triggerReload();
-                    }
-                } else {
-                    categorySelect.value = categorySearchInput.value.trim();
-                    triggerReload();
+    document.addEventListener('click', (e) => {
+        if (!wrapper.contains(e.target)) {
+            dropdown.style.display = 'none';
+            if (input.value !== "") {
+                const catVal = hidden.value;
+                const matchingOpt = Array.from(options).find(o => o.dataset.value === catVal);
+                const matchingText = matchingOpt ? matchingOpt.textContent : "";
+                if (input.value !== matchingText) {
+                    input.value = catVal === "" ? "" : matchingText;
                 }
-                categorySearchInput.blur();
-            }
-        });
-
-        categoryOptions.forEach(opt => {
-            opt.addEventListener('mousedown', (e) => {
-                e.preventDefault();
-                selectCategory(opt.dataset.value, opt.textContent);
-            });
-        });
-    }
-
-    if (filterForm) {
-        filterForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            reloadFromForm();
-        });
-    }
-
-    window.addEventListener('popstate', (e) => {
-        if (e.state && e.state.url) {
-            loadBooks(e.state.url, false);
-            const urlObj = new URL(e.state.url);
-            if (searchInput) searchInput.value = urlObj.searchParams.get('search') || '';
-            if (perPageSelect) perPageSelect.value = urlObj.searchParams.get('perPage') || '20';
-            if (categorySelect) {
-                const catVal = urlObj.searchParams.get('category') || '';
-                categorySelect.value = catVal;
-                
-                let matchingText = catVal;
-                if (categoryOptions) {
-                    categoryOptions.forEach(opt => {
-                        if (opt.dataset.value === catVal) {
-                            opt.classList.add('selected');
-                            if (catVal !== "") {
-                                matchingText = opt.textContent;
-                            }
-                        } else {
-                            opt.classList.remove('selected');
-                        }
-                    });
-                }
-                
-                if (categorySearchInput) {
-                    categorySearchInput.value = catVal === "" ? "" : matchingText;
-                }
-                lastCategoryValue = catVal;
             }
         }
     });
 
-    bindEvents();
+    // Handle sort selection with direction logic
+    const sortSelect = document.querySelector('select[name="sort"]');
+    const directionHidden = document.getElementById('sort-direction-hidden');
+    if (sortSelect && directionHidden) {
+        sortSelect.addEventListener('change', function() {
+            const selectedOption = this.options[this.selectedIndex];
+            const customDir = selectedOption.dataset.dir;
+            if (customDir) {
+                directionHidden.value = customDir;
+            } else if (this.value === 'rating') {
+                directionHidden.value = 'DESC'; // Default to DESC for stars
+            } else {
+                directionHidden.value = 'ASC';
+            }
+        });
+    }
 });
 </script>

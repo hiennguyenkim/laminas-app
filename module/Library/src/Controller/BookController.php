@@ -6,6 +6,9 @@ namespace Library\Controller;
 
 use Library\Form\BookForm;
 use Library\Model\Entity\Book;
+use Library\Model\Table\AnnouncementTable;
+use Library\Model\Table\BookCategoryTable;
+use Library\Model\Table\BookReviewTable;
 use Library\Model\Table\BookTable;
 use Library\Model\Table\BorrowTable;
 use Library\Session\AuthSessionContainer;
@@ -27,7 +30,9 @@ class BookController extends BaseController
         private BookTable $bookTable,
         private BorrowTable $borrowTable,
         private FormElementManager $formElementManager,
-        private ?\Laminas\Db\Adapter\AdapterInterface $dbAdapter = null
+        private AnnouncementTable $announcementTable,
+        private BookReviewTable $bookReviewTable,
+        private BookCategoryTable $bookCategoryTable
     ) {
         parent::__construct($authSessionContainer);
     }
@@ -41,9 +46,7 @@ class BookController extends BaseController
         $matchedRoute = $routeMatch?->getMatchedRouteName() ?? 'library/book';
         $isPublicCatalog = $matchedRoute === 'catalog';
 
-        // Update: permit view/review in indexAction? No indexAction handles both catalog and admin index.
         if (! $isPublicCatalog && ($response = $this->requireLogin())) {
-            // Actually, we don't need to change indexAction, viewAction and reviewAction are separate.
             return $response;
         }
 
@@ -84,6 +87,9 @@ class BookController extends BaseController
             }
         }
 
+        $sort = $this->queryString('sort', 'id');
+        $direction = $this->queryString('direction', 'ASC');
+
         $page = (int) $this->queryString('page', '1');
         $page = max(1, $page);
 
@@ -92,20 +98,15 @@ class BookController extends BaseController
         $page = min($page, $totalPages);
 
         $announcements = [];
-        if ($this->dbAdapter) {
-            try {
-                $sql = 'SELECT * FROM announcements WHERE is_active = 1 AND (start_date IS NULL OR start_date <= CURDATE()) AND (end_date IS NULL OR end_date >= CURDATE()) ORDER BY created_at DESC LIMIT 3';
-                $statement = $this->dbAdapter->query($sql);
-                $announcements = $statement->execute();
-                $announcements = iterator_to_array($announcements);
-            } catch (\Exception $e) {
-                // ignore
-            }
+        try {
+            $announcements = $this->announcementTable->fetchActiveForSidebar(3);
+        } catch (\Exception $e) {
+            // ignore
         }
 
         $viewModel = new ViewModel([
-            'books'      => $this->bookTable->fetchPage($filters, $page, $perPage),
-            'filters'    => $filters,
+            'books'      => $this->bookTable->fetchPage($filters, $page, $perPage, $sort, $direction),
+            'filters'    => array_merge($filters, ['sort' => $sort, 'direction' => $direction]),
             'categories' => array_keys($this->getCategoryOptions()),
             'summary'    => $this->bookTable->getSummary(),
             'canManage'  => $this->isAdmin(),
@@ -129,6 +130,95 @@ class BookController extends BaseController
         }
 
         return $viewModel;
+    }
+
+    public function exportAction(): Response
+    {
+        if ($response = $this->requireAdmin()) {
+            return $response;
+        }
+
+        $filters = [
+            'search'   => trim((string)$this->queryString('search', '')),
+            'category' => $this->queryString('category'),
+            'status'   => $this->queryString('status'),
+        ];
+        
+        $sort = $this->queryString('sort', 'id');
+        $direction = $this->queryString('direction', 'ASC');
+
+        // Fetch all matching books
+        $books = $this->bookTable->fetchPage($filters, 1, 999999, $sort, $direction);
+
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $spreadsheet->getProperties()
+            ->setTitle('Danh sach dau sach')
+            ->setCreator('Thu vien');
+
+        $hStyle = [
+            'font'      => ['bold' => true, 'color' => ['argb' => 'FFFFFFFF'], 'size' => 11],
+            'fill'      => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => ['argb' => 'FF4472C4']],
+            'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER, 'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER],
+            'borders'   => ['allBorders' => ['borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN, 'color' => ['argb' => 'FFB0BEC5']]],
+        ];
+
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Dau sach');
+
+        $sheet->setCellValue('A1', 'ID');
+        $sheet->setCellValue('B1', 'Tên đầu sách');
+        $sheet->setCellValue('C1', 'Tác giả');
+        $sheet->setCellValue('D1', 'ISBN');
+        $sheet->setCellValue('E1', 'Thể loại');
+        $sheet->setCellValue('F1', 'Số lượng');
+        $sheet->setCellValue('G1', 'Trạng thái');
+        $sheet->setCellValue('H1', 'Ngày tạo');
+
+        $sheet->getStyle('A1:H1')->applyFromArray($hStyle);
+
+        $rowNum = 2;
+        $statusLabels = [
+            'available'   => 'Sẵn sàng',
+            'borrowed'    => 'Hết sách',
+            'unavailable' => 'Tạm khóa',
+        ];
+
+        foreach ($books as $book) {
+            $sheet->setCellValue('A' . $rowNum, $book->id);
+            $sheet->setCellValue('B' . $rowNum, $book->title);
+            $sheet->setCellValue('C' . $rowNum, $book->author);
+            $sheet->setCellValue('D' . $rowNum, $book->isbn);
+            $sheet->setCellValue('E' . $rowNum, $book->category);
+            $sheet->setCellValue('F' . $rowNum, $book->quantity);
+            $sheet->setCellValue('G' . $rowNum, $statusLabels[$book->status] ?? $book->status);
+            $sheet->setCellValue('H' . $rowNum, $book->createdAt);
+            $rowNum++;
+        }
+
+        foreach (range('A', 'H') as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+        $fileName = 'danh-sach-dau-sach-' . date('Y-m-d-His') . '.xlsx';
+        
+        $tempFile = tempnam(sys_get_temp_dir(), 'xlsx');
+        if ($tempFile === false) {
+             throw new RuntimeException('Cannot create temporary file.');
+        }
+        $writer->save($tempFile);
+
+        $response = new Response();
+        $response->getHeaders()->addHeaders([
+            'Content-Type'        => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition' => 'attachment;filename="' . $fileName . '"',
+            'Cache-Control'       => 'max-age=0',
+        ]);
+        $content = file_get_contents($tempFile);
+        $response->setContent($content !== false ? $content : '');
+        unlink($tempFile);
+
+        return $response;
     }
 
     public function viewAction(): Response|ViewModel
@@ -157,12 +247,14 @@ class BookController extends BaseController
 
         // Fetch reviews
         $reviews = [];
-        if ($this->dbAdapter) {
-            try {
-                $sql = 'SELECT r.*, u.full_name, u.role FROM book_reviews r JOIN users u ON r.user_id = u.user_id WHERE r.book_id = ? ORDER BY r.created_at DESC';
-                $statement = $this->dbAdapter->query($sql);
-                $reviews = iterator_to_array($statement->execute([$id]));
-            } catch (\Exception $e) {}
+        try {
+            $reviews = $this->bookReviewTable->fetchReviewsForBook($id);
+        } catch (\Exception $e) {}
+
+        // Fetch user borrowing history for this book to allow review
+        $hasBorrowed = false;
+        if ($currentUser && $currentUser['role'] === 'student') {
+            $hasBorrowed = $this->bookReviewTable->hasBorrowedAny((int)$currentUser['id'], $id);
         }
 
         $viewModel = new ViewModel([
@@ -171,6 +263,7 @@ class BookController extends BaseController
             'currentUser'     => $currentUser,
             'canManage'       => $canManage,
             'reviews'         => $reviews,
+            'hasBorrowed'     => $hasBorrowed,
         ]);
 
         if ($canManage) {
@@ -367,41 +460,27 @@ class BookController extends BaseController
         $comment = trim((string)($this->postData()['comment'] ?? ''));
         $userId = $currentUser['id'];
 
-        if ($this->dbAdapter) {
-            try {
-                // Kiểm tra 1: Đã từng mượn sách này chưa?
-                $sqlHistory = "SELECT COUNT(*) as cnt
-                               FROM borrow_records
-                               WHERE user_id = ? AND book_id = ?
-                               AND status = 'returned'";
-                $hasBorrowed = $this->dbAdapter
-                    ->query($sqlHistory, [$userId, $bookId])
-                    ->current()['cnt'] > 0;
+        try {
+            // Kiểm tra 1: Đã hoặc đang mượn sách này chưa?
+            $hasBorrowed = $this->bookReviewTable->hasBorrowedAny($userId, $bookId);
 
-                if (!$hasBorrowed) {
-                    $this->flash()->addErrorMessage('Bạn chỉ có thể đánh giá sách sau khi đã mượn và trả.');
-                    return $this->redirect()->toRoute($route, ['action' => 'view', 'id' => $bookId]);
-                }
-
-                // Kiểm tra 2: Đã review cuốn này chưa?
-                $sqlDup = "SELECT COUNT(*) as cnt
-                           FROM book_reviews
-                           WHERE user_id = ? AND book_id = ?";
-                $hasReviewed = $this->dbAdapter
-                    ->query($sqlDup, [$userId, $bookId])
-                    ->current()['cnt'] > 0;
-
-                if ($hasReviewed) {
-                    $this->flash()->addErrorMessage('Bạn đã đánh giá cuốn sách này rồi.');
-                    return $this->redirect()->toRoute($route, ['action' => 'view', 'id' => $bookId]);
-                }
-
-                $sql = 'INSERT INTO book_reviews (book_id, user_id, rating, comment, created_at) VALUES (?, ?, ?, ?, NOW())';
-                $this->dbAdapter->query($sql, [$bookId, $currentUser['id'], $rating, $comment]);
-                $this->flash()->addSuccessMessage('Cảm ơn bạn đã đánh giá cuốn sách này!');
-            } catch (\Exception $e) {
-                $this->flash()->addErrorMessage('Có lỗi xảy ra khi gửi đánh giá: ' . $e->getMessage());
+            if (!$hasBorrowed) {
+                $this->flash()->addErrorMessage('Bạn chỉ có thể đánh giá sách sau khi đã hoặc đang mượn.');
+                return $this->redirect()->toRoute($route, ['action' => 'view', 'id' => $bookId]);
             }
+
+            // Kiểm tra 2: Đã review cuốn này chưa?
+            $hasReviewed = $this->bookReviewTable->hasReviewed($userId, $bookId);
+
+            if ($hasReviewed) {
+                $this->flash()->addErrorMessage('Bạn đã đánh giá cuốn sách này rồi.');
+                return $this->redirect()->toRoute($route, ['action' => 'view', 'id' => $bookId]);
+            }
+
+            $this->bookReviewTable->addReview($bookId, (int)$currentUser['id'], $rating, $comment);
+            $this->flash()->addSuccessMessage('Cảm ơn bạn đã đánh giá cuốn sách này!');
+        } catch (\Exception $e) {
+            $this->flash()->addErrorMessage('Có lỗi xảy ra khi gửi đánh giá: ' . $e->getMessage());
         }
 
         return $this->redirect()->toRoute($route, ['action' => 'view', 'id' => $bookId]);
@@ -447,33 +526,25 @@ class BookController extends BaseController
             'Khác'               => 'Khác',
         ];
 
-        if ($this->dbAdapter) {
-            try {
-                $result = $this->dbAdapter->query("SELECT name FROM book_categories ORDER BY name ASC")->execute();
-                $options = [];
-                foreach ($result as $row) {
-                    $options[$row['name']] = $row['name'];
-                }
-                return !empty($options) ? $options : $defaultCategories;
-            } catch (\Throwable $e) {
-                return $defaultCategories;
+        try {
+            $result = $this->bookCategoryTable->fetchNames();
+            $options = [];
+            foreach ($result as $name) {
+                $options[$name] = $name;
             }
+            return !empty($options) ? $options : $defaultCategories;
+        } catch (\Throwable $e) {
+            return $defaultCategories;
         }
-        return $defaultCategories;
     }
 
     private function getCategoriesWithId(): array
     {
-        if ($this->dbAdapter) {
-            try {
-                return iterator_to_array(
-                    $this->dbAdapter->query("SELECT * FROM book_categories ORDER BY name ASC")->execute()
-                );
-            } catch (\Throwable $e) {
-                return [];
-            }
+        try {
+            return $this->bookCategoryTable->fetchAll();
+        } catch (\Throwable $e) {
+            return [];
         }
-        return [];
     }
 }
 

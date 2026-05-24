@@ -27,6 +27,7 @@ class User
     public string $lockReason     = '';
     public string $lockedAt       = '';
     public string $phone          = '';
+    public int    $borrowLimit    = 5;
 
     public int    $borrowCount    = 0;
     public int    $overdueCount   = 0;
@@ -50,6 +51,7 @@ class User
         $this->lockReason    = (string) ($data['lock_reason'] ?? '');
         $this->lockedAt      = (string) ($data['locked_at'] ?? '');
         $this->phone         = (string) ($data['phone'] ?? '');
+        $this->borrowLimit   = (int)    ($data['borrow_limit'] ?? 5);
 
         $this->borrowCount   = (int)    ($data['borrowCount'] ?? $data['borrow_count'] ?? 0);
         $this->overdueCount  = (int)    ($data['overdueCount'] ?? $data['overdue_count'] ?? 0);
@@ -87,6 +89,7 @@ class User
             'account_status' => $this->accountStatus,
             'lock_reason'    => $this->lockReason,
             'phone'          => $this->phone,
+            'borrow_limit'   => $this->borrowLimit,
         ];
     }
 }

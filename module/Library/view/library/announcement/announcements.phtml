@@ -61,65 +61,15 @@ $typeTabs = [
     'contest' => ['Cuộc thi', 'bi-trophy-fill'],
     'holiday' => ['Nghỉ lễ', 'bi-balloon-fill'],
 ];
+$avatarColors = ['#7c6aff','#22c55e','#f97316','#ec4899','#3b82f6','#14b8a6','#ef4444','#fbbf24'];
+
+$page       = (int) ($page ?? 1);
+$perPage    = (int) ($perPage ?? 5);
+$totalCount = (int) ($totalCount ?? 0);
+$totalPages = (int) ($totalPages ?? 1);
 ?>
 
-<!-- KÊNH THẢO LUẬN -->
-<div class="forum-section">
-    <div class="forum-header">
-        <i class="bi bi-chat-quote-fill forum-header-icon"></i>
-        <h2 class="forum-header-title">Kênh Thảo Luận</h2>
-        <span class="forum-online-badge">
-            <span class="forum-online-dot"></span>
-            Trực tuyến
-        </span>
-    </div>
-
-    <div class="forum-card-wrap">
-        <!-- Pinned Banner -->
-        <div class="forum-pinned-banner" id="forum-pinned-banner" style="display:none;">
-            <div class="forum-pinned-content">
-                <i class="bi bi-pin-angle-fill text-purple"></i>
-                <span class="forum-pinned-text" id="forum-pinned-text"></span>
-            </div>
-        </div>
-
-        <!-- Message area -->
-        <div class="catalog-chat-messages forum-list" id="catalog-chat-body">
-            <div class="forum-empty">
-                Đang tải thảo luận...
-            </div>
-        </div>
-
-        <!-- Input area -->
-        <div class="forum-footer">
-            <?php if ($isGuest): ?>
-                <div class="forum-guest-msg">
-                    Vui lòng
-                    <a href="<?= $this->url('library/auth', ['action' => 'login']) ?>"
-                       class="forum-guest-link">Đăng nhập</a>
-                    để tham gia thảo luận.
-                </div>
-            <?php else: ?>
-                <div class="forum-input-row">
-                    <div style="position: relative; flex: 1; display: flex; align-items: center;">
-                        <input type="text" id="catalog-chat-input"
-                               placeholder="Viết thảo luận..."
-                               onkeypress="if(event.key==='Enter') sendCatalogMessage()"
-                               oninput="this.nextElementSibling.style.display = this.value ? 'inline-block' : 'none';"
-                               class="forum-input" style="padding-right: 32px; width: 100%;">
-                        <i class="bi bi-x-circle-fill" style="position: absolute; right: 12px; cursor: pointer; color: var(--text-muted); display: none; font-size: 14px; z-index: 5;" onclick="this.previousElementSibling.value = ''; this.style.display = 'none'; this.previousElementSibling.focus();"></i>
-                    </div>
-                    <button onclick="sendCatalogMessage()"
-                            class="forum-send-btn">
-                        <i class="bi bi-send-fill"></i> Gửi
-                    </button>
-                </div>
-            <?php endif; ?>
-        </div>
-    </div>
-</div>
-
-<!-- STUDENT / GUEST VIEW -->
+<!-- STUDENT / GUEST VIEW HEADER -->
 <div class="page-header">
     <div>
         <div class="page-title">
@@ -130,8 +80,8 @@ $typeTabs = [
 </div>
 
 <!-- FILTERS SECTION -->
-<div class="ann-filters-bar">
-    <div class="filter-tabs ann-filter-tabs-wrap">
+<div class="ann-filters-bar" style="display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 28px; margin-top: 24px; flex-wrap: nowrap;">
+    <div class="filter-tabs ann-filter-tabs-wrap" style="margin-bottom: 0; flex-shrink: 0;">
         <?php foreach ($typeTabs as $key => $tab): ?>
         <a href="<?= $this->url($baseRoute, [], ['query' => ['type' => $key, 'search' => $searchVal]]) ?>"
            class="filter-tab <?= $typeFilter === $key ? 'active' : '' ?> ann-filter-tab-link">
@@ -141,17 +91,108 @@ $typeTabs = [
         <?php endforeach; ?>
     </div>
     
-    <form method="GET" action="<?= $this->url($baseRoute) ?>" class="ann-search-form">
+    <form method="GET" action="<?= $this->url($baseRoute) ?>" class="ann-search-form" style="display: flex; gap: 8px; align-items: center; flex: 1; justify-content: flex-end; flex-wrap: nowrap; min-width: 0;">
         <input type="hidden" name="type" value="<?= htmlspecialchars($typeFilter) ?>">
-        <div class="topbar-search ann-search-input-wrap" style="position: relative;">
+        <div class="topbar-search ann-search-input-wrap" style="position: relative; width: 280px; margin: 0; height: 38px; border-radius: 8px; flex-shrink: 1; min-width: 150px;">
             <i class="bi bi-search"></i>
-            <input type="text" name="search" value="<?= htmlspecialchars($searchVal) ?>" placeholder="Tìm nội dung bản tin..." oninput="this.nextElementSibling.style.display = this.value ? 'inline-block' : 'none';" style="padding-right: 28px;">
-            <i class="bi bi-x-circle-fill search-clear-btn" style="position: absolute; right: 12px; cursor: pointer; color: var(--text-muted); display: <?= !empty($searchVal) ? 'inline-block' : 'none' ?>; font-size: 14px;" onclick="clearSearchInput(this)"></i>
+            <input type="text" name="search" value="<?= htmlspecialchars($searchVal) ?>" placeholder="Tìm kiếm bản tin..." oninput="this.nextElementSibling.style.display = this.value ? 'inline-block' : 'none';" style="padding-right: 28px;">
+            <i class="bi bi-x-circle-fill search-clear-btn" style="position: absolute; right: 12px; cursor: pointer; color: var(--text-muted); display: <?= !empty($searchVal) ? 'inline-block' : 'none' ?>; font-size: 14px; top: 50%; transform: translateY(-50%);" onclick="const inp=this.previousElementSibling; inp.value=''; inp.focus(); this.style.display='none';"></i>
         </div>
-        <button type="submit" class="btn btn-primary ann-search-submit-btn">
-            <i class="bi bi-search"></i>Tìm kiếm
+        <button type="submit" class="btn btn-primary ann-search-submit-btn" style="height: 38px; padding: 0 16px; font-weight: 600; flex-shrink: 0;">
+            Tìm kiếm
         </button>
     </form>
+</div>
+
+<!-- CỘNG ĐỒNG & BẢNG XẾP HẠNG -->
+<div class="news-community-grid">
+    <!-- KÊNH THẢO LUẬN -->
+    <div class="forum-section">
+        <div class="forum-header">
+            <i class="bi bi-chat-quote-fill forum-header-icon"></i>
+            <h2 class="forum-header-title">Kênh Thảo Luận</h2>
+            <span class="forum-online-badge">
+                <span class="forum-online-dot"></span>
+                Trực tuyến
+            </span>
+        </div>
+
+        <div class="forum-card-wrap">
+            <div class="forum-pinned-banner" id="forum-pinned-banner" style="display:none;">
+                <div class="forum-pinned-content">
+                    <i class="bi bi-pin-angle-fill text-purple"></i>
+                    <span class="forum-pinned-text" id="forum-pinned-text"></span>
+                </div>
+            </div>
+            <div class="catalog-chat-messages forum-list" id="catalog-chat-body" style="height: 330px;">
+                <div class="forum-empty">Đang tải thảo luận...</div>
+            </div>
+            <div class="forum-footer">
+                <?php if ($isGuest): ?>
+                    <div class="forum-guest-msg">Vui lòng <a href="<?= $this->url('library/auth', ['action' => 'login']) ?>" class="forum-guest-link">Đăng nhập</a> để tham gia thảo luận.</div>
+                <?php else: ?>
+                    <div class="forum-input-row">
+                        <div style="position: relative; flex: 1; display: flex; align-items: center;">
+                            <input type="text" id="catalog-chat-input" placeholder="Viết thảo luận..." onkeypress="if(event.key==='Enter') sendCatalogMessage()" oninput="this.nextElementSibling.style.display = this.value ? 'inline-block' : 'none';" class="forum-input" style="padding-right: 32px; width: 100%;">
+                            <i class="bi bi-x-circle-fill" style="position: absolute; right: 12px; cursor: pointer; color: var(--text-muted); display: none; font-size: 14px; z-index: 5;" onclick="this.previousElementSibling.value = ''; this.style.display = 'none'; this.previousElementSibling.focus();"></i>
+                        </div>
+                        <button onclick="sendCatalogMessage()" class="forum-send-btn"><i class="bi bi-send-fill"></i> Gửi</button>
+                    </div>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+
+    <!-- BẢNG XẾP HẠNG -->
+    <div class="leaderboard-section">
+        <div class="forum-header" style="display: flex; justify-content: space-between; align-items: center; width: 100%; gap: 10px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <i class="bi bi-trophy-fill forum-header-icon" style="color: #f59e0b;"></i>
+                <h2 class="forum-header-title" style="margin-bottom: 0;">Top Bạn Đọc</h2>
+            </div>
+            <select id="leaderboard-period-select" style="background: #2a2a3e; border: 1px solid rgba(255,255,255,0.1); color: #fff; border-radius: 6px; padding: 4px 8px; font-size: 11px; outline: none; cursor: pointer;">
+                <option value="week" <?= $leaderboardPeriod === 'week' ? 'selected' : '' ?>>Tuần</option>
+                <option value="month" <?= $leaderboardPeriod === 'month' ? 'selected' : '' ?>>Tháng</option>
+                <option value="quarter" <?= $leaderboardPeriod === 'quarter' ? 'selected' : '' ?>>Quý</option>
+                <option value="year" <?= $leaderboardPeriod === 'year' ? 'selected' : '' ?>>Năm</option>
+            </select>
+        </div>
+        <div class="leaderboard-card-wrap">
+            <div class="leaderboard-list">
+                <?php if (empty($topReaders)): ?>
+                    <div class="leaderboard-empty">Chưa có dữ liệu xếp hạng.</div>
+                <?php else: ?>
+                    <?php 
+                    $ranks = [1 => '#ffd700', 2 => '#c0c0c0', 3 => '#cd7f32'];
+                    foreach ($topReaders as $index => $reader): 
+                        $rank = $index + 1;
+                        $rankColor = $ranks[$rank] ?? 'rgba(255,255,255,0.1)';
+                        $aColor = $avatarColors[$index % count($avatarColors)];
+                    ?>
+                        <div class="leaderboard-item">
+                            <div class="leaderboard-rank" style="background: <?= $rankColor ?>; color: <?= $rank <= 3 ? '#000' : '#888' ?>">
+                                <?= $rank ?>
+                            </div>
+                            <div class="leaderboard-avatar" style="background: <?= $aColor ?>">
+                                <?php if (!empty($reader['avatar_url'])): ?>
+                                    <img src="<?= $this->basePath($reader['avatar_url']) ?>" alt="Avatar">
+                                <?php else: ?>
+                                    <?= substr($reader['full_name'] ?? 'U', 0, 1) ?>
+                                <?php endif; ?>
+                            </div>
+                            <div class="leaderboard-info">
+                                <div class="leaderboard-name"><?= htmlspecialchars($reader['full_name'] ?? 'Người dùng') ?></div>
+                                <div class="leaderboard-stats"><?= $reader['borrow_count'] ?> cuốn sách</div>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                <?php endif; ?>
+            </div>
+            <div class="leaderboard-footer">
+                <i class="bi bi-info-circle"></i> Xếp hạng theo số lượt mượn
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- ANNOUNCEMENTS GRID -->
@@ -160,96 +201,119 @@ $typeTabs = [
     <i class="bi bi-megaphone-fill ann-empty-icon"></i>
     <h3 class="ann-empty-title">Không có bản tin nào</h3>
     <p class="ann-empty-desc">Không tìm thấy bản tin nào phù hợp với bộ lọc hiện tại.</p>
-    <?php if ($typeFilter !== 'all' || $searchVal !== ''): ?>
-    <a href="<?= $this->url($baseRoute) ?>" class="btn btn-outline btn-sm ann-empty-btn">Xóa bộ lọc</a>
-    <?php endif; ?>
 </div>
 <?php else: ?>
 <div class="ann-grid">
     <?php foreach ($announcements as $i => $ann):
         $cfg = $typeConfig[$ann['type']] ?? $typeConfig['general'];
         $isNew = (strtotime($ann['created_at']) > strtotime('-3 days'));
-
-        // Date range display
         $dateStr = '';
-        if ($ann['start_date'] && $ann['end_date']) {
-            $dateStr = date('d/m', strtotime($ann['start_date'])) . ' – ' . date('d/m/Y', strtotime($ann['end_date']));
-        } elseif ($ann['start_date']) {
-            $dateStr = 'Từ ' . date('d/m/Y', strtotime($ann['start_date']));
-        } elseif ($ann['end_date']) {
-            $dateStr = 'Đến ' . date('d/m/Y', strtotime($ann['end_date']));
-        }
-
-        // Check if expired
+        if ($ann['start_date'] && $ann['end_date']) $dateStr = date('d/m', strtotime($ann['start_date'])) . ' – ' . date('d/m/Y', strtotime($ann['end_date']));
+        elseif ($ann['start_date']) $dateStr = 'Từ ' . date('d/m/Y', strtotime($ann['start_date']));
+        elseif ($ann['end_date']) $dateStr = 'Đến ' . date('d/m/Y', strtotime($ann['end_date']));
         $isExpired = $ann['end_date'] && strtotime($ann['end_date']) < strtotime('today');
     ?>
-    <div class="ann-card <?= $isExpired ? 'ann-card--expired' : '' ?>"
-         style="--ann-border:<?= $cfg['border'] ?>;--ann-glow:<?= $cfg['glow'] ?>;--ann-light:<?= $cfg['light'] ?>;animation-delay:<?= $i * 0.07 ?>s">
-
-        <!-- Top banner gradient -->
+    <div class="ann-card <?= $isExpired ? 'ann-card--expired' : '' ?>" style="--ann-border:<?= $cfg['border'] ?>;--ann-glow:<?= $cfg['glow'] ?>;--ann-light:<?= $cfg['light'] ?>;animation-delay:<?= $i * 0.07 ?>s">
         <div class="ann-banner" style="background:<?= $cfg['gradient'] ?>">
             <span class="ann-emoji"><?= $cfg['emoji'] ?></span>
             <div class="ann-banner-right">
-                <span class="ann-type-badge">
-                    <i class="bi <?= $cfg['icon'] ?>"></i>
-                    <?= $cfg['label'] ?>
-                </span>
-                <?php if ($isNew && !$isExpired): ?>
-                    <span class="ann-new-dot">MỚI</span>
-                <?php endif; ?>
+                <span class="ann-type-badge"><i class="bi <?= $cfg['icon'] ?>"></i> <?= $cfg['label'] ?></span>
+                <?php if ($isNew && !$isExpired): ?><span class="ann-new-dot">MỚI</span><?php endif; ?>
             </div>
         </div>
-
-        <!-- Content -->
         <div class="ann-body">
-            <h3 class="ann-card-title"><?= htmlspecialchars($ann['title']) ?></h3>
+            <h3 class="ann-card-title">
+                <a href="<?= $this->url('announcements/view', ['id' => $ann['id']]) ?>" style="color: inherit; text-decoration: none;"><?= htmlspecialchars($ann['title']) ?></a>
+            </h3>
             <div class="ann-content-text">
-                <?= nl2br(htmlspecialchars($ann['content'])) ?>
+                <?= htmlspecialchars(mb_substr($ann['content'], 0, 160)) ?><?= mb_strlen($ann['content']) > 160 ? '…' : '' ?>
+                <?php if (mb_strlen($ann['content']) > 160): ?>
+                    <a href="<?= $this->url('announcements/view', ['id' => $ann['id']]) ?>" style="color: var(--accent-purple); font-weight: 600; text-decoration: none; margin-left: 4px;">Xem thêm</a>
+                <?php endif; ?>
             </div>
-
-            <!-- Footer meta -->
             <div class="ann-meta">
-                <?php if ($dateStr): ?>
-                <span class="ann-meta-item ann-meta-item--accent">
-                    <i class="bi bi-calendar-event"></i> <?= $dateStr ?>
-                </span>
-                <?php endif; ?>
-                <span class="ann-meta-item">
-                    <i class="bi bi-clock"></i>
-                    <?= date('d/m/Y', strtotime($ann['created_at'])) ?>
-                </span>
-                <?php if ($isExpired): ?>
-                <span class="ann-meta-item ann-expired-tag">
-                    <i class="bi bi-archive"></i> Đã kết thúc
-                </span>
-                <?php endif; ?>
+                <?php if ($dateStr): ?><span class="ann-meta-item ann-meta-item--accent"><i class="bi bi-calendar-event"></i> <?= $dateStr ?></span><?php endif; ?>
+                <span class="ann-meta-item"><i class="bi bi-clock"></i> <?= date('d/m/Y', strtotime($ann['created_at'])) ?></span>
+                <?php if ($isExpired): ?><span class="ann-meta-item ann-expired-tag"><i class="bi bi-archive"></i> Đã kết thúc</span><?php endif; ?>
             </div>
         </div>
-
-        <!-- Left accent bar -->
         <div class="ann-accent-bar" style="background:<?= $cfg['gradient'] ?>"></div>
     </div>
     <?php endforeach; ?>
 </div>
+
+<!-- PAGINATION -->
+<?php if ($totalPages > 1): ?>
+<?php 
+$buildPageUrl = function(int $p) use ($baseRoute, $typeFilter, $searchVal): string {
+    $q = ['page' => $p];
+    if ($typeFilter !== 'all') $q['type'] = $typeFilter;
+    if ($searchVal !== '')   $q['search'] = $searchVal;
+    return $this->url($baseRoute, [], ['query' => $q]);
+};
+?>
+<div class="catalog-pagination-bar" style="margin-top:40px; margin-bottom: 40px; justify-content: space-between;">
+    <div class="catalog-pagination-info">
+        Hiển thị <?= min(($page-1)*$perPage+1, $totalCount) ?> – <?= min($page*$perPage, $totalCount) ?> / <?= $totalCount ?> bản tin
+    </div>
+    <div class="pagination">
+        <a class="page-btn <?= $page<=1?'disabled':'' ?>" href="<?= $page>1?$buildPageUrl($page-1):'#' ?>"><i class="bi bi-chevron-left"></i></a>
+        <?php for ($p=max(1,$page-2); $p<=min($totalPages,$page+2); $p++): ?>
+        <a class="page-btn <?= $p===$page?'active':'' ?>" href="<?= $buildPageUrl($p) ?>"><?= $p ?></a>
+        <?php endfor; ?>
+        <a class="page-btn <?= $page>=$totalPages?'disabled':'' ?>" href="<?= $page<$totalPages?$buildPageUrl($page+1):'#' ?>"><i class="bi bi-chevron-right"></i></a>
+    </div>
+</div>
+<?php endif; ?>
 <?php endif; ?>
 
 <style>
-.forum-section {
-    margin-top: 0;
-    margin-bottom: 36px;
-}
+.news-community-grid { display: grid; grid-template-columns: 3fr 1fr; gap: 24px; margin-bottom: 36px; align-items: stretch; }
+@media (max-width: 992px) { .news-community-grid { grid-template-columns: 1fr; } }
+.forum-section { display: flex; flex-direction: column; }
+.leaderboard-section { display: flex; flex-direction: column; align-self: start; }
+.forum-card-wrap { background: #1e1e2e; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; height: 100%; }
+.leaderboard-card-wrap { background: #1e1e2e; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; height: auto; }
+.forum-list { height: 280px !important; overflow-y: auto; flex: none !important; }
+.leaderboard-list { padding: 16px; display: flex; flex-direction: column; gap: 12px; flex: 1; }
+.leaderboard-item { display: flex; align-items: center; gap: 12px; padding: 8px; border-radius: 8px; transition: background 0.2s; }
+.leaderboard-rank { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; flex-shrink: 0; }
+.leaderboard-avatar { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 12px; overflow: hidden; flex-shrink: 0; }
+.leaderboard-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.leaderboard-info { flex: 1; min-width: 0; }
+.leaderboard-name { font-size: 13px; font-weight: 600; color: #e2e8f0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.leaderboard-stats { font-size: 11px; color: #888; margin-top: 1px; }
+.leaderboard-footer { padding: 10px 16px; background: #16162a; font-size: 10px; color: #666; border-top: 1px solid rgba(255,255,255,0.05); }
+.leaderboard-empty { text-align: center; padding: 20px; color: #666; font-size: 12px; }
 </style>
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     let catalogChatInterval = null;
     const currentUserId = parseInt(<?= json_encode($authUser['id'] ?? 0) ?>);
-    const currentUserRole = <?= json_encode($authUser['role'] ?? '') ?>;
     const basePath = <?= json_encode($this->basePath()) ?>;
-    let lastMessagesJson = '';
+    const container = document.getElementById('catalog-chat-body');
+    const isGuest = <?= json_encode((bool) $isGuest) ?>;
+
+    let allMessages = [];
+    let oldestMessageId = null;
+    let newestMessageId = null;
+    let isLoadingOlder = false;
+    let hasMoreOlder = true;
 
     function escapeHtml(unsafe) {
         return (unsafe || '').replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    }
+
+    function isScrolledToBottom() {
+        if (!container) return false;
+        return container.scrollHeight - container.clientHeight - container.scrollTop < 50;
+    }
+
+    function scrollToBottom() {
+        if (container) {
+            container.scrollTop = container.scrollHeight;
+        }
     }
 
     function renderReactionsHtml(msgId, msgReactions) {
@@ -304,191 +368,264 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    async function loadCatalogMessages() {
+    window.reactCatalogMessage = async function(msgId, emoji) {
+        const chatUrl = '<?= $this->url("student/dashboard", ["action" => "chat"]) ?>';
+        await fetch(chatUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `action=react&id=${msgId}&emoji=${encodeURIComponent(emoji)}`
+        });
+        pollNewMessages();
+    };
+
+    function renderMessageRow(msg) {
+        const colors = ['#7c6aff','#f97316','#22c55e','#3b82f6','#ec4899','#14b8a6'];
+        let hash = 0;
+        const usernameStr = msg.nickname || '';
+        for (let i = 0; i < usernameStr.length; i++) hash = usernameStr.charCodeAt(i) + ((hash << 5) - hash);
+        const avatarColor = colors[Math.abs(hash) % colors.length];
+        const initial = usernameStr.substring(0, 1).toUpperCase() || '?';
+        const roleBadge = msg.role === 'admin' ? '<span class="badge badge-purple forum-role-badge">Thủ thư</span>' : '';
+        
+        const deleteBtn = (!isGuest && parseInt(msg.user_id) === currentUserId) ? `<span onclick="deleteCatalogMessage(${msg.id})" class="forum-msg-delete" title="Xóa"><i class="bi bi-trash"></i></span>` : '';
+        const reactBtn = (!isGuest && currentUserId > 0) ? `<span class="forum-msg-react-btn" title="Thả cảm xúc" onclick="toggleReactionPicker(event, ${msg.id})"><i class="bi bi-emoji-smile"></i></span>` : '';
+        const avatarHtml = msg.avatar_url ? `<img src="${basePath + msg.avatar_url}" class="forum-msg-avatar" style="object-fit: cover;">` : `<div style="background:${avatarColor}" class="forum-msg-avatar">${initial}</div>`;
+
+        let msgReactions = {};
+        if (msg.reactions) {
+            try {
+                msgReactions = JSON.parse(msg.reactions);
+            } catch (e) {
+                msgReactions = {};
+            }
+        }
+
+        return `<div class="forum-msg-row" data-msg-id="${msg.id}">
+            ${avatarHtml}
+            <div class="forum-msg-body">
+                <div class="forum-msg-meta">
+                    <span class="forum-msg-username">${escapeHtml(msg.nickname)}${roleBadge}</span>
+                    <span class="forum-msg-time">${msg.created_at}${msg.date_label || ''}</span>
+                    <div class="forum-msg-meta-actions">${reactBtn}${deleteBtn}</div>
+                </div>
+                <div class="forum-msg-text">${escapeHtml(msg.message)}</div>
+                ${renderReactionsHtml(msg.id, msgReactions)}
+            </div>
+        </div>`;
+    }
+
+    function displayMessages(messages, append = true, prepend = false) {
+        if (!container || messages.length === 0) return;
+        
+        let html = '';
+        messages.forEach(msg => {
+            html += renderMessageRow(msg);
+        });
+
+        if (prepend) {
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = html;
+            while (tempDiv.lastChild) {
+                container.insertBefore(tempDiv.lastChild, container.firstChild);
+            }
+        } else if (append) {
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = html;
+            while (tempDiv.firstChild) {
+                container.appendChild(tempDiv.firstChild);
+            }
+        } else {
+            container.innerHTML = html;
+        }
+    }
+
+    async function loadInitialMessages() {
+        if (!container) return;
         try {
             const response = await fetch('<?= $this->url("student/dashboard", ["action" => "chat"]) ?>');
             if (!response.ok) return;
             const data = await response.json();
-            
             const messages = data.messages || [];
-            const pinned = data.pinned || null;
             
-            const messagesJson = JSON.stringify(data);
-            if (messagesJson === lastMessagesJson) {
-                return;
-            }
-            lastMessagesJson = messagesJson;
-
-            // Handle Pinned Banner
             const pinnedBanner = document.getElementById('forum-pinned-banner');
             const pinnedText = document.getElementById('forum-pinned-text');
-            if (pinnedBanner && pinnedText) {
-                if (pinned) {
-                    pinnedText.innerHTML = `<strong>${escapeHtml(pinned.nickname)}:</strong> ${escapeHtml(pinned.message)}`;
-                    pinnedBanner.style.display = 'flex';
-                } else {
-                    pinnedBanner.style.display = 'none';
-                }
+            if (pinnedBanner && pinnedText && data.pinned) {
+                pinnedText.innerHTML = `<strong>${escapeHtml(data.pinned.nickname)}:</strong> ${escapeHtml(data.pinned.message)}`;
+                pinnedBanner.style.display = 'flex';
+            } else if (pinnedBanner) {
+                pinnedBanner.style.display = 'none';
             }
 
-            const container = document.getElementById('catalog-chat-body');
-            if (!container) return;
-            
-            if (messages.length > 0) {
-                const lastMsg = messages[messages.length - 1];
-                localStorage.setItem('catalog_chat_last_seen_id', lastMsg.id);
+            if (messages.length === 0) {
+                container.innerHTML = '<div class="forum-empty">Chưa có tin nhắn.</div>';
+                return;
             }
+
+            container.innerHTML = '';
+            allMessages = messages;
+            oldestMessageId = messages[0].id;
+            newestMessageId = messages[messages.length - 1].id;
             
-            let html = '';
-            messages.forEach(msg => {
-                const colors = ['#7c6aff','#f97316','#22c55e','#3b82f6','#ec4899','#14b8a6'];
-                let hash = 0;
-                const usernameStr = msg.nickname || '';
-                for (let i = 0; i < usernameStr.length; i++) {
-                    hash = usernameStr.charCodeAt(i) + ((hash << 5) - hash);
-                }
-                const avatarColor = colors[Math.abs(hash) % colors.length];
-                const initial = usernameStr.substring(0, 1).toUpperCase() || '?';
-                const roleBadge = msg.role === 'admin' ? '<span class="badge badge-purple forum-role-badge">Thủ thư</span>' : '';
-                const username = escapeHtml(msg.nickname) + roleBadge;
-                const time = msg.created_at;
-                
-                let msgReactions = {};
-                try {
-                    if (msg.reactions && msg.reactions !== '') {
-                        msgReactions = JSON.parse(msg.reactions);
-                    }
-                } catch (e) {
-                    console.error('Failed to parse reactions:', e);
-                }
-
-                // Delete button (student can only delete their own message)
-                const deleteBtn = (parseInt(msg.user_id) === currentUserId)
-                    ? `<span onclick="deleteCatalogMessage(${msg.id})" class="forum-msg-delete" title="Xóa"><i class="bi bi-trash"></i></span>`
-                    : '';
-
-                let reactBtn = '';
-                if (currentUserId > 0) {
-                    reactBtn = `<span class="forum-msg-react-btn" title="Thả cảm xúc" onclick="toggleReactionPicker(event, ${msg.id})">
-                        <i class="bi bi-emoji-smile"></i>
-                    </span>`;
-                }
-
-                const actionsHtml = `<div class="forum-msg-meta-actions">
-                    ${reactBtn}
-                    ${deleteBtn}
-                </div>`;
-
-                const message = escapeHtml(msg.message);
-
-                const avatarHtml = msg.avatar_url 
-                    ? `<img src="${basePath + msg.avatar_url}" class="forum-msg-avatar" alt="${escapeHtml(msg.nickname)}" style="object-fit: cover;">`
-                    : `<div style="background:${avatarColor}" class="forum-msg-avatar">${initial}</div>`;
-
-                html += `<div class="forum-msg-row">
-                    ${avatarHtml}
-                    <div class="forum-msg-body">
-                        <div class="forum-msg-meta">
-                            <span class="forum-msg-username">${username}</span>
-                            <span class="forum-msg-time">${time}</span>
-                            ${actionsHtml}
-                        </div>
-                        <div class="forum-msg-text">
-                            ${message}
-                        </div>
-                        ${renderReactionsHtml(msg.id, msgReactions)}
-                    </div>
-                </div>`;
-            });
+            displayMessages(messages, false);
+            scrollToBottom();
             
-            if (html === '') {
-                html = `
-                    <div class="forum-empty-chat">
-                        <i class="bi bi-chat-dots"></i>
-                        <span>Chưa có tin nhắn nào. Hãy gửi tin nhắn đầu tiên để bắt đầu thảo luận!</span>
-                    </div>
-                `;
+            if (messages.length < 50) {
+                hasMoreOlder = false;
             }
-            
-            container.innerHTML = html;
-            const body = document.getElementById('catalog-chat-body');
-            if (body) {
-                body.scrollTop = body.scrollHeight;
-            }
-        } catch (e) {
-            console.error('Failed to load catalog chat messages:', e);
-        }
+        } catch (e) { console.error(e); }
     }
 
-    window.sendCatalogMessage = async function() {
-        const input = document.getElementById('catalog-chat-input');
-        if (!input) return;
-        const msg = input.value.trim();
-        if (msg === '') return;
-        input.value = '';
-        const chatClearBtn = input.nextElementSibling;
-        if (chatClearBtn && chatClearBtn.classList.contains('bi-x-circle-fill')) {
-            chatClearBtn.style.display = 'none';
-        }
-        
+    async function loadOlderMessages() {
+        if (isLoadingOlder || !hasMoreOlder || oldestMessageId === null || !container) return;
+        isLoadingOlder = true;
+
+        const loader = document.createElement('div');
+        loader.className = 'forum-loading-older';
+        loader.style.textAlign = 'center';
+        loader.style.padding = '8px';
+        loader.style.fontSize = '12px';
+        loader.style.color = '#888';
+        loader.innerText = 'Đang tải tin nhắn cũ hơn...';
+        container.insertBefore(loader, container.firstChild);
+
         try {
-            const response = await fetch('<?= $this->url("student/dashboard", ["action" => "chat"]) ?>', {
+            const response = await fetch('<?= $this->url("student/dashboard", ["action" => "chat"]) ?>?before_id=' + oldestMessageId);
+            if (!response.ok) {
+                loader.remove();
+                isLoadingOlder = false;
+                return;
+            }
+            const data = await response.json();
+            const messages = data.messages || [];
+            
+            loader.remove();
+
+            if (messages.length === 0) {
+                hasMoreOlder = false;
+                isLoadingOlder = false;
+                return;
+            }
+
+            const prevScrollHeight = container.scrollHeight;
+            const prevScrollTop = container.scrollTop;
+
+            allMessages = messages.concat(allMessages);
+            oldestMessageId = messages[0].id;
+
+            displayMessages(messages, false, true);
+
+            container.scrollTop = container.scrollHeight - prevScrollHeight + prevScrollTop;
+
+            if (messages.length < 50) {
+                hasMoreOlder = false;
+            }
+        } catch (e) { console.error(e); }
+        isLoadingOlder = false;
+    }
+
+    async function pollNewMessages() {
+        if (!container) return;
+        try {
+            const response = await fetch('<?= $this->url("student/dashboard", ["action" => "chat"]) ?>');
+            if (!response.ok) return;
+            const data = await response.json();
+            const messages = data.messages || [];
+
+            const pinnedBanner = document.getElementById('forum-pinned-banner');
+            const pinnedText = document.getElementById('forum-pinned-text');
+            if (pinnedBanner && pinnedText && data.pinned) {
+                pinnedText.innerHTML = `<strong>${escapeHtml(data.pinned.nickname)}:</strong> ${escapeHtml(data.pinned.message)}`;
+                pinnedBanner.style.display = 'flex';
+            } else if (pinnedBanner) {
+                pinnedBanner.style.display = 'none';
+            }
+
+            if (messages.length === 0) return;
+
+            const newMsgs = messages.filter(msg => newestMessageId === null || msg.id > newestMessageId);
+            
+            if (newMsgs.length > 0) {
+                const emptyMsg = container.querySelector('.forum-empty');
+                if (emptyMsg) emptyMsg.remove();
+
+                const shouldScroll = isScrolledToBottom();
+                
+                allMessages = allMessages.concat(newMsgs);
+                newestMessageId = newMsgs[newMsgs.length - 1].id;
+                if (oldestMessageId === null) {
+                    oldestMessageId = newMsgs[0].id;
+                }
+
+                displayMessages(newMsgs, true);
+
+                if (shouldScroll) {
+                    scrollToBottom();
+                }
+            }
+            
+            // Check for deleted messages within the latest 50 messages
+            const incomingIds = messages.map(m => m.id);
+            const localLatestIds = allMessages.slice(-50).map(m => m.id);
+            const deletedIds = localLatestIds.filter(id => !incomingIds.includes(id));
+            if (deletedIds.length > 0) {
+                deletedIds.forEach(id => {
+                    allMessages = allMessages.filter(m => m.id !== id);
+                    const row = container.querySelector(`.forum-msg-row[data-msg-id="${id}"]`);
+                    if (row) row.remove();
+                });
+                if (allMessages.length === 0) {
+                    oldestMessageId = null;
+                    newestMessageId = null;
+                } else {
+                    oldestMessageId = allMessages[0].id;
+                    newestMessageId = allMessages[allMessages.length - 1].id;
+                }
+            }
+        } catch (e) { console.error(e); }
+    }
+
+    if (container) {
+        container.addEventListener('scroll', () => {
+            if (container.scrollTop === 0) {
+                loadOlderMessages();
+            }
+        });
+    }
+
+    if (!isGuest) {
+        window.sendCatalogMessage = async function() {
+            const input = document.getElementById('catalog-chat-input');
+            if (!input || !input.value.trim()) return;
+            const msg = input.value; input.value = '';
+            await fetch('<?= $this->url("student/dashboard", ["action" => "chat"]) ?>', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: 'message=' + encodeURIComponent(msg)
             });
-            if (response.ok) {
-                loadCatalogMessages();
-            } else {
-                console.error('Failed to send catalog chat message.');
-            }
-        } catch (e) {
-            console.error(e);
-        }
-    };
+            pollNewMessages();
+        };
 
-    window.deleteCatalogMessage = async function(id) {
-        if (!confirm('Bạn có chắc chắn muốn xóa tin nhắn này?')) return;
-        try {
-            const response = await fetch('<?= $this->url("student/dashboard", ["action" => "chat"]) ?>', {
+        window.deleteCatalogMessage = async function(id) {
+            if (!confirm('Xóa tin nhắn này?')) return;
+            await fetch('<?= $this->url("student/dashboard", ["action" => "chat"]) ?>', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: `action=delete&id=${id}`
             });
-            if (response.ok) {
-                loadCatalogMessages();
-            } else {
-                alert('Không thể xóa tin nhắn.');
-            }
-        } catch (e) {
-            console.error(e);
-        }
-    };
+            pollNewMessages();
+        };
+    }
 
-    window.reactCatalogMessage = async function(id, emoji) {
-        try {
-            const response = await fetch('<?= $this->url("student/dashboard", ["action" => "chat"]) ?>', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-                body: `action=react&id=${id}&emoji=${encodeURIComponent(emoji)}`
-            });
-            if (response.ok) {
-                loadCatalogMessages();
-            } else {
-                console.error('Failed to react.');
-            }
-        } catch (e) {
-            console.error(e);
-        }
-    };
+    const periodSelect = document.getElementById('leaderboard-period-select');
+    if (periodSelect) {
+        periodSelect.addEventListener('change', function() {
+            const url = new URL(window.location.href);
+            url.searchParams.set('leaderboard_period', this.value);
+            window.location.href = url.toString();
+        });
+    }
 
-    loadCatalogMessages();
-    catalogChatInterval = setInterval(loadCatalogMessages, 5000);
+    loadInitialMessages();
+    catalogChatInterval = setInterval(pollNewMessages, 5000);
 });
 </script>

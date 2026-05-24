@@ -5,80 +5,53 @@ $authUser    = $this->currentUser();
 $routePrefix = 'library';
 
 $statusMap = [
-    'open' => ['Chưa phản hồi', 'badge-orange'],
-    'in_progress' => ['Đã phản hồi', 'badge-green'],
-    'closed' => ['Đã phản hồi', 'badge-green'],
-    '' => ['Chưa phản hồi', 'badge-orange']
+    'open'        => ['Chưa phản hồi', 'badge-orange'],
+    'in_progress' => ['Đang xử lý',    'badge-purple'],
+    'closed'      => ['Đã phản hồi',   'badge-green'],
 ];
 
-$page       = (int) ($page ?? 1);
-$perPage    = (int) ($perPage ?? 10);
-$totalCount = (int) ($totalCount ?? 0);
-$totalPages = (int) ($totalPages ?? 1);
+$pagination = $pagination ?? [];
+$page       = (int) ($pagination['page'] ?? 1);
+$perPage    = (int) ($pagination['perPage'] ?? 20);
+$perPageRaw = $pagination['perPage'] ?? '20';
+$totalItems = (int) ($pagination['totalItems'] ?? 0);
+$totalPages = (int) ($pagination['totalPages'] ?? 1);
 
-$queryBase = [
-    'search'    => (string) ($filters['search'] ?? ''),
-    'status'    => (string) ($filters['status'] ?? ''),
-    'sort'      => (string) ($filters['sort'] ?? ''),
-    'direction' => (string) ($filters['direction'] ?? ''),
-];
-
-$buildPageUrl = function(int $p) use ($routePrefix, $queryBase): string {
-    $q = $queryBase;
-    $q['page'] = $p;
-    $q = array_filter($q, fn($v, $k) => $k === 'page' || $v !== '', ARRAY_FILTER_USE_BOTH);
-    return $this->url($routePrefix . '/ticket', [], ['query' => $q]);
+$buildPageUrl = function(int $p) use ($filters, $routePrefix, $perPageRaw): string {
+    $q = array_merge($filters, ['page' => $p, 'perPage' => $perPageRaw]);
+    return $this->url($routePrefix . '/ticket', [], ['query' => array_filter($q)]);
 };
 
-$buildSortUrl = function(string $col) use ($queryBase, $routePrefix): string {
-    $currentSort = $queryBase['sort'];
-    $currentDir  = strtoupper($queryBase['direction']);
-    if ($currentSort === $col) {
-        $newDir = ($currentDir === 'ASC') ? 'DESC' : 'ASC';
-    } else {
-        $newDir = in_array($col, ['updated_at', 'id']) ? 'DESC' : 'ASC';
-    }
-    $q = $queryBase;
-    $q['sort'] = $col;
-    $q['direction'] = $newDir;
-    $q = array_filter($q, fn($v) => $v !== null && $v !== '');
-    return $this->url($routePrefix . '/ticket', [], ['query' => $q]);
+$buildTabUrl = function(string $statusVal) use ($filters, $routePrefix, $perPageRaw): string {
+    $q = array_merge($filters, ['status' => $statusVal, 'page' => 1, 'perPage' => $perPageRaw]);
+    return $this->url($routePrefix . '/ticket', [], ['query' => array_filter($q)]);
 };
 
-$renderSortIcon = function(string $col) use ($queryBase): string {
-    $currentSort = $queryBase['sort'];
-    $currentDir  = strtoupper($queryBase['direction']);
-    if ($currentSort !== $col) {
-        return '<i class="bi bi-arrow-down-up ms-1" style="font-size: 0.75rem; opacity: 0.4;"></i>';
-    }
-    if ($currentDir === 'ASC') {
-        return '<i class="bi bi-sort-down ms-1" style="font-size: 0.85rem; color: var(--primary-color);"></i>';
-    }
-    return '<i class="bi bi-sort-up ms-1" style="font-size: 0.85rem; color: var(--primary-color);"></i>';
+$buildSortUrl = function(string $col) use ($filters, $routePrefix, $perPageRaw): string {
+    $currentSort = $filters['sort'] ?? 'id';
+    $currentDir  = strtoupper($filters['direction'] ?? 'ASC');
+    $newDir = ($currentSort === $col && $currentDir === 'ASC') ? 'DESC' : 'ASC';
+    $q = array_merge($filters, ['sort' => $col, 'direction' => $newDir, 'page' => 1, 'perPage' => $perPageRaw]);
+    return $this->url($routePrefix . '/ticket', [], ['query' => array_filter($q)]);
+};
+
+$renderSortIcon = function(string $col) use ($filters): string {
+    $currentSort = $filters['sort'] ?? 'id';
+    $currentDir  = strtoupper($filters['direction'] ?? 'ASC');
+    if ($currentSort !== $col) return '<i class="bi bi-arrow-down-up ms-1" style="font-size: 0.7rem; opacity: 0.3;"></i>';
+    return $currentDir === 'ASC' ? '<i class="bi bi-sort-down ms-1 text-primary"></i>' : '<i class="bi bi-sort-up ms-1 text-primary"></i>';
 };
 ?>
 
 <div class="page-header">
     <div>
-        <div class="page-title">Hỗ trợ / Hỏi đáp (Quản trị)</div>
-        <div class="page-subtitle">Quản lý các yêu cầu hỗ trợ và trao đổi giữa Thư viện và Độc giả.</div>
+        <h1 class="page-title">Hỗ trợ / Hỏi đáp</h1>
+        <p class="page-subtitle">Quản lý và phản hồi các thắc mắc, yêu cầu từ sinh viên.</p>
     </div>
 </div>
 
-<!-- FILTER TABS & SEARCH -->
-<?php
-$buildTabUrl = function(string $statusVal) use ($filters, $routePrefix) {
-    $q = [
-        'search'    => $filters['search'] ?? '',
-        'status'    => $statusVal,
-        'sort'      => $filters['sort'] ?? '',
-        'direction' => $filters['direction'] ?? '',
-    ];
-    return $this->url($routePrefix . '/ticket', [], ['query' => array_filter($q, fn($v) => $v !== null && $v !== '')]);
-};
-?>
-<div class="user-filters-bar">
-    <div class="filter-tabs user-filter-tabs">
+<div class="ticket-filters-row" style="display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 24px; width: 100%; flex-wrap: nowrap;">
+    <div class="filter-tabs user-filter-tabs" style="margin-bottom: 0; flex-shrink: 0;">
         <a href="<?= $buildTabUrl('') ?>" class="filter-tab <?= !($filters['status'] ?? '') ? 'active' : '' ?>">
             Tất cả <span class="count"><?= (int)($allCount ?? 0) ?></span>
         </a>
@@ -89,23 +62,33 @@ $buildTabUrl = function(string $statusVal) use ($filters, $routePrefix) {
             Đã phản hồi <span class="count"><?= (int)($answeredCount ?? 0) ?></span>
         </a>
     </div>
-    <form method="GET" class="user-search-form">
-        <?php if (!empty($filters['status'])): ?>
-            <input type="hidden" name="status" value="<?= htmlspecialchars($filters['status']) ?>">
-        <?php endif; ?>
+
+    <form method="GET" class="user-search-form" style="display: flex; gap: 8px; align-items: center; flex-wrap: nowrap; flex: 1; justify-content: flex-end; min-width: 0;">
+        <input type="hidden" name="status" value="<?= htmlspecialchars($filters['status'] ?? '') ?>">
         <input type="hidden" name="sort" value="<?= htmlspecialchars((string)($filters['sort'] ?? '')) ?>">
         <input type="hidden" name="direction" value="<?= htmlspecialchars((string)($filters['direction'] ?? '')) ?>">
-        <div class="topbar-search user-search-wrap" style="position: relative;">
+
+        <select name="perPage" class="form-select" style="width: 145px; height: 38px; flex-shrink: 0;" onchange="this.form.submit()">
+            <option value="20"  <?= (string)$perPageRaw === '20'  ? 'selected' : '' ?>>20 yêu cầu / trang</option>
+            <option value="50"  <?= (string)$perPageRaw === '50'  ? 'selected' : '' ?>>50 yêu cầu / trang</option>
+            <option value="100" <?= (string)$perPageRaw === '100' ? 'selected' : '' ?>>100 yêu cầu / trang</option>
+            <option value="all" <?= (string)$perPageRaw === 'all' ? 'selected' : '' ?>>Tất cả</option>
+        </select>
+
+        <div class="topbar-search catalog-search-wrap" style="position: relative; width: 280px; margin: 0; height: 38px; border-radius: 8px; flex-shrink: 1; min-width: 150px;">
             <i class="bi bi-search"></i>
-            <input type="text" name="search" value="<?= htmlspecialchars($filters['search'] ?? '') ?>" placeholder="Tìm theo tiêu đề, nội dung..." oninput="this.nextElementSibling.style.display = this.value ? 'inline-block' : 'none';" style="padding-right: 28px;">
-            <i class="bi bi-x-circle-fill search-clear-btn" style="position: absolute; right: 12px; cursor: pointer; color: var(--text-muted); display: <?= !empty($filters['search']) ? 'inline-block' : 'none' ?>; font-size: 14px;" onclick="clearSearchInput(this)"></i>
+            <input type="text" name="search" value="<?= htmlspecialchars($filters['search'] ?? '') ?>" placeholder="Tìm tiêu đề, nội dung..." oninput="this.nextElementSibling.style.display = this.value ? 'inline-block' : 'none';" style="padding-right: 28px;">
+            <i class="bi bi-x-circle-fill search-clear-btn" style="position: absolute; right: 12px; cursor: pointer; color: var(--text-muted); display: <?= !empty($filters['search']) ? 'inline-block' : 'none' ?>; font-size: 14px; top: 50%; transform: translateY(-50%);" onclick="const inp=this.previousElementSibling; inp.value=''; this.style.display='none'; this.closest('form').submit();"></i>
         </div>
-        <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-search"></i>Tìm</button>
+        <button type="submit" class="btn btn-primary btn-sm" style="height: 38px; padding: 0 16px; font-weight: 600; flex-shrink: 0;">Tìm kiếm</button>
     </form>
 </div>
 
 <div class="card">
-    <div class="card-body ticket-table-card-body">
+    <div class="card-header">
+        <div class="card-title"><i class="bi bi-chat-dots settings-title-icon" style="color: var(--accent-purple); margin-right: 8px;"></i>Danh sách yêu cầu hỗ trợ</div>
+    </div>
+    <div class="book-import-table-container">
         <table class="data-table">
             <thead>
                 <tr>
@@ -126,7 +109,7 @@ $buildTabUrl = function(string $statusVal) use ($filters, $routePrefix) {
                     </th>
                     <th class="ticket-table-th">
                         <a href="<?= $buildSortUrl('updated_at') ?>" style="text-decoration: none; color: inherit; display: inline-flex; align-items: center;">
-                            Cập nhật lần cuối <?= $renderSortIcon('updated_at') ?>
+                            Cập nhật <?= $renderSortIcon('updated_at') ?>
                         </a>
                     </th>
                     <th class="ticket-table-th">
@@ -134,27 +117,29 @@ $buildTabUrl = function(string $statusVal) use ($filters, $routePrefix) {
                             Trạng thái <?= $renderSortIcon('status') ?>
                         </a>
                     </th>
-                    <th class="ticket-table-th--right">Thao tác</th>
+                    <th class="ticket-table-th--center">Thao tác</th>
                 </tr>
             </thead>
             <tbody>
                 <?php if (empty($tickets)): ?>
                 <tr>
-                    <td colspan="6" class="ticket-table-empty">
-                        <i class="bi bi-inbox ticket-table-empty-icon"></i>
-                        Không có yêu cầu hỗ trợ nào.
+                    <td colspan="6" class="text-center py-5">
+                        <div class="empty-state">
+                            <i class="bi bi-inbox" style="font-size: 3rem; opacity: 0.2;"></i>
+                            <p class="mt-3 text-muted">Không có yêu cầu hỗ trợ nào.</p>
+                        </div>
                     </td>
                 </tr>
                 <?php else: ?>
                 <?php foreach ($tickets as $t): ?>
                 <?php [$statusLabel, $statusClass] = $statusMap[$t['status']] ?? ['Không rõ', 'badge-gray']; ?>
                 <tr class="ticket-table-row">
-                    <td class="ticket-table-td--muted">#<?= $t['id'] ?></td>
-                    <td class="ticket-table-td--title"><?= htmlspecialchars($t['title']) ?></td>
-                    <td class="ticket-table-td--secondary"><?= htmlspecialchars($t['author_name']) ?></td>
-                    <td class="ticket-table-td--secondary"><?= date('d/m/Y H:i', strtotime($t['updated_at'])) ?></td>
-                    <td class="ticket-table-td"><span class="badge <?= $statusClass ?>"><?= $statusLabel ?></span></td>
-                    <td class="ticket-table-td--right">
+                    <td class="text-muted">#<?= $t['id'] ?></td>
+                    <td class="fw-medium"><?= htmlspecialchars($t['title']) ?></td>
+                    <td><?= htmlspecialchars($t['author_name']) ?></td>
+                    <td class="text-muted small"><?= date('d/m/Y H:i', strtotime($t['updated_at'])) ?></td>
+                    <td><span class="badge <?= $statusClass ?>"><?= $statusLabel ?></span></td>
+                    <td class="ticket-table-td--center">
                         <a href="<?= $this->url($routePrefix . '/ticket', ['action' => 'view', 'id' => $t['id']]) ?>" class="btn btn-sm btn-outline">
                             Chi tiết
                         </a>
@@ -169,16 +154,42 @@ $buildTabUrl = function(string $statusVal) use ($filters, $routePrefix) {
 
 <!-- PAGINATION -->
 <?php if ($totalPages > 1): ?>
-<div class="catalog-pagination-bar" style="margin-top:20px; width: 100%;">
-    <div class="catalog-pagination-info">
-        Hiển thị <?= min(($page-1)*$perPage+1,$totalCount) ?> – <?= min($page*$perPage,$totalCount) ?> / <?= $totalCount ?> yêu cầu
+<div class="book-import-pagination-row" style="padding: 20px;">
+    <div class="book-import-pagination-info">
+        Hiển thị trang <strong class="book-import-pagination-bold"><?= $page ?></strong> / <?= $totalPages ?>
+        &nbsp;•&nbsp; Tổng <strong class="book-import-pagination-bold"><?= $totalItems ?></strong> yêu cầu
     </div>
-    <div class="pagination">
-        <a class="page-btn <?= $page<=1?'disabled':'' ?>" href="<?= $page>1?$buildPageUrl($page-1):'#' ?>"><i class="bi bi-chevron-left"></i></a>
-        <?php for ($p=max(1,$page-2); $p<=min($totalPages,$page+2); $p++): ?>
-        <a class="page-btn <?= $p===$page?'active':'' ?>" href="<?= $buildPageUrl($p) ?>"><?= $p ?></a>
+    <div class="book-import-pagination-btns">
+        <?php if ($page > 1): ?>
+            <a href="<?= $buildPageUrl(1) ?>" class="btn btn-outline btn-sm book-import-pagination-btn" title="Trang đầu"><i class="bi bi-chevron-double-left"></i></a>
+            <a href="<?= $buildPageUrl($page - 1) ?>" class="btn btn-outline btn-sm book-import-pagination-btn"><i class="bi bi-chevron-left"></i> Trước</a>
+        <?php endif; ?>
+
+        <?php
+        $startPage = max(1, $page - 2);
+        $endPage   = min($totalPages, $page + 2);
+        for ($p = $startPage; $p <= $endPage; $p++):
+        ?>
+            <a href="<?= $buildPageUrl($p) ?>"
+               class="btn btn-sm book-import-pagination-btn <?= $p === $page ? 'btn-primary' : 'btn-outline' ?>"
+               style="min-width:32px;text-align:center"><?= $p ?></a>
         <?php endfor; ?>
-        <a class="page-btn <?= $page>=$totalPages?'disabled':'' ?>" href="<?= $page<$totalPages?$buildPageUrl($page+1):'#' ?>"><i class="bi bi-chevron-right"></i></a>
+
+        <?php if ($page < $totalPages): ?>
+            <a href="<?= $buildPageUrl($page + 1) ?>" class="btn btn-outline btn-sm book-import-pagination-btn">Sau <i class="bi bi-chevron-right"></i></a>
+            <a href="<?= $buildPageUrl($totalPages) ?>" class="btn btn-outline btn-sm book-import-pagination-btn" title="Trang cuối"><i class="bi bi-chevron-double-right"></i></a>
+        <?php endif; ?>
     </div>
 </div>
 <?php endif; ?>
+
+<script>
+function clearSearchInput(btn) {
+    const input = btn.previousElementSibling;
+    input.value = '';
+    btn.style.display = 'none';
+    input.focus();
+    const form = btn.closest('form');
+    if (form) form.submit();
+}
+</script>

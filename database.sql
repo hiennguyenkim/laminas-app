@@ -42,6 +42,7 @@ CREATE TABLE IF NOT EXISTS users (
     lock_reason    VARCHAR(255) DEFAULT NULL,
     locked_at      DATETIME     DEFAULT NULL,
     phone          VARCHAR(20)  DEFAULT NULL,
+    borrow_limit   TINYINT UNSIGNED NOT NULL DEFAULT 5,
     created_at     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_account_status (account_status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

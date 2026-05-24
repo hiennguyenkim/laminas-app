@@ -4,26 +4,29 @@ declare(strict_types=1);
 
 namespace Library\Controller;
 
+use Library\Model\Table\AnnouncementTable;
+use Library\Model\Table\BorrowTable;
 use Library\Session\AuthSessionContainer;
 use Laminas\Http\Response;
 use Laminas\View\Model\ViewModel;
-use Laminas\Db\Adapter\AdapterInterface;
 
 class AnnouncementController extends BaseController
 {
-    private AdapterInterface $dbAdapter;
-
     public function __construct(
         AuthSessionContainer $authSessionContainer,
-        AdapterInterface $dbAdapter
+        private AnnouncementTable $announcementTable,
+        private BorrowTable $borrowTable
     ) {
         parent::__construct($authSessionContainer);
-        $this->dbAdapter = $dbAdapter;
     }
 
     public function announcementsAction(): ViewModel|Response
     {
         $currentUser = $this->currentUser();
+        $leaderboardPeriod = $this->queryString('leaderboard_period', 'month');
+        if (!in_array($leaderboardPeriod, ['week', 'month', 'quarter', 'year'])) {
+            $leaderboardPeriod = 'month';
+        }
         $isAdmin = $currentUser !== null && ($currentUser['role'] ?? '') === 'admin';
         $isStudent = $currentUser !== null && ($currentUser['role'] ?? '') === 'student';
 
@@ -41,7 +44,6 @@ class AnnouncementController extends BaseController
         }
 
         $baseRoute = $matchedRouteName;
-        $routePrefix = $isAdmin ? 'library' : 'student';
 
         if ($currentUser === null) {
             $layout = $this->layout();
@@ -50,112 +52,69 @@ class AnnouncementController extends BaseController
             }
         }
 
-        if ($isAdmin) {
-            $page    = max(1, (int)($this->params()->fromQuery('page', 1)));
-            $perPage = 5;
+        $page       = max(1, (int)($this->params()->fromQuery('page', 1)));
+        $perPageRaw = $this->queryString('perPage', $isAdmin ? '20' : '5');
+        if ($perPageRaw === 'all') {
+            $perPage = 999999;
+        } else {
+            $perPage = (int)$perPageRaw;
+            if (!in_array($perPage, [5, 10, 20, 50, 100], true)) {
+                $perPage = $isAdmin ? 20 : 5;
+                $perPageRaw = (string)$perPage;
+            }
+        }
 
+        if ($isAdmin) {
             $search = trim($this->queryString('search'));
             $type   = trim($this->queryString('type'));
             $status = trim($this->queryString('status'));
+            $sort   = trim($this->queryString('sort', 'created_at'));
+            $direction = trim($this->queryString('direction', 'DESC'));
+
+            if (!in_array($sort, ['id', 'title', 'type', 'is_active', 'start_date', 'end_date', 'created_at'], true)) {
+                $sort = 'created_at';
+            }
+            if (!in_array(strtoupper($direction), ['ASC', 'DESC'], true)) {
+                $direction = 'DESC';
+            }
 
             $filters = [
                 'search' => $search,
                 'type'   => $type,
                 'status' => $status,
+                'sort'   => $sort,
+                'direction' => $direction,
             ];
 
             // Global stats
-            $globalCounts = $this->dbAdapter->query(
-                "SELECT 
-                    COUNT(*) AS total_count,
-                    SUM(CASE WHEN is_active = 1 AND (start_date IS NULL OR start_date <= CURDATE()) AND (end_date IS NULL OR end_date >= CURDATE()) THEN 1 ELSE 0 END) AS active_count,
-                    SUM(CASE WHEN start_date IS NOT NULL AND start_date > CURDATE() THEN 1 ELSE 0 END) AS upcoming_count,
-                    SUM(CASE WHEN end_date IS NOT NULL AND end_date < CURDATE() THEN 1 ELSE 0 END) AS expired_count,
-                    SUM(CASE WHEN is_active = 0 AND (start_date IS NULL OR start_date <= CURDATE()) AND (end_date IS NULL OR end_date >= CURDATE()) THEN 1 ELSE 0 END) AS hidden_count
-                 FROM announcements"
-            )->execute()->current();
+            $globalCounts = $this->announcementTable->getGlobalCounts();
             
             $activeCount = (int)($globalCounts['active_count'] ?? 0);
             $upcomingCount = (int)($globalCounts['upcoming_count'] ?? 0);
             $expiredCount = (int)($globalCounts['expired_count'] ?? 0);
             $hiddenCount = (int)($globalCounts['hidden_count'] ?? 0);
 
-            $where = [];
-            $params = [];
-
-            // Type filter
-            $allowedTypes = ['event', 'contest', 'holiday', 'general'];
-            if ($type !== '' && in_array($type, $allowedTypes, true)) {
-                $where[] = "a.type = ?";
-                $params[] = $type;
-            }
-
-            // Status filter
-            if ($status === 'active') {
-                $where[] = "a.is_active = 1 AND (a.start_date IS NULL OR a.start_date <= CURDATE()) AND (a.end_date IS NULL OR a.end_date >= CURDATE())";
-            } elseif ($status === 'upcoming') {
-                $where[] = "a.start_date IS NOT NULL AND a.start_date > CURDATE()";
-            } elseif ($status === 'expired') {
-                $where[] = "a.end_date IS NOT NULL AND a.end_date < CURDATE()";
-            } elseif ($status === 'hidden') {
-                $where[] = "a.is_active = 0 AND (a.start_date IS NULL OR a.start_date <= CURDATE()) AND (a.end_date IS NULL OR a.end_date >= CURDATE())";
-            }
-
-            // Search filter
-            if ($search !== '') {
-                $where[] = "(a.title LIKE ? OR a.content LIKE ?)";
-                $searchTerm = '%' . $search . '%';
-                $params[] = $searchTerm;
-                $params[] = $searchTerm;
-            }
-
-            $whereClause = !empty($where) ? "WHERE " . implode(" AND ", $where) : "";
-
             // Filtered counts
-            $countSql = "SELECT COUNT(*) as cnt FROM announcements a $whereClause";
-            $totalCount = (int)(($this->dbAdapter->query($countSql)->execute($params)->current()['cnt']) ?? 0);
+            $totalCount = $this->announcementTable->countFiltered($filters);
 
             $totalPages  = max(1, (int)ceil($totalCount / $perPage));
             $page        = min($page, $totalPages);
-            $offset      = ($page - 1) * $perPage;
 
             $announcements = [];
             if ($totalCount > 0) {
-                $announcements = iterator_to_array(
-                    $this->dbAdapter->query(
-                        "SELECT a.*, u.full_name AS creator_name
-                         FROM announcements a
-                         LEFT JOIN users u ON a.created_by = u.user_id
-                         $whereClause
-                         ORDER BY a.created_at DESC
-                         LIMIT ? OFFSET ?"
-                    )->execute(array_merge($params, [$perPage, $offset]))
-                );
+                $announcements = $this->announcementTable->fetchAnnouncements($filters, $page, $perPage, $sort, $direction);
             }
 
             // Get counts for each type matching current search keyword and status filter
-            $allCountWhere = [];
-            $allCountParams = [];
-            if ($search !== '') {
-                $allCountWhere[] = "(title LIKE ? OR content LIKE ?)";
-                $searchTerm = '%' . $search . '%';
-                $allCountParams[] = $searchTerm;
-                $allCountParams[] = $searchTerm;
-            }
-            if ($status === 'active') {
-                $allCountWhere[] = "is_active = 1 AND (start_date IS NULL OR start_date <= CURDATE()) AND (end_date IS NULL OR end_date >= CURDATE())";
-            } elseif ($status === 'upcoming') {
-                $allCountWhere[] = "start_date IS NOT NULL AND start_date > CURDATE()";
-            } elseif ($status === 'expired') {
-                $allCountWhere[] = "end_date IS NOT NULL AND end_date < CURDATE()";
-            } elseif ($status === 'hidden') {
-                $allCountWhere[] = "is_active = 0 AND (start_date IS NULL OR start_date <= CURDATE()) AND (end_date IS NULL OR end_date >= CURDATE())";
-            }
-            $allCountWhereClause = !empty($allCountWhere) ? "WHERE " . implode(" AND ", $allCountWhere) : "";
+            $totalFilteredCount = $this->announcementTable->countFiltered([
+                'search' => $search,
+                'status' => $status,
+            ]);
 
-            $totalFilteredCount = (int)(($this->dbAdapter->query("SELECT COUNT(*) as cnt FROM announcements $allCountWhereClause")->execute($allCountParams)->current()['cnt']) ?? 0);
-
-            $typeCountsRaw = iterator_to_array($this->dbAdapter->query("SELECT type, COUNT(*) as cnt FROM announcements $allCountWhereClause GROUP BY type")->execute($allCountParams));
+            $typeCountsRaw = $this->announcementTable->getTypeCounts([
+                'search' => $search,
+                'status' => $status,
+            ]);
             $typeCounts = [
                 'general' => 0,
                 'event'   => 0,
@@ -178,11 +137,14 @@ class AnnouncementController extends BaseController
                 'totalPages'         => $totalPages,
                 'totalCount'         => $totalCount,
                 'perPage'            => $perPage,
+                'perPageRaw'         => $perPageRaw,
                 'filters'            => $filters,
                 'typeCounts'         => $typeCounts,
                 'totalFilteredCount' => $totalFilteredCount,
                 'currentUser'        => $currentUser,
                 'baseRoute'          => $baseRoute,
+                'leaderboardPeriod'  => $leaderboardPeriod,
+                'topReaders'         => $this->borrowTable->getTopReaders(5, $leaderboardPeriod),
             ]);
             $viewModel->setTemplate('library/announcement/announcements-admin');
             return $viewModel;
@@ -194,31 +156,19 @@ class AnnouncementController extends BaseController
             $searchQuery = trim((string)$this->queryString('q', ''));
         }
 
+        $filters = [
+            'type'   => ($typeFilter === 'all' ? '' : $typeFilter),
+            'search' => $searchQuery,
+            'status' => 'active',
+        ];
+
+        $totalCount = $this->announcementTable->countFiltered($filters);
+        $totalPages = max(1, (int)ceil($totalCount / $perPage));
+        $page       = min($page, $totalPages);
+
         $announcements = [];
-        if ($this->dbAdapter) {
-            try {
-                $sql = 'SELECT * FROM announcements WHERE is_active = 1 AND (start_date IS NULL OR start_date <= CURDATE()) AND (end_date IS NULL OR end_date >= CURDATE())';
-                $params = [];
-
-                if ($typeFilter !== 'all') {
-                    $sql .= ' AND type = ?';
-                    $params[] = $typeFilter;
-                }
-
-                if ($searchQuery !== '') {
-                    $sql .= ' AND (title LIKE ? OR content LIKE ?)';
-                    $params[] = '%' . $searchQuery . '%';
-                    $params[] = '%' . $searchQuery . '%';
-                }
-
-                $sql .= ' ORDER BY created_at DESC';
-
-                $statement = $this->dbAdapter->query($sql);
-                $result = $statement->execute($params);
-                $announcements = iterator_to_array($result);
-            } catch (\Exception $e) {
-                // ignore
-            }
+        if ($totalCount > 0) {
+            $announcements = $this->announcementTable->fetchAnnouncements($filters, $page, $perPage, 'created_at', 'DESC');
         }
 
         $viewModel = new ViewModel([
@@ -227,8 +177,15 @@ class AnnouncementController extends BaseController
                 'type' => $typeFilter,
                 'search' => $searchQuery,
             ],
+            'page'        => $page,
+            'totalPages'  => $totalPages,
+            'totalCount'  => $totalCount,
+            'perPage'     => $perPage,
+            'perPageRaw'  => $perPageRaw,
             'currentUser' => $currentUser,
-            'baseRoute' => $baseRoute,
+            'baseRoute'   => $baseRoute,
+            'leaderboardPeriod'  => $leaderboardPeriod,
+            'topReaders'  => $this->borrowTable->getTopReaders(5, $leaderboardPeriod),
         ]);
         $viewModel->setTemplate('library/announcement/announcements');
         return $viewModel;
@@ -272,11 +229,15 @@ class AnnouncementController extends BaseController
             }
 
             try {
-                $this->dbAdapter->query(
-                    "INSERT INTO announcements (title, content, type, start_date, end_date, is_active, created_by)
-                     VALUES (?, ?, ?, ?, ?, ?, ?)",
-                     [$title, $content, $type, $startDate, $endDate, $isActive, $currentUser['id']]
-                );
+                $this->announcementTable->insertAnnouncement([
+                    'title'      => $title,
+                    'content'    => $content,
+                    'type'       => $type,
+                    'start_date' => $startDate,
+                    'end_date'   => $endDate,
+                    'is_active'  => $isActive,
+                    'created_by' => $currentUser['id'],
+                ]);
                 $this->flash()->addSuccessMessage('Đã đăng bản tin "' . htmlspecialchars($title) . '" thành công.');
             } catch (\Throwable $e) {
                 $this->flash()->addErrorMessage('Lỗi hệ thống: ' . $e->getMessage());
@@ -302,13 +263,11 @@ class AnnouncementController extends BaseController
             return $this->redirect()->toRoute('library/announcements');
         }
 
-        $stmt = $this->dbAdapter->query("SELECT * FROM announcements WHERE id = ? LIMIT 1");
-        $res = iterator_to_array($stmt->execute([$id]));
-        if (count($res) === 0) {
+        $ann = $this->announcementTable->getAnnouncement($id);
+        if (!$ann) {
             $this->flash()->addErrorMessage('Bản tin không tồn tại.');
             return $this->redirect()->toRoute('library/announcements');
         }
-        $ann = $res[0];
 
         if ($this->getRequest()->isPost()) {
             $data = $this->postData();
@@ -341,10 +300,14 @@ class AnnouncementController extends BaseController
             }
 
             try {
-                $this->dbAdapter->query(
-                    "UPDATE announcements SET title = ?, content = ?, type = ?, start_date = ?, end_date = ?, is_active = ?, updated_at = NOW() WHERE id = ?",
-                    [$title, $content, $type, $startDate, $endDate, $isActive, $id]
-                );
+                $this->announcementTable->updateAnnouncement($id, [
+                    'title'      => $title,
+                    'content'    => $content,
+                    'type'       => $type,
+                    'start_date' => $startDate,
+                    'end_date'   => $endDate,
+                    'is_active'  => $isActive,
+                ]);
                 $this->flash()->addSuccessMessage('Đã cập nhật bản tin "' . htmlspecialchars($title) . '" thành công.');
             } catch (\Throwable $e) {
                 $this->flash()->addErrorMessage('Lỗi hệ thống: ' . $e->getMessage());
@@ -367,7 +330,7 @@ class AnnouncementController extends BaseController
 
         $id = (int)$this->params()->fromRoute('id', 0);
         if ($id > 0) {
-            $this->dbAdapter->query("DELETE FROM announcements WHERE id = ?", [$id]);
+            $this->announcementTable->deleteAnnouncement($id);
             $this->flash()->addSuccessMessage('Đã xóa bản tin.');
         }
 
@@ -382,10 +345,8 @@ class AnnouncementController extends BaseController
 
         $id = (int)$this->params()->fromRoute('id', 0);
         if ($id > 0) {
-            $stmt = $this->dbAdapter->query("SELECT * FROM announcements WHERE id = ? LIMIT 1");
-            $res = iterator_to_array($stmt->execute([$id]));
-            if (count($res) > 0) {
-                $ann = $res[0];
+            $ann = $this->announcementTable->getAnnouncement($id);
+            if ($ann) {
                 $isActive = (bool)$ann['is_active'];
                 $today = date('Y-m-d');
                 
@@ -395,28 +356,17 @@ class AnnouncementController extends BaseController
                 $isShowing = $isActive && !$isNotStarted && !$isExpired;
                 
                 if ($isShowing) {
-                    $this->dbAdapter->query(
-                        "UPDATE announcements SET is_active = 0, updated_at = NOW() WHERE id = ?",
-                        [$id]
-                    );
+                    $this->announcementTable->updateAnnouncement($id, ['is_active' => 0]);
                     $this->flash()->addSuccessMessage('Đã ẩn bản tin thành công.');
                 } else {
-                    $updates = ["is_active = 1", "updated_at = NOW()"];
-                    $params = [];
-                    
+                    $updates = ['is_active' => 1];
                     if ($isNotStarted) {
-                        $updates[] = "start_date = NULL";
+                        $updates['start_date'] = null;
                     }
                     if ($isExpired) {
-                        $updates[] = "end_date = NULL";
+                        $updates['end_date'] = null;
                     }
-                    
-                    $params[] = $id;
-                    
-                    $this->dbAdapter->query(
-                        "UPDATE announcements SET " . implode(", ", $updates) . " WHERE id = ?",
-                        $params
-                    );
+                    $this->announcementTable->updateAnnouncement($id, $updates);
                     $this->flash()->addSuccessMessage('Đã hiển thị bản tin thành công.');
                 }
             } else {
@@ -424,6 +374,48 @@ class AnnouncementController extends BaseController
             }
         }
 
-        return $this->redirect()->toRoute('library/announcements');
+    }
+
+    public function viewAnnouncementAction(): ViewModel|Response
+    {
+        $id = (int)$this->params()->fromRoute('id', 0);
+        if ($id <= 0) {
+            $this->flash()->addErrorMessage('Không tìm thấy ID bản tin.');
+            return $this->redirect()->toRoute('announcements');
+        }
+
+        $ann = $this->announcementTable->getAnnouncement($id);
+        if (!$ann) {
+            $this->flash()->addErrorMessage('Bản tin không tồn tại.');
+            return $this->redirect()->toRoute('announcements');
+        }
+
+        $currentUser = $this->currentUser();
+        $isAdmin = $currentUser !== null && ($currentUser['role'] ?? '') === 'admin';
+
+        $today = date('Y-m-d');
+        $isNotStarted = $ann['start_date'] && $ann['start_date'] > $today;
+        $isExpired = $ann['end_date'] && $ann['end_date'] < $today;
+        $isShowing = (bool)$ann['is_active'] && !$isNotStarted && !$isExpired;
+
+        if (!$isShowing && !$isAdmin) {
+            $this->flash()->addErrorMessage('Bạn không có quyền xem bản tin này.');
+            return $this->redirect()->toRoute('announcements');
+        }
+
+        if ($currentUser === null) {
+            $layout = $this->layout();
+            if (method_exists($layout, 'setVariable')) {
+                $layout->setVariable('guestCatalogMode', true);
+            }
+        }
+
+        $viewModel = new ViewModel([
+            'announcement' => $ann,
+            'currentUser'  => $currentUser,
+            'isAdmin'      => $isAdmin,
+        ]);
+        $viewModel->setTemplate('library/announcement/view');
+        return $viewModel;
     }
 }

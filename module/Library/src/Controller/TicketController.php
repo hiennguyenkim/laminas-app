@@ -6,14 +6,18 @@ namespace Library\Controller;
 
 use Laminas\Http\Response;
 use Laminas\View\Model\ViewModel;
-use Laminas\Db\Adapter\AdapterInterface;
+use Library\Model\Table\TicketTable;
+use Library\Model\Table\TicketMessageTable;
+use Library\Model\Table\NotificationTable;
 use Library\Session\AuthSessionContainer;
 
 class TicketController extends BaseController
 {
     public function __construct(
         AuthSessionContainer $authSessionContainer,
-        private AdapterInterface $dbAdapter
+        private TicketTable $ticketTable,
+        private TicketMessageTable $ticketMessageTable,
+        private NotificationTable $notificationTable
     ) {
         parent::__construct($authSessionContainer);
     }
@@ -27,8 +31,17 @@ class TicketController extends BaseController
         $currentUser = $this->currentUser();
         $isAdmin = $currentUser['role'] === 'admin';
         
-        $page    = max(1, (int)($this->params()->fromQuery('page', 1)));
-        $perPage = 10;
+        $page       = max(1, (int)($this->params()->fromQuery('page', 1)));
+        $perPageRaw = $this->queryString('perPage', '20');
+        if ($perPageRaw === 'all') {
+            $perPage = 999999;
+        } else {
+            $perPage = (int)$perPageRaw;
+            if (!in_array($perPage, [10, 20, 50, 100], true)) {
+                $perPage = 20;
+                $perPageRaw = '20';
+            }
+        }
 
         $search = trim($this->queryString('search'));
         $status = trim($this->queryString('status'));
@@ -45,153 +58,42 @@ class TicketController extends BaseController
             'direction' => strtolower($direction),
         ];
 
-        $where = [];
-        $params = [];
-
-        // Role filtering
-        if (!$isAdmin) {
-            $where[] = "t.user_id = ?";
-            $params[] = $currentUser['id'];
-        }
-
-        // Status filtering (2 states: unanswered vs answered)
-        if ($status === 'unanswered') {
-            $where[] = "t.status = 'open'";
-        } elseif ($status === 'answered') {
-            $where[] = "t.status IN ('in_progress', 'closed')";
-        }
-
-        // Search filtering
-        if ($search !== '') {
-            $searchTerm = '%' . $search . '%';
-            if ($isAdmin) {
-                $where[] = "(t.title LIKE ? OR t.description LIKE ? OR u.full_name LIKE ?)";
-                $params[] = $searchTerm;
-                $params[] = $searchTerm;
-                $params[] = $searchTerm;
-            } else {
-                $where[] = "(t.title LIKE ? OR t.description LIKE ?)";
-                $params[] = $searchTerm;
-                $params[] = $searchTerm;
-            }
-        }
-
-        $whereClause = !empty($where) ? "WHERE " . implode(" AND ", $where) : "";
-
-        $countSql = "SELECT COUNT(*) as cnt FROM support_tickets t JOIN users u ON t.user_id = u.user_id $whereClause";
-        $totalCount = (int)(($this->dbAdapter->query($countSql)->execute($params)->current()['cnt']) ?? 0);
+        $totalCount = $this->ticketTable->countTickets($filters, (int)$currentUser['id'], $isAdmin);
 
         $totalPages = max(1, (int)ceil($totalCount / $perPage));
         $page       = min($page, $totalPages);
-        $offset     = ($page - 1) * $perPage;
 
-        $allowedSorts = [
-            'id' => 't.id',
-            'title' => 't.title',
-            'author' => 'u.full_name',
-            'updated_at' => 't.updated_at',
-            'status' => 't.status',
-        ];
-
-        $orderBy = 't.status DESC, t.updated_at DESC';
-        if (array_key_exists($sort, $allowedSorts)) {
-            $orderBy = $allowedSorts[$sort] . ' ' . $direction;
-        }
-
-        $sql = "SELECT t.*, u.full_name as author_name FROM support_tickets t JOIN users u ON t.user_id = u.user_id $whereClause ORDER BY $orderBy LIMIT ? OFFSET ?";
-        
-        $fetchParams = $params;
-        $fetchParams[] = $perPage;
-        $fetchParams[] = $offset;
-
-        $tickets = iterator_to_array($this->dbAdapter->query($sql)->execute($fetchParams));
+        $tickets = $this->ticketTable->fetchTickets($filters, (int)$currentUser['id'], $page, $perPage, $isAdmin);
 
         // Get count for the tabs
         // 1. Unanswered count
-        $unansweredWhere = [];
-        $unansweredParams = [];
-        if (!$isAdmin) {
-            $unansweredWhere[] = "t.user_id = ?";
-            $unansweredParams[] = $currentUser['id'];
-        }
-        $unansweredWhere[] = "t.status = 'open'";
-        if ($search !== '') {
-            $searchTerm = '%' . $search . '%';
-            if ($isAdmin) {
-                $unansweredWhere[] = "(t.title LIKE ? OR t.description LIKE ? OR u.full_name LIKE ?)";
-                $unansweredParams[] = $searchTerm;
-                $unansweredParams[] = $searchTerm;
-                $unansweredParams[] = $searchTerm;
-            } else {
-                $unansweredWhere[] = "(t.title LIKE ? OR t.description LIKE ?)";
-                $unansweredParams[] = $searchTerm;
-                $unansweredParams[] = $searchTerm;
-            }
-        }
-        $unansweredWhereClause = "WHERE " . implode(" AND ", $unansweredWhere);
-        $unansweredCountSql = "SELECT COUNT(*) as cnt FROM support_tickets t JOIN users u ON t.user_id = u.user_id $unansweredWhereClause";
-        $unansweredCount = (int)(($this->dbAdapter->query($unansweredCountSql)->execute($unansweredParams)->current()['cnt']) ?? 0);
+        $unansweredFilters = $filters;
+        $unansweredFilters['status'] = 'unanswered';
+        $unansweredCount = $this->ticketTable->countTickets($unansweredFilters, (int)$currentUser['id'], $isAdmin);
 
         // 2. Answered count
-        $answeredWhere = [];
-        $answeredParams = [];
-        if (!$isAdmin) {
-            $answeredWhere[] = "t.user_id = ?";
-            $answeredParams[] = $currentUser['id'];
-        }
-        $answeredWhere[] = "t.status IN ('in_progress', 'closed')";
-        if ($search !== '') {
-            $searchTerm = '%' . $search . '%';
-            if ($isAdmin) {
-                $answeredWhere[] = "(t.title LIKE ? OR t.description LIKE ? OR u.full_name LIKE ?)";
-                $answeredParams[] = $searchTerm;
-                $answeredParams[] = $searchTerm;
-                $answeredParams[] = $searchTerm;
-            } else {
-                $answeredWhere[] = "(t.title LIKE ? OR t.description LIKE ?)";
-                $answeredParams[] = $searchTerm;
-                $answeredParams[] = $searchTerm;
-            }
-        }
-        $answeredWhereClause = "WHERE " . implode(" AND ", $answeredWhere);
-        $answeredCountSql = "SELECT COUNT(*) as cnt FROM support_tickets t JOIN users u ON t.user_id = u.user_id $answeredWhereClause";
-        $answeredCount = (int)(($this->dbAdapter->query($answeredCountSql)->execute($answeredParams)->current()['cnt']) ?? 0);
+        $answeredFilters = $filters;
+        $answeredFilters['status'] = 'answered';
+        $answeredCount = $this->ticketTable->countTickets($answeredFilters, (int)$currentUser['id'], $isAdmin);
 
         // 3. Total with current search filter
-        $allWhere = [];
-        $allParams = [];
-        if (!$isAdmin) {
-            $allWhere[] = "t.user_id = ?";
-            $allParams[] = $currentUser['id'];
-        }
-        if ($search !== '') {
-            $searchTerm = '%' . $search . '%';
-            if ($isAdmin) {
-                $allWhere[] = "(t.title LIKE ? OR t.description LIKE ? OR u.full_name LIKE ?)";
-                $allParams[] = $searchTerm;
-                $allParams[] = $searchTerm;
-                $allParams[] = $searchTerm;
-            } else {
-                $allWhere[] = "(t.title LIKE ? OR t.description LIKE ?)";
-                $allParams[] = $searchTerm;
-                $allParams[] = $searchTerm;
-            }
-        }
-        $allWhereClause = !empty($allWhere) ? "WHERE " . implode(" AND ", $allWhere) : "";
-        $allCountSql = "SELECT COUNT(*) as cnt FROM support_tickets t JOIN users u ON t.user_id = u.user_id $allWhereClause";
-        $allCount = (int)(($this->dbAdapter->query($allCountSql)->execute($allParams)->current()['cnt']) ?? 0);
+        $allFilters = $filters;
+        $allFilters['status'] = '';
+        $allCount = $this->ticketTable->countTickets($allFilters, (int)$currentUser['id'], $isAdmin);
 
         $viewModel = new ViewModel([
             'tickets'         => $tickets,
             'isAdmin'         => $isAdmin,
-            'page'            => $page,
-            'totalPages'      => $totalPages,
-            'totalCount'      => $totalCount,
-            'perPage'         => $perPage,
             'filters'         => $filters,
             'unansweredCount' => $unansweredCount,
             'answeredCount'   => $answeredCount,
             'allCount'        => $allCount,
+            'pagination'      => [
+                'page'       => $page,
+                'perPage'    => $perPageRaw,
+                'totalItems' => $totalCount,
+                'totalPages' => $totalPages,
+            ]
         ]);
 
         if ($isAdmin) {
@@ -217,24 +119,22 @@ class TicketController extends BaseController
 
             if ($title && $content) {
                 // schema: support_tickets(user_id, category, title, description, status, ...)
-                $sql = "INSERT INTO support_tickets (user_id, title, description, status, created_at, updated_at) VALUES (?, ?, ?, 'open', NOW(), NOW())";
-                $this->dbAdapter->query($sql, [$currentUser['id'], $title, $content]);
-                $ticketId = $this->dbAdapter->getDriver()->getLastGeneratedValue();
+                $ticketId = $this->ticketTable->createTicket((int)$currentUser['id'], $title, $content);
 
                 // schema: ticket_messages(ticket_id, sender_id, sender_role, message, sent_at)
                 $senderRole = $currentUser['role'] === 'admin' ? 'admin' : 'user';
-                $msgSql = "INSERT INTO ticket_messages (ticket_id, sender_id, sender_role, message, sent_at) VALUES (?, ?, ?, ?, NOW())";
-                $this->dbAdapter->query($msgSql, [$ticketId, $currentUser['id'], $senderRole, $content]);
+                $this->ticketMessageTable->insertMessage($ticketId, (int)$currentUser['id'], $senderRole, $content);
 
                 // Gửi thông báo cho Admin
                 try {
-                    $notiSql = "INSERT INTO notifications (user_id, sender_id, title, message, type, related_id) 
-                                VALUES (NULL, ?, 'Yêu cầu hỗ trợ mới', ?, 'ticket', ?)";
-                    $this->dbAdapter->query($notiSql, [
-                        $currentUser['id'],
+                    $this->notificationTable->insertNotification(
+                        null,
+                        (int)$currentUser['id'],
+                        'Yêu cầu hỗ trợ mới',
                         "Độc giả <strong>" . htmlspecialchars($currentUser['full_name'] ?? $currentUser['username']) . "</strong> gửi ticket mới: <em>" . htmlspecialchars($title) . "</em>.",
+                        'ticket',
                         $ticketId
-                    ]);
+                    );
                 } catch (\Throwable $e) {}
 
                 $this->flash()->addSuccessMessage('Đã gửi yêu cầu hỗ trợ thành công.');
@@ -256,10 +156,7 @@ class TicketController extends BaseController
         $currentUser = $this->currentUser();
         $isAdmin = $currentUser['role'] === 'admin';
 
-        $sql = "SELECT t.*, u.full_name as author_name FROM support_tickets t JOIN users u ON t.user_id = u.user_id WHERE t.id = ?";
-        $statement = $this->dbAdapter->query($sql);
-        $result = $statement->execute([$id]);
-        $ticket = $result->current();
+        $ticket = $this->ticketTable->getTicket($id);
 
         if (!$ticket) {
             $this->flash()->addErrorMessage('Không tìm thấy Ticket.');
@@ -277,35 +174,36 @@ class TicketController extends BaseController
             $action = $data['action'] ?? 'reply';
 
             if ($action === 'close' && $isAdmin) {
-                $this->dbAdapter->query("UPDATE support_tickets SET status = 'closed', updated_at = NOW() WHERE id = ?", [$id]);
+                $this->ticketTable->closeTicket($id);
                 $this->flash()->addSuccessMessage('Đã đóng yêu cầu hỗ trợ.');
             } elseif ($message) {
                 // schema: ticket_messages(ticket_id, sender_id, sender_role, message, sent_at)
                 $senderRole = $isAdmin ? 'admin' : 'user';
-                $this->dbAdapter->query("INSERT INTO ticket_messages (ticket_id, sender_id, sender_role, message, sent_at) VALUES (?, ?, ?, ?, NOW())", [$id, $currentUser['id'], $senderRole, $message]);
+                $this->ticketMessageTable->insertMessage($id, (int)$currentUser['id'], $senderRole, $message);
                 
                 $status = $isAdmin ? 'in_progress' : 'open';
-                $this->dbAdapter->query("UPDATE support_tickets SET status = ?, updated_at = NOW() WHERE id = ?", [$status, $id]);
+                $this->ticketTable->updateStatus($id, $status);
                 
                 // Gửi thông báo
                 try {
                     if ($isAdmin) {
-                        $notiSql = "INSERT INTO notifications (user_id, sender_id, title, message, type, related_id) 
-                                    VALUES (?, ?, 'Có phản hồi hỗ trợ', ?, 'ticket_answered', ?)";
-                        $this->dbAdapter->query($notiSql, [
-                            $ticket['user_id'],
-                            $currentUser['id'],
+                        $this->notificationTable->insertNotification(
+                            (int)$ticket['user_id'],
+                            (int)$currentUser['id'],
+                            'Có phản hồi hỗ trợ',
                             "Thủ thư đã trả lời yêu cầu hỗ trợ của bạn: <em>" . htmlspecialchars($ticket['title']) . "</em>.",
+                            'ticket_answered',
                             $id
-                        ]);
+                        );
                     } else {
-                        $notiSql = "INSERT INTO notifications (user_id, sender_id, title, message, type, related_id) 
-                                    VALUES (NULL, ?, 'Phản hồi hỗ trợ mới', ?, 'ticket', ?)";
-                        $this->dbAdapter->query($notiSql, [
-                            $currentUser['id'],
+                        $this->notificationTable->insertNotification(
+                            null,
+                            (int)$currentUser['id'],
+                            'Phản hồi hỗ trợ mới',
                             "Độc giả <strong>" . htmlspecialchars($currentUser['full_name'] ?? $currentUser['username']) . "</strong> đã phản hồi ticket: <em>" . htmlspecialchars($ticket['title']) . "</em>.",
+                            'ticket',
                             $id
-                        ]);
+                        );
                     }
                 } catch (\Throwable $e) {}
 
@@ -315,8 +213,7 @@ class TicketController extends BaseController
         }
 
         // schema: ticket_messages.sender_id → users.user_id, sort by sent_at
-        $msgSql = "SELECT m.*, u.full_name, u.role FROM ticket_messages m JOIN users u ON m.sender_id = u.user_id WHERE m.ticket_id = ? ORDER BY m.sent_at ASC";
-        $messages = iterator_to_array($this->dbAdapter->query($msgSql)->execute([$id]));
+        $messages = $this->ticketMessageTable->fetchMessages($id);
 
         $viewModel = new ViewModel([
             'ticket' => $ticket,

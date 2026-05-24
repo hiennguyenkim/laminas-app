@@ -35,6 +35,15 @@ $this->layout('layout/library-layout');
                         <?php endif; ?>
                     </div>
                     <div class="form-group user-form-group-compact">
+                        <label class="form-label">Biệt danh</label>
+                        <input type="text" name="nickname" class="form-control"
+                               value="<?= htmlspecialchars((string) ($form->get('nickname')->getValue() ?? '')) ?>"
+                               maxlength="100" placeholder="VD: Nam IT, Hoa Xinh...">
+                        <?php $messages = $form->get('nickname')->getMessages(); if ($messages) : ?>
+                            <div class="user-form-error"><?= htmlspecialchars(implode(', ', $messages)) ?></div>
+                        <?php endif; ?>
+                    </div>
+                    <div class="form-group user-form-group-compact">
                         <label class="form-label">Vai trò *</label>
                         <?= $this->formSelect($form->get('role')->setAttribute('class', 'form-select')) ?>
                         <?php $messages = $form->get('role')->getMessages(); if ($messages) : ?>
@@ -59,6 +68,16 @@ $this->layout('layout/library-layout');
                                value="<?= htmlspecialchars((string) ($form->get('email')->getValue() ?? '')) ?>"
                                maxlength="100" required>
                         <?php $messages = $form->get('email')->getMessages(); if ($messages) : ?>
+                            <div class="user-form-error"><?= htmlspecialchars(implode(', ', $messages)) ?></div>
+                        <?php endif; ?>
+                    </div>
+                    <div class="form-group user-form-group-compact">
+                        <label class="form-label">Hạn mức mượn *</label>
+                        <input type="number" name="borrow_limit" class="form-control"
+                               value="<?= (int) ($form->get('borrow_limit')->getValue() ?? 5) ?>"
+                               min="1" max="50" required>
+                        <small class="text-muted" style="font-size: 11px;">Số cuốn sách tối đa được mượn cùng lúc.</small>
+                        <?php $messages = $form->get('borrow_limit')->getMessages(); if ($messages) : ?>
                             <div class="user-form-error"><?= htmlspecialchars(implode(', ', $messages)) ?></div>
                         <?php endif; ?>
                     </div>

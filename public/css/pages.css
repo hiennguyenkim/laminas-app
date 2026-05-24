@@ -16,6 +16,7 @@
     gap: 24px;
 }
 
+
 /* ── Card ─────────────────────────────────────────────────── */
 .ann-card {
     position: relative;
@@ -45,6 +46,24 @@
 }
 .ann-card--expired:hover {
     opacity: 0.8;
+    transform: none;
+    box-shadow: 0 4px 20px rgba(0,0,0,.08);
+}
+.ann-card--hidden {
+    opacity: 0.65;
+    border-style: dotted !important;
+}
+.ann-card--hidden:hover {
+    opacity: 0.8;
+    transform: none;
+    box-shadow: 0 4px 20px rgba(0,0,0,.08);
+}
+.ann-card--upcoming {
+    opacity: 0.8;
+    border-style: dashed !important;
+}
+.ann-card--upcoming:hover {
+    opacity: 0.9;
     transform: none;
     box-shadow: 0 4px 20px rgba(0,0,0,.08);
 }
@@ -113,7 +132,7 @@
     margin: 0 0 12px;
     font-size: 16px;
     font-weight: 800;
-    color: var(--text-primary);
+    color: #ffffff;
     line-height: 1.4;
 }
 
@@ -221,7 +240,7 @@
 }
 .ann-content-text {
     font-size: 13px;
-    color: var(--text-secondary);
+    color: #ffffff;
     line-height: 1.6;
     margin-bottom: 16px;
 }
@@ -316,7 +335,7 @@
 
 /* Discussion Channel */
 .forum-section {
-    margin-top: 36px;
+    margin-top: 0;
 }
 .forum-header {
     display: flex;
@@ -359,8 +378,9 @@
     overflow: hidden;
 }
 .forum-list {
-    height: 280px;
+    height: 280px !important;
     overflow-y: auto;
+    flex: none !important;
     padding: 14px 16px;
     display: flex;
     flex-direction: column;
@@ -1028,7 +1048,7 @@
 .settings-empty-title { font-weight: 600; margin-bottom: 6px; }
 .settings-empty-desc { font-size: 12px; }
 .settings-ann-list { display: flex; flex-direction: column; gap: 12px; }
-.settings-ann-card-title { font-size: 14px; font-weight: 700; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px; }
+.settings-ann-card-title { font-size: 14px; font-weight: 700; color: #ffffff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px; }
 .settings-ann-card-excerpt { font-size: 12px; color: var(--text-muted); line-height: 1.45; }
 .settings-ann-card-badges { display: flex; flex-direction: column; gap: 5px; flex-shrink: 0; align-items: flex-end; }
 .settings-ann-card-badge-type { font-size: 10px; font-weight: 700; padding: 3px 9px; border-radius: 20px; white-space: nowrap; }
@@ -1800,7 +1820,7 @@
 }
 .profile-stats-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: 16px;
     margin-bottom: 24px;
 }
@@ -1823,6 +1843,9 @@
 }
 .profile-stat-val--red {
     color: #ef4444;
+}
+.profile-stat-val--green {
+    color: #10b981;
 }
 .profile-stat-label {
     font-size: 13px;
@@ -1938,9 +1961,9 @@
     text-align: left;
     border-bottom: 1px solid var(--border) !important;
 }
-.ticket-table-th--right {
+.ticket-table-th--center {
     padding: 16px !important;
-    text-align: right;
+    text-align: center;
     border-bottom: 1px solid var(--border) !important;
 }
 .ticket-table-row {
@@ -1962,9 +1985,9 @@
     padding: 16px !important;
     color: var(--text-secondary) !important;
 }
-.ticket-table-td--right {
+.ticket-table-td--center {
     padding: 16px !important;
-    text-align: right;
+    text-align: center;
 }
 .ticket-table-empty {
     text-align: center;

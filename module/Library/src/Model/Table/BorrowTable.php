@@ -53,12 +53,12 @@ class BorrowTable
             ->join(
                 'books',
                 'borrow_records.book_id = books.book_id',
-                ['book_title' => 'title', 'book_isbn' => 'isbn']
+                ['book_title' => 'title', 'book_isbn' => 'isbn', 'cover_image_url']
             )
             ->join(
                 'users',
                 'borrow_records.user_id = users.user_id',
-                ['full_name', 'username']
+                ['full_name', 'username', 'avatar_url']
             );
 
         $sort = $filters['sort'] ?? null;
@@ -81,71 +81,7 @@ class BorrowTable
             $select->order('borrow_records.created_at DESC');
         }
 
-        if ($userId !== null) {
-            $select->where(['borrow_records.user_id' => $userId]);
-        }
-
-        $searchValue = trim((string) ($filters['search'] ?? ''));
-        if ($searchValue !== '') {
-            $search = '%' . $searchValue . '%';
-            $select->where(function (Where $where) use ($search): void {
-                $where->nest()
-                    ->like('books.title', $search)
-                    ->or
-                    ->like('books.author', $search)
-                    ->or
-                    ->like('books.isbn', $search)
-                    ->or
-                    ->like('users.full_name', $search)
-                    ->or
-                    ->like('users.username', $search)
-                    ->unnest();
-            });
-        }
-
-        $status = trim((string) ($filters['status'] ?? ''));
-        if ($status !== '') {
-            if ($status === 'overdue') {
-                $select->where(
-                    "(borrow_records.status = 'overdue' "
-                    . "OR (borrow_records.status = 'borrowed' "
-                    . "AND borrow_records.return_date < CURDATE()))"
-                );
-            } elseif ($status === 'borrowed') {
-                $select->where(
-                    "(borrow_records.status = 'borrowed' AND borrow_records.return_date >= CURDATE())"
-                );
-            } else {
-                $select->where(['borrow_records.status' => $status]);
-            }
-        }
-
-        $filterUserId = trim((string) ($filters['user_id'] ?? ''));
-        if ($userId === null && $filterUserId !== '') {
-            $select->where(['borrow_records.user_id' => (int) $filterUserId]);
-        }
-
-        $filterYear = $filters['year'] ?? null;
-        $filterPeriod = $filters['period'] ?? null;
-        $filterWeek = $filters['week'] ?? null;
-
-        if ($filterYear !== null && $filterYear !== '' && $filterYear !== 'all') {
-            $select->where(new \Laminas\Db\Sql\Predicate\Expression("YEAR(borrow_records.borrow_date) = ?", (int)$filterYear));
-        }
-
-        if ($filterPeriod !== null && $filterPeriod !== '' && $filterPeriod !== 'year') {
-            if (strpos($filterPeriod, 'q') === 0) {
-                $qtr = (int)substr($filterPeriod, 1);
-                $select->where(new \Laminas\Db\Sql\Predicate\Expression("QUARTER(borrow_records.borrow_date) = ?", $qtr));
-            } elseif (strpos($filterPeriod, 'm') === 0) {
-                $month = (int)substr($filterPeriod, 1);
-                $select->where(new \Laminas\Db\Sql\Predicate\Expression("MONTH(borrow_records.borrow_date) = ?", $month));
-            }
-        }
-
-        if ($filterWeek !== null && $filterWeek !== '' && $filterWeek !== 'all') {
-            $select->where(new \Laminas\Db\Sql\Predicate\Expression("WEEK(borrow_records.borrow_date, 1) = ?", (int)$filterWeek));
-        }
+        $this->applyFilters($select, $filters, $userId);
 
         if ($limit > 0) {
             $select->limit($limit);
@@ -186,6 +122,16 @@ class BorrowTable
                 []
             );
 
+        $this->applyFilters($select, $filters, $userId);
+
+        $stmt   = $sql->prepareStatementForSqlObject($select);
+        $result = $stmt->execute();
+
+        return (int) ($result->current()['c'] ?? 0);
+    }
+
+    private function applyFilters(Select $select, array $filters, ?int $userId = null): void
+    {
         if ($userId !== null) {
             $select->where(['borrow_records.user_id' => $userId]);
         }
@@ -251,11 +197,6 @@ class BorrowTable
         if ($filterWeek !== null && $filterWeek !== '' && $filterWeek !== 'all') {
             $select->where(new \Laminas\Db\Sql\Predicate\Expression("WEEK(borrow_records.borrow_date, 1) = ?", (int)$filterWeek));
         }
-
-        $stmt   = $sql->prepareStatementForSqlObject($select);
-        $result = $stmt->execute();
-
-        return (int) ($result->current()['c'] ?? 0);
     }
 
     public function getRecord(int $id): BorrowRecord
@@ -332,7 +273,7 @@ class BorrowTable
         ], [self::PK => $id]);
     }
 
-    public function countBorrowed(?int $userId = null): int
+    public function countBorrowed(array $filters = [], ?int $userId = null): int
     {
         $this->cleanupExpiredReturnedHistory();
 
@@ -340,24 +281,22 @@ class BorrowTable
         $select = $sql->select()->columns([
             'c' => new Expression(
                 "SUM(CASE
-                    WHEN borrow_records.status = 'borrowed'
-                     AND borrow_records.return_date >= CURDATE()
+                    WHEN borrow_records.status IN ('borrowed', 'overdue')
+                      OR (borrow_records.status = 'borrowed' AND borrow_records.return_date < CURDATE())
                         THEN 1
                     ELSE 0
                  END)"
             ),
         ]);
 
-        if ($userId !== null) {
-            $select->where(['user_id' => $userId]);
-        }
+        $this->applyFilters($select, $filters, $userId);
 
         $stmt   = $sql->prepareStatementForSqlObject($select);
         $result = $stmt->execute();
         return $this->extractCount($result->current());
     }
 
-    public function countOverdue(?int $userId = null): int
+    public function countOverdue(array $filters = [], ?int $userId = null): int
     {
         $this->cleanupExpiredReturnedHistory();
 
@@ -373,13 +312,42 @@ class BorrowTable
             ),
         ]);
 
-        if ($userId !== null) {
-            $select->where(['user_id' => $userId]);
-        }
+        $this->applyFilters($select, $filters, $userId);
 
         $stmt   = $sql->prepareStatementForSqlObject($select);
         $result = $stmt->execute();
         return $this->extractCount($result->current());
+    }
+
+    public function getTopReaders(int $limit = 5, string $period = 'month'): array
+    {
+        $intervalExpr = 'INTERVAL 30 DAY';
+        switch ($period) {
+            case 'week':
+                $intervalExpr = 'INTERVAL 7 DAY';
+                break;
+            case 'quarter':
+                $intervalExpr = 'INTERVAL 90 DAY';
+                break;
+            case 'year':
+                $intervalExpr = 'INTERVAL 365 DAY';
+                break;
+            case 'month':
+            default:
+                $intervalExpr = 'INTERVAL 30 DAY';
+                break;
+        }
+
+        $sql = "SELECT COUNT(*) AS borrow_count, u.user_id, u.full_name, u.username, u.avatar_url 
+                FROM borrow_records 
+                INNER JOIN users u ON borrow_records.user_id = u.user_id 
+                WHERE u.role = 'student' 
+                  AND borrow_records.borrow_date >= DATE_SUB(CURDATE(), {$intervalExpr}) 
+                GROUP BY u.user_id, u.full_name, u.username, u.avatar_url 
+                ORDER BY borrow_count DESC 
+                LIMIT ?";
+        $result = $this->tableGateway->getAdapter()->query($sql)->execute([$limit]);
+        return iterator_to_array($result);
     }
 
     public function countOverdueOccurrencesForUser(int $userId): int
@@ -460,7 +428,7 @@ class BorrowTable
         return (int) ((($evaluated - $late) / $evaluated) * 100);
     }
 
-    public function countReturned(?int $userId = null): int
+    public function countReturned(array $filters = [], ?int $userId = null): int
     {
         $this->cleanupExpiredReturnedHistory();
 
@@ -470,9 +438,7 @@ class BorrowTable
                 'c' => new Expression("SUM(CASE WHEN status = 'returned' THEN 1 ELSE 0 END)"),
             ]);
 
-        if ($userId !== null) {
-            $select->where(['user_id' => $userId]);
-        }
+        $this->applyFilters($select, $filters, $userId);
 
         $stmt   = $sql->prepareStatementForSqlObject($select);
         $result = $stmt->execute();
@@ -480,7 +446,7 @@ class BorrowTable
         return $this->extractCount($result->current());
     }
 
-    public function countPending(?int $userId = null): int
+    public function countPending(array $filters = [], ?int $userId = null): int
     {
         $this->cleanupExpiredReturnedHistory();
 
@@ -490,9 +456,7 @@ class BorrowTable
                 'c' => new Expression("SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END)"),
             ]);
 
-        if ($userId !== null) {
-            $select->where(['user_id' => $userId]);
-        }
+        $this->applyFilters($select, $filters, $userId);
 
         $stmt   = $sql->prepareStatementForSqlObject($select);
         $result = $stmt->execute();
@@ -638,21 +602,26 @@ class BorrowTable
         return $rowset->count() > 0;
     }
 
-    public function getSummary(?int $userId = null): array
+    public function getSummary(?int $userId = null, array $filters = []): array
     {
         $this->cleanupExpiredReturnedHistory();
 
+        // Status filter should be ignored for summary cards 
+        // BUT year/period/search should be respected.
+        $summaryFilters = $filters;
+        unset($summaryFilters['status']);
+
         return [
-            'borrowed'  => $this->countBorrowed($userId),
-            'overdue'   => $this->countOverdue($userId),
-            'returned'  => $this->countReturned($userId),
-            'pending'   => $this->countPending($userId),
+            'borrowed'  => $this->countBorrowed($summaryFilters, $userId),
+            'overdue'   => $this->countOverdue($summaryFilters, $userId),
+            'returned'  => $this->countReturned($summaryFilters, $userId),
+            'pending'   => $this->countPending($summaryFilters, $userId),
             'due_soon'  => $userId !== null ? $this->countDueSoon($userId) : 0,
-            'total'     => $this->countTotalBorrowedHistory($userId),
+            'total'     => $this->countTotalBorrowedHistory($summaryFilters, $userId),
         ];
     }
 
-    public function countTotalBorrowedHistory(?int $userId = null): int
+    public function countTotalBorrowedHistory(array $filters = [], ?int $userId = null): int
     {
         $this->cleanupExpiredReturnedHistory();
 
@@ -662,9 +631,7 @@ class BorrowTable
                 'c' => new Expression("SUM(CASE WHEN status IN ('borrowed', 'returned', 'overdue') THEN 1 ELSE 0 END)"),
             ]);
 
-        if ($userId !== null) {
-            $select->where(['user_id' => $userId]);
-        }
+        $this->applyFilters($select, $filters, $userId);
 
         $stmt   = $sql->prepareStatementForSqlObject($select);
         $result = $stmt->execute();

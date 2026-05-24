@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Library\Factory\Controller;
 
 use Library\Controller\HomeController;
+use Library\Model\Table\SystemSettingsTable;
 use Library\Session\AuthSessionContainer;
 use Psr\Container\ContainerInterface;
 
@@ -14,7 +15,7 @@ class HomeControllerFactory
     {
         return new HomeController(
             $container->get(AuthSessionContainer::class),
-            $container->get(\Laminas\Db\Adapter\AdapterInterface::class)
+            $container->get(SystemSettingsTable::class)
         );
     }
 }

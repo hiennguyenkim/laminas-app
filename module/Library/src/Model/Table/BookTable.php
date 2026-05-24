@@ -50,13 +50,31 @@ class BookTable
         });
     }
 
-    public function fetchPage(array $filters, int $page, int $perPage): \Laminas\Db\ResultSet\ResultSetInterface
-    {
+    public function fetchPage(
+        array $filters,
+        int $page,
+        int $perPage,
+        string $sort = 'id',
+        string $direction = 'ASC'
+    ): \Laminas\Db\ResultSet\ResultSetInterface {
         $safePage = max(1, $page);
         $safePerPage = max(1, $perPage);
         $offset = ($safePage - 1) * $safePerPage;
 
-        return $this->tableGateway->select(function (Select $select) use ($filters, $safePerPage, $offset): void {
+        $direction = strtoupper($direction) === 'DESC' ? 'DESC' : 'ASC';
+        $sortField = match ($sort) {
+            'title'        => 'books.title',
+            'author'       => 'books.author',
+            'category'     => 'books.category',
+            'quantity'     => 'books.quantity',
+            'status'       => 'books.status',
+            'created'      => 'books.created_at',
+            'borrow_count' => 'borrow_count',
+            'rating'       => 'avg_rating',
+            default        => 'books.book_id',
+        };
+
+        return $this->tableGateway->select(function (Select $select) use ($filters, $safePerPage, $offset, $sortField, $direction): void {
             $select->columns([
                 'book_id',
                 'title',
@@ -76,9 +94,13 @@ class BookTable
                     '(SELECT COUNT(*) FROM borrow_records br '
                     . 'WHERE br.book_id = books.book_id)'
                 ),
+                'avg_rating' => new Expression(
+                    '(SELECT IFNULL(AVG(rev.rating), 0) FROM book_reviews rev '
+                    . 'WHERE rev.book_id = books.book_id)'
+                ),
             ]);
             $this->applyFilters($select, $filters);
-            $select->order(self::PK . ' ASC');
+            $select->order($sortField . ' ' . $direction);
             $select->limit($safePerPage);
             $select->offset($offset);
         });
@@ -165,6 +187,19 @@ class BookTable
     public function deleteBook(int $id): void
     {
         $this->tableGateway->delete([self::PK => $id]);
+    }
+
+    public function updateCategoryName(string $oldName, string $newName): void
+    {
+        $sql = "UPDATE books SET category = ? WHERE category = ?";
+        $this->tableGateway->getAdapter()->query($sql)->execute([$newName, $oldName]);
+    }
+
+    public function countBooksInCategory(string $categoryName): int
+    {
+        $sql = "SELECT COUNT(*) as cnt FROM books WHERE category = ?";
+        $row = $this->tableGateway->getAdapter()->query($sql)->execute([$categoryName])->current();
+        return (int)($row['cnt'] ?? 0);
     }
 
     /**
@@ -261,6 +296,19 @@ class BookTable
             ['quantity' => $newQty, 'status' => $status],
             [self::PK => $bookId]
         );
+    }
+
+    public function countCategories(): int
+    {
+        $sql = $this->tableGateway->getSql();
+        $select = $sql->select()
+            ->columns(['cnt' => new Expression('COUNT(DISTINCT category)')]);
+        $select->where->isNotNull('category');
+        
+        $stmt = $sql->prepareStatementForSqlObject($select);
+        $result = $stmt->execute()->current();
+        
+        return (int) ($result['cnt'] ?? 0);
     }
 
     /**

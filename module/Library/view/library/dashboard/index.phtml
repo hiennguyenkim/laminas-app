@@ -18,7 +18,7 @@ $statusLabels = [
         <div class="page-subtitle">Không gian theo dõi hoạt động mượn đọc của bạn.</div>
     </div>
     <div class="d-flex gap-2">
-        <a href="<?= $this->url('student/book') ?>" class="btn btn-outline"><i class="bi bi-book"></i>Xem danh mục</a>
+        <a href="<?= $this->url('student/book') ?>" class="btn btn-outline"><i class="bi bi-book"></i>Xem đầu sách</a>
     </div>
 </div>
 
@@ -31,7 +31,7 @@ $statusLabels = [
         <?php if (isset($lockedAt) && $lockedAt !== ''): ?>
             <div class="db-alert-text-small"><strong>Thời điểm khóa:</strong> <?= htmlspecialchars(date('d/m/Y H:i:s', strtotime($lockedAt))) ?></div>
         <?php endif; ?>
-        <div class="db-alert-desc">Hệ thống ghi nhận bạn đã bị khóa tính năng mượn sách. Vui lòng hoàn trả các sách trễ hạn hoặc liên hệ thủ thư tại quầy để được hỗ trợ mở khóa tài khoản.</div>
+        <div class="db-alert-desc">Hệ thống ghi nhận bạn đã bị khóa tính năng mượn đầu sách. Vui lòng hoàn trả các đầu sách trễ hạn hoặc liên hệ thủ thư tại quầy để được hỗ trợ mở khóa tài khoản.</div>
     </div>
 </div>
 <?php endif; ?>
@@ -40,7 +40,7 @@ $statusLabels = [
 <div class="db-alert db-alert-warning">
     <i class="bi bi-exclamation-circle db-alert-icon"></i>
     <div>
-        <strong class="db-alert-title">Cảnh báo: Bạn có <?= $dueSoon ?> cuốn sách sắp đến hạn trả!</strong>
+        <strong class="db-alert-title">Cảnh báo: Bạn có <?= $dueSoon ?> đầu sách sắp đến hạn trả!</strong>
         <div class="db-alert-text-medium">Vui lòng kiểm tra lại hạn trả trong phần Lịch sử mượn và hoàn trả đúng hẹn để không bị phạt quá hạn hoặc khóa tài khoản.</div>
     </div>
 </div>
@@ -64,13 +64,13 @@ $statusLabels = [
     <a href="<?= $this->url('student/transaction', [], ['query' => ['status' => 'borrowed']]) ?>" class="stat-card orange stat-card-link">
         <div class="stat-icon orange"><i class="bi bi-bookmark-check"></i></div>
         <div class="stat-value"><?= number_format((int)$totalBorrowed) ?></div>
-        <div class="stat-label">Sách đang mượn</div>
+        <div class="stat-label">Đầu sách đang mượn</div>
     </a>
     <!-- Card 4: Overdue -->
     <a href="<?= $this->url('student/transaction', [], ['query' => ['status' => 'overdue']]) ?>" class="stat-card pink stat-card-link">
         <div class="stat-icon pink"><i class="bi bi-exclamation-triangle"></i></div>
         <div class="stat-value"><?= number_format((int)$totalOverdue) ?></div>
-        <div class="stat-label">Sách quá hạn</div>
+        <div class="stat-label">Đầu sách quá hạn</div>
     </a>
 </div>
 
@@ -80,7 +80,7 @@ $statusLabels = [
     <div class="card">
         <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
             <div>
-                <div class="card-title">Thống kê mượn / trả sách</div>
+                <div class="card-title">Thống kê mượn / trả đầu sách</div>
                 <div class="card-subtitle" id="borrowChartSubtitle">Theo tháng trong năm <?= date('Y') ?></div>
             </div>
             <div class="d-flex gap-3 align-center flex-wrap">
@@ -121,8 +121,8 @@ $statusLabels = [
     <div class="card">
         <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
             <div>
-                <div class="card-title">Thể loại sách</div>
-                <div class="card-subtitle">Phân bố danh mục</div>
+                <div class="card-title">Thể loại</div>
+                <div class="card-subtitle">Phân bố đầu sách</div>
             </div>
             <a href="<?= $this->url('student/dashboard', ['action' => 'export-category-stats']) ?>" class="btn btn-outline btn-sm d-flex align-items-center gap-2" title="Xuất Excel (.xlsx)">
                 <i class="bi bi-file-earmark-excel" style="color:#1d6f42;"></i>Xuất .xlsx
@@ -177,7 +177,7 @@ $statusLabels = [
                 <thead>
                     <tr>
                         <th>#ID</th>
-                        <th>Tên sách</th>
+                        <th>Tên đầu sách</th>
                         <th>Ngày mượn</th>
                         <th>Hạn trả</th>
                         <th>Ngày trả</th>
@@ -296,7 +296,7 @@ $catColorsUsed = json_encode(array_slice($catColors, 0, count($categoryStats)));
             borrowSlice = currentYearData.borrow;
             returnSlice = currentYearData.return;
             if (subtitle) {
-                subtitle.textContent = 'Theo month trong năm ' + year;
+                subtitle.textContent = 'Theo tháng trong năm ' + year;
             }
         } else if (quarter === '1') {
             labels = ['T1', 'T2', 'T3'];

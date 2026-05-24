@@ -1,0 +1,131 @@
+<?php
+$this->headTitle('Chi tiết bản tin');
+$this->layout('layout/library-layout');
+
+$typeMeta = [
+    'general' => [
+        'label'    => 'Thông báo chung',
+        'icon'     => 'bi-info-circle-fill',
+        'emoji'    => '📢',
+        'gradient' => 'linear-gradient(135deg,#6366f1,#8b5cf6)',
+        'glow'     => 'rgba(99,102,241,0.25)',
+        'light'    => 'rgba(99,102,241,0.08)',
+        'border'   => '#6366f1',
+    ],
+    'event' => [
+        'label'    => 'Sự kiện',
+        'icon'     => 'bi-star-fill',
+        'emoji'    => '🎉',
+        'gradient' => 'linear-gradient(135deg,#ec4899,#f43f5e)',
+        'glow'     => 'rgba(236,72,153,0.25)',
+        'light'    => 'rgba(236,72,153,0.08)',
+        'border'   => '#ec4899',
+    ],
+    'contest' => [
+        'label'    => 'Cuộc thi đọc',
+        'icon'     => 'bi-trophy-fill',
+        'emoji'    => '🏆',
+        'gradient' => 'linear-gradient(135deg,#f59e0b,#f97316)',
+        'glow'     => 'rgba(245,158,11,0.25)',
+        'light'    => 'rgba(245,158,11,0.08)',
+        'border'   => '#f59e0b',
+    ],
+    'holiday' => [
+        'label'    => 'Lịch nghỉ lễ',
+        'icon'     => 'bi-tree-fill',
+        'emoji'    => '🌴',
+        'gradient' => 'linear-gradient(135deg,#10b981,#059669)',
+        'glow'     => 'rgba(16,185,129,0.25)',
+        'light'    => 'rgba(16,185,129,0.08)',
+        'border'   => '#10b981',
+    ],
+];
+
+$cfg = $typeMeta[$announcement['type']] ?? $typeMeta['general'];
+$today = date('Y-m-d');
+$isNotStarted = $announcement['start_date'] && $announcement['start_date'] > $today;
+$isExpired = $announcement['end_date'] && $announcement['end_date'] < $today;
+$isShowing = (bool)$announcement['is_active'] && !$isNotStarted && !$isExpired;
+$dateStr = '';
+if ($announcement['start_date'] && $announcement['end_date']) $dateStr = date('d/m/Y', strtotime($announcement['start_date'])) . ' – ' . date('d/m/Y', strtotime($announcement['end_date']));
+elseif ($announcement['start_date']) $dateStr = 'Từ ' . date('d/m/Y', strtotime($announcement['start_date']));
+elseif ($announcement['end_date']) $dateStr = 'Đến ' . date('d/m/Y', strtotime($announcement['end_date']));
+
+// Determine redirect route based on role
+$backUrl = $isAdmin ? $this->url('library/announcements') : $this->url('student/announcements');
+if ($currentUser === null) {
+    $backUrl = $this->url('announcements');
+}
+?>
+
+<div class="page-header">
+    <div class="d-flex align-center gap-3">
+        <a href="<?= $backUrl ?>" class="btn btn-outline btn-icon"><i class="bi bi-arrow-left"></i></a>
+        <div>
+            <h1 class="page-title" style="margin-bottom: 0;">Chi tiết bản tin</h1>
+            <p class="text-muted settings-header-desc" style="margin-top: 4px; margin-bottom: 0;">Xem thông tin đầy đủ của bản tin thông báo.</p>
+        </div>
+    </div>
+</div>
+
+<div class="card" style="margin-bottom: 24px; overflow: hidden;">
+    <!-- Large Premium Top Banner -->
+    <div style="background: <?= $cfg['gradient'] ?>; padding: 48px 32px; color: #fff; position: relative;">
+        <span style="font-size: 72px; position: absolute; right: 40px; bottom: 20px; opacity: 0.15; user-select: none; pointer-events: none;"><?= $cfg['emoji'] ?></span>
+        <div style="margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+            <span class="settings-ann-card-badge-type" style="background: rgba(255,255,255,0.15); color: #fff; border: 1px solid rgba(255,255,255,0.2); padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600;">
+                <i class="bi <?= $cfg['icon'] ?>" style="margin-right: 6px;"></i><?= $cfg['label'] ?>
+            </span>
+            <?php if ($isAdmin): ?>
+                <?php if ($isNotStarted): ?><span class="settings-ann-card-status-hidden" style="color: #3b82f6; background: rgba(255, 255, 255, 0.15); border: 1px solid rgba(255,255,255,0.2); padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600;"><i class="bi bi-clock-history"></i> Chờ đến hạn</span>
+                <?php elseif ($isExpired): ?><span class="settings-ann-card-status-expired" style="background: rgba(255, 255, 255, 0.15); border: 1px solid rgba(255,255,255,0.2); padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; color: #fff;"><i class="bi bi-archive"></i> Hết hạn</span>
+                <?php elseif ($isShowing): ?><span class="settings-ann-card-status-active" style="background: rgba(255, 255, 255, 0.15); border: 1px solid rgba(255,255,255,0.2); padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; color: #fff;"><i class="bi bi-broadcast"></i> Đang hiện</span>
+                <?php else: ?><span class="settings-ann-card-status-hidden" style="background: rgba(255, 255, 255, 0.15); border: 1px solid rgba(255,255,255,0.2); padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; color: #fff;"><i class="bi bi-eye-slash"></i> Đã ẩn</span><?php endif; ?>
+            <?php endif; ?>
+        </div>
+        <h2 style="font-size: 24px; font-weight: 800; margin: 0; line-height: 1.4; text-shadow: 0 2px 4px rgba(0,0,0,0.2);"><?= htmlspecialchars($announcement['title']) ?></h2>
+    </div>
+
+    <!-- Details Content -->
+    <div class="card-body" style="padding: 32px;">
+        <div style="display: flex; gap: 40px; align-items: flex-start; margin-bottom: 24px; flex-wrap: wrap;">
+            <!-- Meta Information Left -->
+            <div style="flex: 1; min-width: 300px;">
+                <h3 style="font-size: 14px; font-weight: 700; color: #888; text-transform: uppercase; margin-bottom: 12px; letter-spacing: 0.5px;">Nội dung thông báo</h3>
+                <div style="font-size: 15px; line-height: 1.8; color: #e2e8f0; white-space: pre-wrap;"><?= htmlspecialchars($announcement['content']) ?></div>
+            </div>
+
+            <!-- Meta Box Right -->
+            <div style="width: 280px; background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 16px; flex-shrink: 0;">
+                <h3 style="font-size: 12px; font-weight: 700; color: #888; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.5px;">Thông tin sự kiện</h3>
+                
+                <?php if ($dateStr): ?>
+                <div>
+                    <div style="font-size: 11px; color: #666; margin-bottom: 4px;"><i class="bi bi-calendar-range"></i> Thời hạn hiển thị</div>
+                    <div style="font-size: 13px; font-weight: 600; color: #e2e8f0;"><?= $dateStr ?></div>
+                </div>
+                <?php endif; ?>
+
+                <div>
+                    <div style="font-size: 11px; color: #666; margin-bottom: 4px;"><i class="bi bi-clock"></i> Ngày đăng</div>
+                    <div style="font-size: 13px; font-weight: 600; color: #e2e8f0;"><?= date('d/m/Y H:i', strtotime($announcement['created_at'])) ?></div>
+                </div>
+
+                <?php if (!empty($announcement['creator_name'])): ?>
+                <div>
+                    <div style="font-size: 11px; color: #666; margin-bottom: 4px;"><i class="bi bi-person-fill"></i> Người đăng</div>
+                    <div style="font-size: 13px; font-weight: 600; color: #e2e8f0;"><?= htmlspecialchars($announcement['creator_name']) ?></div>
+                </div>
+                <?php endif; ?>
+
+                <?php if ($isAdmin): ?>
+                <div style="border-top: 1px solid var(--border-color); padding-top: 16px; margin-top: 8px; display: flex; flex-direction: column; gap: 10px;">
+                    <a href="<?= $this->url('library/announcements/edit', ['id' => $announcement['id']]) ?>" class="btn btn-outline btn-md" style="width: 100%; text-align: center; justify-content: center; color: var(--accent-purple); border-color: var(--accent-purple);"><i class="bi bi-pencil-square" style="margin-right: 6px;"></i> Sửa bản tin</a>
+                    <a href="<?= $this->url('library/announcements/toggle', ['id' => $announcement['id']]) ?>" class="btn btn-outline btn-md" style="width: 100%; text-align: center; justify-content: center;" onclick="return confirm('Thay đổi trạng thái hiển thị?')"><i class="bi bi-eye-slash" style="margin-right: 6px;"></i> Ẩn/Hiện bản tin</a>
+                    <a href="<?= $this->url('library/announcements/delete', ['id' => $announcement['id']]) ?>" class="btn btn-md text-danger" style="width: 100%; text-align: center; justify-content: center;" onclick="return confirm('Xóa bản tin này?')"><i class="bi bi-trash3" style="margin-right: 6px;"></i> Xóa bản tin</a>
+                </div>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+</div>

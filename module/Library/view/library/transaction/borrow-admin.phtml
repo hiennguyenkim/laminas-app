@@ -37,7 +37,7 @@ $due14d   = date('Y-m-d', strtotime('+14 days'));
         </a>
         <div>
             <div class="page-title">Lập phiếu mượn sách</div>
-            <div class="page-subtitle">Tìm sách và tạo giao dịch mượn sách cho thư viện.</div>
+            <div class="page-subtitle">Tìm sách và tạo phiếu mượn sách cho thư viện.</div>
         </div>
     </div>
 </div>
@@ -201,10 +201,11 @@ $due14d   = date('Y-m-d', strtotime('+14 days'));
     'use strict';
 
     // ── Cấu hình ──────────────────────────────────────────
-    const SEARCH_API      = '<?= $this->url('api/books-search') ?>';
-    const USER_SEARCH_API = '<?= $this->url('api/users-search') ?>';
+    const SEARCH_API      = '<?= $this->url('api/books', ['action' => 'search']) ?>';
+    const USER_SEARCH_API = '<?= $this->url('api/users', ['action' => 'search']) ?>';
     const MIN_CHARS       = 1;          // Bắt đầu tìm từ 1 ký tự
     const DEBOUNCE_MS     = 280;        // Tránh spam request
+    const BASE_PATH       = '<?= $this->basePath() ?>';
 
     // ── DOM refs ──────────────────────────────────────────
     const searchInput    = document.getElementById('book-search-input');
@@ -257,6 +258,7 @@ $due14d   = date('Y-m-d', strtotime('+14 days'));
 
     // ── Hàm escape HTML ───────────────────────────────────
     function esc(str) {
+        if (!str) return '';
         const d = document.createElement('div');
         d.textContent = str;
         return d.innerHTML;
@@ -270,6 +272,12 @@ $due14d   = date('Y-m-d', strtotime('+14 days'));
         return esc(text).replace(re, '<mark class="search-highlight">$1</mark>');
     }
 
+    function getImageUrl(url) {
+        if (!url) return '';
+        if (url.startsWith('http://') || url.startsWith('https://')) return url;
+        return BASE_PATH + '/' + url.replace(/^\/+/, '');
+    }
+
     /* ==========================================================================
        BOOK AUTOCOMPLETE
        ========================================================================== */
@@ -277,16 +285,25 @@ $due14d   = date('Y-m-d', strtotime('+14 days'));
         if (books.length === 0) {
             dropdown.innerHTML = '<div class="search-no-result"><i class="bi bi-inbox"></i> Không tìm thấy sách nào phù hợp.</div>';
         } else {
-            dropdown.innerHTML = books.map((b, idx) => `
-                <div class="book-option" data-idx="${idx}" data-book='${JSON.stringify(b).replace(/'/g, "&#39;")}'>
-                    <div class="book-option-icon"><i class="bi bi-book"></i></div>
-                    <div class="book-option-info">
-                        <div class="book-option-title">${highlight(b.title, query)}</div>
-                        <div class="book-option-meta">${esc(b.author)}${b.isbn ? ' · ISBN: ' + esc(b.isbn) : ''} · ${esc(b.category)}</div>
+            dropdown.innerHTML = books.map((b, idx) => {
+                const coverUrl = getImageUrl(b.cover_image_url);
+                const iconHtml = coverUrl 
+                    ? `<img src="${coverUrl}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 4px;">`
+                    : '<i class="bi bi-book"></i>';
+
+                return `
+                    <div class="book-option" data-idx="${idx}" data-book='${JSON.stringify(b).replace(/'/g, "&#39;")}'>
+                        <div class="book-option-icon" style="overflow: hidden; display: flex; align-items: center; justify-content: center;">
+                            ${iconHtml}
+                        </div>
+                        <div class="book-option-info">
+                            <div class="book-option-title">${highlight(b.title, query)}</div>
+                            <div class="book-option-meta">${esc(b.author)}${b.isbn ? ' · ISBN: ' + esc(b.isbn) : ''} · ${esc(b.category)}</div>
+                        </div>
+                        <div class="book-option-qty">Còn ${b.quantity}</div>
                     </div>
-                    <div class="book-option-qty">Còn ${b.quantity}</div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
 
             dropdown.querySelectorAll('.book-option').forEach(el => {
                 el.addEventListener('mousedown', function (e) {
@@ -311,6 +328,19 @@ $due14d   = date('Y-m-d', strtotime('+14 days'));
         document.getElementById('selected-author').textContent   = book.author || '—';
         document.getElementById('selected-category').textContent = book.category || '—';
         document.getElementById('selected-qty').textContent      = 'Còn ' + book.quantity + ' cuốn';
+        
+        const coverContainer = document.querySelector('.selected-book-cover');
+        const coverUrl = getImageUrl(book.cover_image_url);
+        if (coverContainer) {
+            if (coverUrl) {
+                coverContainer.innerHTML = `<img src="${coverUrl}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 6px;">`;
+                coverContainer.style.background = 'none';
+            } else {
+                coverContainer.innerHTML = '<i class="bi bi-book-half"></i>';
+                coverContainer.style.background = '';
+            }
+        }
+
         selectedCard.style.display = 'block';
 
         if (submitBtn) submitBtn.disabled = false;
@@ -326,6 +356,13 @@ $due14d   = date('Y-m-d', strtotime('+14 days'));
         if (clearBtn) clearBtn.style.display = 'none';
         selectedCard.style.display = 'none';
         dropdown.style.display = 'none';
+        
+        const coverContainer = document.querySelector('.selected-book-cover');
+        if (coverContainer) {
+            coverContainer.innerHTML = '<i class="bi bi-book-half"></i>';
+            coverContainer.style.background = '';
+        }
+
         searchInput.focus();
     }
 
@@ -406,15 +443,24 @@ $due14d   = date('Y-m-d', strtotime('+14 days'));
         if (users.length === 0) {
             userDropdown.innerHTML = '<div class="search-no-result"><i class="bi bi-inbox"></i> Không tìm thấy thành viên nào.</div>';
         } else {
-            userDropdown.innerHTML = users.map((u, idx) => `
-                <div class="book-option user-option" data-idx="${idx}" data-user='${JSON.stringify(u).replace(/'/g, "&#39;")}'>
-                    <div class="book-option-icon user-option-icon"><i class="bi bi-person"></i></div>
-                    <div class="book-option-info">
-                        <div class="book-option-title">${highlight(u.label, query)}</div>
-                        <div class="book-option-meta">Mã thành viên: #${u.id}</div>
+            userDropdown.innerHTML = users.map((u, idx) => {
+                const avtUrl = getImageUrl(u.avatar_url);
+                const iconHtml = avtUrl 
+                    ? `<img src="${avtUrl}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">`
+                    : '<i class="bi bi-person"></i>';
+
+                return `
+                    <div class="book-option user-option" data-idx="${idx}" data-user='${JSON.stringify(u).replace(/'/g, "&#39;")}'>
+                        <div class="book-option-icon user-option-icon" style="overflow: hidden; display: flex; align-items: center; justify-content: center;">
+                            ${iconHtml}
+                        </div>
+                        <div class="book-option-info">
+                            <div class="book-option-title">${highlight(u.full_name || u.username, query)}</div>
+                            <div class="book-option-meta">Mã thành viên: #${u.id} · ${esc(u.role)}</div>
+                        </div>
                     </div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
 
             userDropdown.querySelectorAll('.user-option').forEach(el => {
                 el.addEventListener('mousedown', function (e) {
@@ -434,12 +480,25 @@ $due14d   = date('Y-m-d', strtotime('+14 days'));
             realUserSelect.value = user.id;
             realUserSelect.dispatchEvent(new Event('change'));
         }
-        if (userSearchInput) userSearchInput.value = user.label;
+        if (userSearchInput) userSearchInput.value = user.full_name || user.username;
         if (clearUserBtn) clearUserBtn.style.display = 'inline-flex';
         userDropdown.style.display = 'none';
 
-        document.getElementById('selected-user-name').textContent = user.label;
+        document.getElementById('selected-user-name').textContent = user.full_name || user.username;
         document.getElementById('selected-user-role').textContent = 'MSSV / Mã: #' + user.id;
+        
+        const avtContainer = document.querySelector('.borrow-user-avatar');
+        const avtUrl = getImageUrl(user.avatar_url);
+        if (avtContainer) {
+            if (avtUrl) {
+                avtContainer.innerHTML = `<img src="${avtUrl}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">`;
+                avtContainer.style.background = 'none';
+            } else {
+                avtContainer.innerHTML = '<i class="bi bi-person-check"></i>';
+                avtContainer.style.background = '';
+            }
+        }
+
         if (selectedUserCard) selectedUserCard.classList.remove('d-none');
 
         if (userSearchInput) userSearchInput.style.outline = '';
@@ -459,6 +518,13 @@ $due14d   = date('Y-m-d', strtotime('+14 days'));
         }
         if (clearUserBtn) clearUserBtn.style.display = 'none';
         if (selectedUserCard) selectedUserCard.classList.add('d-none');
+        
+        const avtContainer = document.querySelector('.borrow-user-avatar');
+        if (avtContainer) {
+            avtContainer.innerHTML = '<i class="bi bi-person-check"></i>';
+            avtContainer.style.background = '';
+        }
+
         userDropdown.style.display = 'none';
     }
 
@@ -604,16 +670,9 @@ $due14d   = date('Y-m-d', strtotime('+14 days'));
             returnDateEl.focus();
         }
 
-        if (!valid) {
+        if (! valid) {
             e.preventDefault();
         }
     });
-
-    // ── Khởi tạo: ẩn submit nếu chưa chọn sách ──────────
-    if (submitBtn && ! hiddenBookId.value) {
-        // Không disable hoàn toàn vì Laminas validation sẽ bắt lỗi,
-        // nhưng JS validation sẽ chặn trước khi submit.
-    }
-
 })();
 </script>
