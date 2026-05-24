@@ -9,7 +9,7 @@ $routePrefix = 'student';
     <div class="d-flex align-center gap-3">
         <div>
             <div class="page-title">Hồ sơ cá nhân</div>
-            <div class="page-subtitle">Quản lý thông tin và theo dõi lịch sử thư viện của bạn.</div>
+            <div class="page-subtitle">Quản lý thông tin và theo dõi hoạt động của bạn.</div>
         </div>
     </div>
 </div>
@@ -33,7 +33,7 @@ $routePrefix = 'student';
     <div class="profile-col-left">
         <div class="card">
             <div class="card-body">
-                <form method="POST" action="<?= $this->url($routePrefix . '/profile', ['action' => 'update']) ?>" enctype="multipart/form-data">
+                <form id="avatar-form" method="POST" action="<?= $this->url($routePrefix . '/profile', ['action' => 'upload-avatar']) ?>" enctype="multipart/form-data">
                     <div class="profile-avatar-row">
                         <div class="avatar-preview profile-avatar-preview">
                             <?php if ($user->avatarUrl): ?>
@@ -55,37 +55,47 @@ $routePrefix = 'student';
                             <input type="file" id="avatar-input" name="avatar" accept="image/*" class="d-none" onchange="previewAvatar(this)">
                         </div>
                     </div>
+                </form>
 
-                    <div class="form-group">
-                        <label class="form-label">Họ tên (Chỉ xem)</label>
-                        <input type="text" class="form-control" value="<?= htmlspecialchars($user->fullName) ?>" disabled>
-                    </div>
+                <div class="form-group mb-3">
+                    <label class="form-label">Họ tên (Chỉ xem)</label>
+                    <input type="text" class="form-control" value="<?= htmlspecialchars($user->fullName) ?>" disabled>
+                </div>
 
-                    <div class="form-group">
-                        <label class="form-label">Email (Chỉ xem)</label>
-                        <input type="email" class="form-control" value="<?= htmlspecialchars($user->email) ?>" disabled>
-                    </div>
+                <div class="form-group mb-3">
+                    <label class="form-label">Email (Chỉ xem)</label>
+                    <input type="email" class="form-control" value="<?= htmlspecialchars($user->email) ?>" disabled>
+                </div>
 
-                    <div class="form-group">
-                        <label class="form-label">Biệt danh</label>
-                        <input type="text" name="nickname" class="form-control" value="<?= htmlspecialchars($user->nickname) ?>" placeholder="Nhập biệt danh của bạn...">
-                    </div>
+                <div class="form-group mb-3">
+                    <label class="form-label">Tài khoản (Chỉ xem)</label>
+                    <input type="text" class="form-control" value="@<?= htmlspecialchars($user->username) ?>" disabled>
+                </div>
 
-                    <div class="profile-grid-2">
+                <div class="form-group mb-3">
+                    <label class="form-label">Biệt danh</label>
+                    <input type="text" name="nickname" class="form-control" value="<?= htmlspecialchars($user->nickname) ?>" placeholder="Nhập biệt danh của bạn...">
+                </div>
+
+                    <div class="profile-grid-2 mb-3">
                         <div class="form-group">
-                            <label class="form-label">Ngày sinh</label>
-                            <input type="date" name="date_of_birth" class="form-control" value="<?= htmlspecialchars($user->dateOfBirth) ?>">
+                            <label class="form-label">Ngày sinh (Chỉ xem)</label>
+                            <input type="text" class="form-control" value="<?= $user->dateOfBirth ? htmlspecialchars(date('d/m/Y', strtotime($user->dateOfBirth))) : '—' ?>" disabled>
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Số điện thoại</label>
-                            <input type="text" name="phone" class="form-control" value="<?= htmlspecialchars($user->phone) ?>" placeholder="09xxxxxxx">
+                            <label class="form-label">Ngày tham gia (Chỉ xem)</label>
+                            <input type="text" class="form-control" value="<?= date('d/m/Y', strtotime($user->createdAt)) ?>" disabled>
                         </div>
                     </div>
 
-                    <button type="submit" class="btn btn-primary profile-submit-btn">
-                        <i class="bi bi-save"></i> Cập nhật hồ sơ
+                    <button type="submit" class="btn btn-primary profile-submit-btn" style="width: 100%; font-weight: 600;">
+                        <i class="bi bi-save me-2"></i> Cập nhật hồ sơ
                     </button>
                 </form>
+
+                <div class="alert alert-info mt-3" style="font-size: 12px; border-radius: 8px; background: rgba(59, 130, 246, 0.05); border-color: rgba(59, 130, 246, 0.2);">
+                    <i class="bi bi-info-circle me-1"></i> Liên hệ Thủ thư nếu bạn cần thay đổi các thông tin cá nhân cơ bản.
+                </div>
             </div>
         </div>
     </div>
@@ -106,132 +116,34 @@ $routePrefix = 'student';
                 <div class="profile-stat-val profile-stat-val--red"><?= $stats['overdue_count'] ?></div>
                 <div class="profile-stat-label">Trễ hạn</div>
             </div>
+            <div class="card profile-stat-card">
+                <div class="profile-stat-val profile-stat-val--green"><?= $stats['review_count'] ?></div>
+                <div class="profile-stat-label">Đánh giá</div>
+            </div>
         </div>
 
         <div class="card">
             <div class="card-header profile-card-header">
-                <i class="bi bi-clock-history"></i> Lịch sử mượn trả
+                <i class="bi bi-journal-bookmark-fill me-2" style="color: var(--accent-purple);"></i> Quản lý hoạt động mượn sách
             </div>
-            <div class="card-body profile-card-body-flat">
-                <!-- SEARCH BAR -->
-                <div style="padding: 16px; display: flex; justify-content: flex-end; border-bottom: 1px solid var(--border-color, #2a2f45);">
-                    <form method="GET" action="<?= $this->url($routePrefix . '/profile') ?>" style="display: flex; gap: 8px; width: 100%; max-width: 320px;">
-                        <div class="topbar-search" style="position: relative; flex: 1; max-width: 100%; margin: 0;">
-                            <i class="bi bi-search"></i>
-                            <input type="text" name="search" value="<?= htmlspecialchars($search) ?>" placeholder="Tìm tên sách, tác giả..." oninput="this.nextElementSibling.style.display = this.value ? 'inline-block' : 'none';" style="padding-right: 28px;">
-                            <i class="bi bi-x-circle-fill search-clear-btn" style="position: absolute; right: 12px; cursor: pointer; color: var(--text-muted); display: <?= !empty($search) ? 'inline-block' : 'none' ?>; font-size: 14px;" onclick="clearSearchInput(this)"></i>
-                        </div>
-                        <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-search"></i>Tìm</button>
-                    </form>
+            <div class="card-body profile-card-body-text">
+                <p class="profile-paragraph mb-3">Toàn bộ lịch sử mượn sách, thời hạn trả và các đánh giá của bạn đã được chuyển sang trang <strong>Mượn sách</strong> để đồng nhất quy trình quản lý.</p>
+                <ul class="profile-list mb-4" style="list-style: none; padding: 0; display: flex; flex-direction: column; gap: 10px;">
+                    <li style="display: flex; align-items: flex-start; gap: 8px;"><i class="bi bi-check-circle-fill" style="color: var(--accent-green); font-size: 14px; margin-top: 2px;"></i> <span>Xem danh sách sách đang mượn và hạn trả chi tiết.</span></li>
+                    <li style="display: flex; align-items: flex-start; gap: 8px;"><i class="bi bi-check-circle-fill" style="color: var(--accent-green); font-size: 14px; margin-top: 2px;"></i> <span>Gửi đánh giá và nhận xét cho các đầu sách đã hoàn thành việc trả.</span></li>
+                    <li style="display: flex; align-items: flex-start; gap: 8px;"><i class="bi bi-check-circle-fill" style="color: var(--accent-green); font-size: 14px; margin-top: 2px;"></i> <span>Theo dõi trạng thái phê duyệt của các yêu cầu mượn mới.</span></li>
+                </ul>
+                <div class="d-grid mt-2" style="display: grid;">
+                    <a href="<?= $this->url($routePrefix . '/transaction') ?>" class="btn btn-primary" style="padding: 10px; font-weight: 600; border-radius: 8px; justify-content: center; display: flex; align-items: center; gap: 8px;">
+                        <i class="bi bi-arrow-right-circle"></i> Đi đến trang Mượn sách
+                    </a>
                 </div>
-
-                <?php if (empty($history)): ?>
-                    <div class="profile-empty" style="border-bottom: <?= $totalPages > 1 ? '1px solid var(--border-color, #2a2f45)' : 'none' ?>;">
-                        <i class="bi bi-inbox profile-empty-icon"></i>
-                        <?php if ($search !== ''): ?>
-                            <p class="profile-empty-text">Không tìm thấy kết quả phù hợp.</p>
-                            <a href="<?= $this->url($routePrefix . '/profile') ?>" class="btn btn-outline btn-sm" style="margin-top: 10px;">Xóa tìm kiếm</a>
-                        <?php else: ?>
-                            <p class="profile-empty-text">Bạn chưa mượn cuốn sách nào.</p>
-                        <?php endif; ?>
-                    </div>
-                <?php else: ?>
-                    <table class="data-table profile-table" style="border-bottom: <?= $totalPages > 1 ? '1px solid var(--border-color, #2a2f45)' : 'none' ?>;">
-                        <thead>
-                            <tr>
-                                <th>Sách</th>
-                                <th>Ngày mượn</th>
-                                <th>Hạn trả / Ngày trả</th>
-                                <th>Trạng thái</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach ($history as $record): ?>
-                            <?php
-                            $borrowedDateFormatted = ($record->borrowDate && $record->borrowDate !== '0000-00-00')
-                                ? date('d/m/Y', strtotime($record->borrowDate))
-                                : '—';
-                            $returnDateFormatted = ($record->returnDate && $record->returnDate !== '0000-00-00')
-                                ? date('d/m/Y', strtotime($record->returnDate))
-                                : '—';
-                            $returnedAtFormatted = ($record->returnedAt && $record->returnedAt !== '0000-00-00 00:00:00' && $record->returnedAt !== '0000-00-00')
-                                ? date('d/m/Y', strtotime($record->returnedAt))
-                                : '';
-                            $isRecordOverdue = $record->status === 'overdue' || ($record->status === 'borrowed' && $record->returnDate < date('Y-m-d'));
-                            ?>
-                            <tr>
-                                <td>
-                                    <div class="profile-book-title">
-                                        <?= htmlspecialchars($record->bookTitle) ?>
-                                    </div>
-                                    <?php if ($record->bookIsbn): ?>
-                                        <div class="profile-book-isbn">ISBN: <?= htmlspecialchars($record->bookIsbn) ?></div>
-                                    <?php endif; ?>
-                                </td>
-                                <td class="profile-nowrap">
-                                    <div class="d-flex align-center gap-2">
-                                        <i class="bi bi-calendar3 profile-table-icon"></i>
-                                        <?= htmlspecialchars($borrowedDateFormatted) ?>
-                                    </div>
-                                </td>
-                                <td class="profile-nowrap">
-                                    <?php if ($record->status === 'returned'): ?>
-                                        <div class="d-flex align-center gap-2 profile-returned-color">
-                                            <i class="bi bi-calendar-check profile-table-icon-small"></i>
-                                            <span>Trả: <?= htmlspecialchars($returnedAtFormatted ?: $returnDateFormatted) ?></span>
-                                        </div>
-                                    <?php else: ?>
-                                        <div class="d-flex align-center gap-2 <?= $isRecordOverdue ? 'profile-overdue-alert' : 'profile-active-alert' ?>">
-                                            <i class="bi bi-clock profile-table-icon-small <?= $isRecordOverdue ? 'profile-color-danger' : 'profile-color-muted' ?>"></i>
-                                            <span>Hạn: <?= htmlspecialchars($returnDateFormatted) ?></span>
-                                        </div>
-                                    <?php endif; ?>
-                                </td>
-                                <td>
-                                    <?php if ($record->status === 'returned'): ?>
-                                        <span class="badge badge-green">Đã trả</span>
-                                    <?php elseif ($isRecordOverdue): ?>
-                                        <span class="badge badge-red">Quá hạn</span>
-                                    <?php else: ?>
-                                        <span class="badge badge-blue">Đang mượn</span>
-                                    <?php endif; ?>
-                                </td>
-                            </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                <?php endif; ?>
-
-                <!-- PAGINATION -->
-                <?php if ($totalPages > 1): ?>
-                <?php
-                $buildPageUrl = function(int $p) use ($routePrefix, $search): string {
-                    return $this->url($routePrefix . '/profile', [], ['query' => array_filter([
-                        'page' => $p,
-                        'search' => $search
-                    ])]);
-                };
-                ?>
-                <div class="catalog-pagination-bar" style="padding: 16px; width: 100%;">
-                    <div class="catalog-pagination-info">
-                        Hiển thị <?= min(($page-1)*$perPage+1,$totalCount) ?> – <?= min($page*$perPage,$totalCount) ?> / <?= $totalCount ?> bản ghi
-                    </div>
-                    <div class="pagination">
-                        <a class="page-btn <?= $page<=1?'disabled':'' ?>" href="<?= $page>1?$buildPageUrl($page-1):'#' ?>"><i class="bi bi-chevron-left"></i></a>
-                        <?php for ($p=max(1,$page-2); $p<=min($totalPages,$page+2); $p++): ?>
-                        <a class="page-btn <?= $p===$page?'active':'' ?>" href="<?= $buildPageUrl($p) ?>"><?= $p ?></a>
-                        <?php endfor; ?>
-                        <a class="page-btn <?= $page>=$totalPages?'disabled':'' ?>" href="<?= $page<$totalPages?$buildPageUrl($page+1):'#' ?>"><i class="bi bi-chevron-right"></i></a>
-                    </div>
-                </div>
-                <?php endif; ?>
             </div>
         </div>
     </div>
 </div>
 
 <script>
-
 function previewAvatar(input) {
     const file = input.files[0];
     if (!file) return;
@@ -255,9 +167,12 @@ function previewAvatar(input) {
         if (dz) {
             dz.style.borderColor = 'var(--primary-color)';
         }
+        // Auto submit for student
+        document.getElementById('avatar-form').submit();
     };
     reader.readAsDataURL(file);
 }
+
 document.addEventListener('DOMContentLoaded', () => {
     const dropZone = document.getElementById('avatar-drop-zone');
     if (!dropZone) return;
@@ -276,4 +191,3 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 </script>
-

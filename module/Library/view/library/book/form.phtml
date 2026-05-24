@@ -647,23 +647,7 @@ $this->layout('layout/library-layout');
                                 </div>
                             </div>
 
-                            <div class="form-group-custom col-6">
-                                <label class="form-label-custom">Trạng thái vận hành <span class="required">*</span></label>
-                                <div class="input-with-icon select-wrapper">
-                                    <i class="bi bi-activity"></i>
-                                    <select name="status" class="form-select-custom">
-                                        <option value="available"   <?= $statusValue==='available'?'selected':'' ?>>Khả dụng (Cho phép mượn)</option>
-                                        <option value="unavailable" <?= $statusValue==='unavailable'?'selected':'' ?>>Không khả dụng (Tạm khoá)</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div class="form-info-note">
-                                <i class="bi bi-info-circle-fill"></i>
-                                <div>
-                                    Hệ thống tự động chuyển sang <strong>Đang mượn</strong> khi toàn bộ sách đã mượn hết. Dùng trạng thái <strong>Không khả dụng</strong> nếu muốn tạm thời ẩn sách khỏi danh sách mượn.
-                                </div>
-                            </div>
+                            <input type="hidden" name="status" value="<?= htmlspecialchars($statusValue) ?>">
 
                             <!-- Section: Mô tả tóm tắt -->
                             <div class="form-section-divider">

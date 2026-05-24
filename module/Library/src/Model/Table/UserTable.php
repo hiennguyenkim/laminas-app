@@ -85,6 +85,11 @@ class UserTable
                     . 'OR (br.status = \'borrowed\' AND br.return_date < CURDATE()) '
                     . 'OR (br.status = \'returned\' AND br.returned_at IS NOT NULL AND DATE(br.returned_at) > br.return_date)))'
                 ),
+                'totalBorrowedCount' => new Expression(
+                    '(SELECT COUNT(*) FROM borrow_records br '
+                    . 'WHERE br.user_id = users.user_id '
+                    . 'AND br.status IN (\'borrowed\', \'returned\', \'overdue\'))'
+                ),
             ]);
 
             $this->applyFilters($select, $filters);
@@ -99,6 +104,7 @@ class UserTable
                 'created'   => 'users.created_at',
                 'borrow_count' => 'borrowCount',
                 'overdue_count' => 'overdueCount',
+                'total_borrowed' => 'totalBorrowedCount',
                 default     => 'users.user_id',
             };
 
@@ -152,6 +158,11 @@ class UserTable
                     . 'OR (br.status = \'borrowed\' AND br.return_date < CURDATE()) '
                     . 'OR (br.status = \'returned\' AND br.returned_at IS NOT NULL AND DATE(br.returned_at) > br.return_date)))'
                 ),
+                'totalBorrowedCount' => new Expression(
+                    '(SELECT COUNT(*) FROM borrow_records br '
+                    . 'WHERE br.user_id = users.user_id '
+                    . 'AND br.status IN (\'borrowed\', \'returned\', \'overdue\'))'
+                ),
             ]);
 
             $this->applyFilters($select, $filters);
@@ -166,6 +177,7 @@ class UserTable
                 'created'   => 'users.created_at',
                 'borrow_count' => 'borrowCount',
                 'overdue_count' => 'overdueCount',
+                'total_borrowed' => 'totalBorrowedCount',
                 default     => 'users.user_id',
             };
 

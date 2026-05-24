@@ -7,6 +7,7 @@ namespace Library\Controller;
 use Library\Model\Table\BookTable;
 use Library\Model\Table\BorrowTable;
 use Library\Model\Table\UserTable;
+use Library\Model\Table\BookReviewTable;
 use Library\Session\AuthSessionContainer;
 use Laminas\Http\Response;
 use Laminas\View\Model\ViewModel;
@@ -17,7 +18,8 @@ class ProfileController extends BaseController
         AuthSessionContainer $authSessionContainer,
         private UserTable $userTable,
         private BorrowTable $borrowTable,
-        private BookTable $bookTable
+        private BookTable $bookTable,
+        private BookReviewTable $bookReviewTable
     ) {
         parent::__construct($authSessionContainer);
     }
@@ -36,7 +38,14 @@ class ProfileController extends BaseController
             'total_borrowed' => $this->borrowTable->countTotalBorrowedHistory([], $userId),
             'active_loans'   => $this->borrowTable->countBorrowed([], $userId),
             'overdue_count'  => $this->borrowTable->countOverdue([], $userId),
+            'review_count'   => 0,
         ];
+
+        try {
+            $stats['review_count'] = $this->bookReviewTable->countReviewsByUser($userId);
+        } catch (\Throwable $e) {
+            // Fallback for tests/environments without DB
+        }
 
         $adminStats = [];
         if ($isAdmin) {
@@ -52,10 +61,22 @@ class ProfileController extends BaseController
 
         $page = max(1, (int)$this->params()->fromQuery('page', 1));
         $search = trim((string)$this->params()->fromQuery('search', ''));
+        $status = trim((string)$this->params()->fromQuery('status', ''));
+        $sort = trim((string)$this->params()->fromQuery('sort', 'borrow_date'));
+        if ($sort === '') {
+            $sort = 'borrow_date';
+        }
+        $direction = strtoupper(trim((string)$this->params()->fromQuery('direction', 'DESC')));
+        if (!in_array($direction, ['ASC', 'DESC'])) {
+            $direction = 'DESC';
+        }
         $perPage = 5;
 
         $filters = [
-            'search' => $search,
+            'search'    => $search,
+            'status'    => $status,
+            'sort'      => $sort,
+            'direction' => $direction,
         ];
 
         $totalCount = $isAdmin ? 0 : $this->borrowTable->countFiltered($filters, $userId);
@@ -64,18 +85,21 @@ class ProfileController extends BaseController
         $offset = ($page - 1) * $perPage;
 
         $history = $isAdmin ? [] : $this->borrowTable->fetchAllWithDetails($filters, $userId, $perPage, $offset);
+        $reviewedBookIds = $isAdmin ? [] : $this->bookReviewTable->getReviewedBookIds($userId);
 
         $viewModel = new ViewModel([
-            'user'       => $user,
-            'stats'      => $stats,
-            'isAdmin'    => $isAdmin,
-            'adminStats' => $adminStats,
-            'history'    => $history,
-            'page'       => $page,
-            'totalPages' => $totalPages,
-            'totalCount' => $totalCount,
-            'perPage'    => $perPage,
-            'search'     => $search,
+            'user'            => $user,
+            'stats'           => $stats,
+            'isAdmin'         => $isAdmin,
+            'adminStats'      => $adminStats,
+            'history'         => $history,
+            'reviewedBookIds' => $reviewedBookIds,
+            'page'            => $page,
+            'totalPages'      => $totalPages,
+            'totalCount'      => $totalCount,
+            'perPage'         => $perPage,
+            'search'          => $search,
+            'filters'         => $filters,
         ]);
 
         if ($isAdmin) {

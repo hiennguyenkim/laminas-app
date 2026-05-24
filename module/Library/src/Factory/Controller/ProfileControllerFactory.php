@@ -18,7 +18,8 @@ class ProfileControllerFactory
             $container->get(AuthSessionContainer::class),
             $container->get(UserTable::class),
             $container->get(BorrowTable::class),
-            $container->get(\Library\Model\Table\BookTable::class)
+            $container->get(\Library\Model\Table\BookTable::class),
+            $container->get(\Library\Model\Table\BookReviewTable::class)
         );
     }
 }

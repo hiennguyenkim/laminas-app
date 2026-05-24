@@ -341,13 +341,25 @@ a.sidebar-user-avatar:hover {
 .btn-success:hover { background: #16a34a; }
 .btn-orange { background: var(--accent-orange); color: #fff; }
 .btn-orange:hover { background: #ea6c0a; }
+.btn-danger { background: #ef4444; color: #fff; border: 1px solid #ef4444; }
+.btn-danger:hover { background: #dc2626; border-color: #dc2626; }
 .btn-outline {
   background: transparent;
   border: 1px solid var(--border-color);
   color: var(--text-secondary);
 }
 .btn-outline:hover { border-color: var(--accent-purple); color: var(--accent-purple); }
+.btn-outline-danger {
+  background: transparent;
+  border: 1px solid #ef4444;
+  color: #ef4444;
+}
+.btn-outline-danger:hover {
+  background: #ef4444;
+  color: #fff;
+}
 .btn-sm { padding: 6px 12px; font-size: 12px; border-radius: 6px; }
+.btn-xs { padding: 4px 8px; font-size: 11px; border-radius: 6px; }
 .btn-icon { width: 34px; height: 34px; padding: 0; border-radius: 8px; justify-content: center; }
 
 /* ── TABLE ─────────────────────────────────────────── */

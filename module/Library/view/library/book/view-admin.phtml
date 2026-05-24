@@ -226,7 +226,12 @@ $statusMap = [
                                     <span class="badge badge-orange book-reviews-item-author-admin-badge">Admin</span>
                                 <?php endif; ?>
                             </div>
-                            <div class="book-reviews-item-date"><?= date('d/m/Y H:i', strtotime($rev['created_at'])) ?></div>
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="book-reviews-item-date"><?= date('d/m/Y H:i', strtotime($rev['created_at'])) ?></div>
+                                <form method="POST" action="<?= $this->url('library/book', ['action' => 'delete-review', 'id' => $rev['review_id']], ['query' => ['book_id' => $book->id]]) ?>" onsubmit="return confirm('Bạn có chắc muốn xóa đánh giá này?')" style="margin:0">
+                                    <button type="submit" class="btn-text-danger" style="background:transparent;border:none;padding:0;font-size:12px;cursor:pointer;color:#ef4444;text-decoration:underline">Xóa</button>
+                                </form>
+                            </div>
                         </div>
                         <div class="book-reviews-item-rating">
                             <?= str_repeat('<i class="bi bi-star-fill"></i>', (int)$rev['rating']) ?>

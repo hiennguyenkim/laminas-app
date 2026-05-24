@@ -71,6 +71,7 @@ class BookTable
             'created'      => 'books.created_at',
             'borrow_count' => 'borrow_count',
             'rating'       => 'avg_rating',
+            'review_count' => 'review_count',
             default        => 'books.book_id',
         };
 
@@ -96,6 +97,10 @@ class BookTable
                 ),
                 'avg_rating' => new Expression(
                     '(SELECT IFNULL(AVG(rev.rating), 0) FROM book_reviews rev '
+                    . 'WHERE rev.book_id = books.book_id)'
+                ),
+                'review_count' => new Expression(
+                    '(SELECT COUNT(*) FROM book_reviews rev '
                     . 'WHERE rev.book_id = books.book_id)'
                 ),
             ]);

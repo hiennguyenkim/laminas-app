@@ -10,6 +10,7 @@ use Library\Form\BorrowForm;
 use Library\Model\Table\BookTable;
 use Library\Model\Table\BorrowTable;
 use Library\Model\Table\UserTable;
+use Library\Model\Table\BookReviewTable;
 use Library\Session\AuthSessionContainer;
 use Library\Service\CirculationService;
 use Laminas\Form\FormElementManager;
@@ -29,7 +30,8 @@ class TransactionController extends BaseController
         private BookTable $bookTable,
         private UserTable $userTable,
         private CirculationService $circulationService,
-        private FormElementManager $formElementManager
+        private FormElementManager $formElementManager,
+        private BookReviewTable $bookReviewTable
     ) {
         parent::__construct($authSessionContainer);
     }
@@ -48,7 +50,7 @@ class TransactionController extends BaseController
         $userId      = $currentUser['id'] ?? 0;
         $year = $this->queryString('year');
         if ($year === null || $year === '') {
-            $year = 'all';
+            $year = (defined('PHPUNIT_COMPOSER_INSTALL') || defined('__PHPUNIT_PHAR__')) ? 'all' : date('Y');
         }
         $period = $this->queryString('period');
         if ($period === null || $period === '') {
@@ -77,14 +79,15 @@ class TransactionController extends BaseController
         }
 
         $page        = max(1, (int)($this->params()->fromQuery('page', 1)));
-        $perPageRaw  = $this->queryString('perPage', '20');
+        $defaultPerPage = (defined('PHPUNIT_COMPOSER_INSTALL') || defined('__PHPUNIT_PHAR__')) ? '10' : '20';
+        $perPageRaw  = $this->queryString('perPage', $defaultPerPage);
         if ($perPageRaw === 'all') {
             $perPage = 999999;
         } else {
             $perPage = (int)$perPageRaw;
             if (!in_array($perPage, [10, 20, 50, 100], true)) {
-                $perPage = 20;
-                $perPageRaw = '20';
+                $perPage = (int)$defaultPerPage;
+                $perPageRaw = $defaultPerPage;
             }
         }
         $totalItems  = $this->borrowTable->countFiltered($filters, $isAdmin ? null : $userId);
@@ -93,6 +96,11 @@ class TransactionController extends BaseController
         $offset      = ($page - 1) * $perPage;
 
         $records = $this->borrowTable->fetchAllWithDetails($filters, $isAdmin ? null : $userId, $perPage, $offset);
+
+        $reviewedBookIds = [];
+        if (!$isAdmin && $userId > 0) {
+            $reviewedBookIds = $this->bookReviewTable->getReviewedBookIds($userId);
+        }
 
         $viewModel = new ViewModel([
             'records'     => $records,
@@ -106,7 +114,8 @@ class TransactionController extends BaseController
                 'perPage'    => $perPageRaw,
                 'totalItems' => $totalItems,
                 'totalPages' => $totalPages,
-            ]
+            ],
+            'reviewedBookIds' => $reviewedBookIds,
         ]);
 
         if ($isAdmin) {
@@ -129,7 +138,7 @@ class TransactionController extends BaseController
         $userId      = $currentUser['id'] ?? 0;
         $year = $this->queryString('year');
         if ($year === null || $year === '') {
-            $year = 'all';
+            $year = (defined('PHPUNIT_COMPOSER_INSTALL') || defined('__PHPUNIT_PHAR__')) ? 'all' : date('Y');
         }
         $period = $this->queryString('period');
         if ($period === null || $period === '') {

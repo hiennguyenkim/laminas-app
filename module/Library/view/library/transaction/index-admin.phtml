@@ -136,71 +136,74 @@ $renderSortIcon = function(string $col) use ($queryBase): string {
 </div>
 
 <div class="tx-filters-bar" style="margin-bottom: 24px;">
-    <form method="GET" class="tx-filter-form" style="display: flex; gap: 8px; align-items: center; flex-wrap: nowrap; width: 100%; justify-content: flex-end;">    
-        <input type="hidden" name="status" value="<?= htmlspecialchars($filterStatus) ?>">
-        <?php if (!empty($filters['user_id'])): ?>
-            <input type="hidden" name="user_id" value="<?= htmlspecialchars((string)$filters['user_id']) ?>">
-        <?php endif; ?>
-        <input type="hidden" name="sort" value="<?= htmlspecialchars((string)($filters['sort'] ?? '')) ?>">
-        <input type="hidden" name="direction" value="<?= htmlspecialchars((string)($filters['direction'] ?? '')) ?>">
+    <form method="GET" class="tx-filter-form" style="display: flex; gap: 12px; align-items: center; justify-content: flex-end; width: 100%; flex-wrap: nowrap;">    
+        <!-- Right: Other filters -->
+        <div style="display: flex; gap: 8px; align-items: center; flex-shrink: 0; justify-content: flex-end;">
+            <input type="hidden" name="status" value="<?= htmlspecialchars($filterStatus) ?>">
+            <?php if (!empty($filters['user_id'])): ?>
+                <input type="hidden" name="user_id" value="<?= htmlspecialchars((string)$filters['user_id']) ?>">
+            <?php endif; ?>
+            <input type="hidden" name="sort" value="<?= htmlspecialchars((string)($filters['sort'] ?? '')) ?>">
+            <input type="hidden" name="direction" value="<?= htmlspecialchars((string)($filters['direction'] ?? '')) ?>">
 
-        <!-- Year Filter -->
-        <div class="topbar-search" style="max-width: 110px; padding: 8px 12px; gap: 6px; height: 38px; border-radius: 8px; flex-shrink: 0;">
-            <i class="bi bi-calendar-event" style="color: var(--text-muted);"></i>
-            <select name="year" onchange="this.form.submit()" style="background: none; border: none; outline: none; color: var(--text-primary); font-size: 13px; width: 100%; cursor: pointer;">
-                <option value="all" <?= $filters['year'] === 'all' ? 'selected' : '' ?> style="background: var(--bg-card); color: var(--text-primary);">Tất cả năm</option>
-                <?php
-                $currYear = (int)date('Y');
-                for($y = $currYear - 5; $y <= $currYear; $y++):
-                ?>
-                    <option value="<?= $y ?>" <?= $y === (int)$filters['year'] ? 'selected' : '' ?> style="background: var(--bg-card); color: var(--text-primary);"><?= $y ?></option>
-                <?php endfor; ?>
-            </select>
-        </div>
-
-        <!-- Period Filter -->
-        <div class="topbar-search" style="max-width: 130px; padding: 8px 12px; gap: 6px; height: 38px; border-radius: 8px; flex-shrink: 0;">
-            <i class="bi bi-calendar3" style="color: var(--text-muted);"></i>
-            <select name="period" id="periodSelect" onchange="onPeriodChange()" style="background: none; border: none; outline: none; color: var(--text-primary); font-size: 13px; width: 100%; cursor: pointer;">
-                <option value="year" <?= $filters['period'] === 'year' ? 'selected' : '' ?> style="background: var(--bg-card); color: var(--text-primary);">Cả năm</option>
-                <optgroup label="Theo Quý" style="background: var(--bg-card); color: var(--text-muted); font-style: normal;">
-                    <option value="q1" <?= $filters['period'] === 'q1' ? 'selected' : '' ?> style="background: var(--bg-card); color: var(--text-primary);">Quý I</option>
-                    <option value="q2" <?= $filters['period'] === 'q2' ? 'selected' : '' ?> style="background: var(--bg-card); color: var(--text-primary);">Quý II</option>
-                    <option value="q3" <?= $filters['period'] === 'q3' ? 'selected' : '' ?> style="background: var(--bg-card); color: var(--text-primary);">Quý III</option>
-                    <option value="q4" <?= $filters['period'] === 'q4' ? 'selected' : '' ?> style="background: var(--bg-card); color: var(--text-primary);">Quý IV</option>
-                </optgroup>
-                <optgroup label="Theo Tháng" style="background: var(--bg-card); color: var(--text-muted); font-style: normal;">
-                    <?php for ($m = 1; $m <= 12; $m++): ?>
-                        <option value="m<?= $m ?>" <?= $filters['period'] === 'm' . $m ? 'selected' : '' ?> style="background: var(--bg-card); color: var(--text-primary);">Tháng <?= $m ?></option>
+            <!-- Year Filter -->
+            <div class="topbar-search" style="max-width: 110px; padding: 8px 12px; gap: 6px; height: 38px; border-radius: 8px; flex-shrink: 0;">
+                <i class="bi bi-calendar-event" style="color: var(--text-muted);"></i>
+                <select name="year" onchange="this.form.submit()" style="background: none; border: none; outline: none; color: var(--text-primary); font-size: 13px; width: 100%; cursor: pointer;">
+                    <option value="all" <?= $filters['year'] === 'all' ? 'selected' : '' ?> style="background: var(--bg-card); color: var(--text-primary);">Tất cả năm</option>
+                    <?php
+                    $currYear = (int)date('Y');
+                    for($y = $currYear - 5; $y <= $currYear; $y++):
+                    ?>
+                        <option value="<?= $y ?>" <?= $y === (int)$filters['year'] ? 'selected' : '' ?> style="background: var(--bg-card); color: var(--text-primary);"><?= $y ?></option>
                     <?php endfor; ?>
-                </optgroup>
+                </select>
+            </div>
+
+            <!-- Period Filter -->
+            <div class="topbar-search" style="max-width: 130px; padding: 8px 12px; gap: 6px; height: 38px; border-radius: 8px; flex-shrink: 0;">
+                <i class="bi bi-calendar3" style="color: var(--text-muted);"></i>
+                <select name="period" id="periodSelect" onchange="onPeriodChange()" style="background: none; border: none; outline: none; color: var(--text-primary); font-size: 13px; width: 100%; cursor: pointer;">
+                    <option value="year" <?= $filters['period'] === 'year' ? 'selected' : '' ?> style="background: var(--bg-card); color: var(--text-primary);">Cả năm</option>
+                    <optgroup label="Theo Quý" style="background: var(--bg-card); color: var(--text-muted); font-style: normal;">
+                        <option value="q1" <?= $filters['period'] === 'q1' ? 'selected' : '' ?> style="background: var(--bg-card); color: var(--text-primary);">Quý I</option>
+                        <option value="q2" <?= $filters['period'] === 'q2' ? 'selected' : '' ?> style="background: var(--bg-card); color: var(--text-primary);">Quý II</option>
+                        <option value="q3" <?= $filters['period'] === 'q3' ? 'selected' : '' ?> style="background: var(--bg-card); color: var(--text-primary);">Quý III</option>
+                        <option value="q4" <?= $filters['period'] === 'q4' ? 'selected' : '' ?> style="background: var(--bg-card); color: var(--text-primary);">Quý IV</option>
+                    </optgroup>
+                    <optgroup label="Theo Tháng" style="background: var(--bg-card); color: var(--text-muted); font-style: normal;">
+                        <?php for ($m = 1; $m <= 12; $m++): ?>
+                            <option value="m<?= $m ?>" <?= $filters['period'] === 'm' . $m ? 'selected' : '' ?> style="background: var(--bg-card); color: var(--text-primary);">Tháng <?= $m ?></option>
+                        <?php endfor; ?>
+                    </optgroup>
+                </select>
+            </div>
+
+            <!-- Week Filter -->
+            <div class="topbar-search" style="max-width: 120px; padding: 8px 12px; gap: 6px; height: 38px; border-radius: 8px; flex-shrink: 0;">
+                <i class="bi bi-calendar-week" style="color: var(--text-muted);"></i>
+                <select name="week" id="weekSelect" onchange="this.form.submit()" style="background: none; border: none; outline: none; color: var(--text-primary); font-size: 13px; width: 100%; cursor: pointer;">
+                    <option value="all" <?= ($filters['week'] ?? 'all') === 'all' ? 'selected' : '' ?> style="background: var(--bg-card); color: var(--text-primary);">Cả tuần</option>
+                    <?php for ($w = 1; $w <= 53; $w++): ?>
+                        <option value="<?= $w ?>" <?= (string)($filters['week'] ?? '') === (string)$w ? 'selected' : '' ?> style="background: var(--bg-card); color: var(--text-primary);" data-week="<?= $w ?>">Tuần <?= $w ?></option>
+                    <?php endfor; ?>
+                </select>
+            </div>
+
+            <select name="perPage" class="form-select" style="width: 145px; height: 38px; flex-shrink: 0;" onchange="this.form.submit()">
+                <option value="20"  <?= $perPageRaw === '20'  ? 'selected' : '' ?>>20 phiếu / trang</option>
+                <option value="50"  <?= $perPageRaw === '50'  ? 'selected' : '' ?>>50 phiếu / trang</option>
+                <option value="100" <?= $perPageRaw === '100' ? 'selected' : '' ?>>100 phiếu / trang</option>
+                <option value="all" <?= $perPageRaw === 'all' ? 'selected' : '' ?>>Tất cả</option>
             </select>
-        </div>
 
-        <!-- Week Filter -->
-        <div class="topbar-search" style="max-width: 120px; padding: 8px 12px; gap: 6px; height: 38px; border-radius: 8px; flex-shrink: 0;">
-            <i class="bi bi-calendar-week" style="color: var(--text-muted);"></i>
-            <select name="week" id="weekSelect" onchange="this.form.submit()" style="background: none; border: none; outline: none; color: var(--text-primary); font-size: 13px; width: 100%; cursor: pointer;">
-                <option value="all" <?= ($filters['week'] ?? 'all') === 'all' ? 'selected' : '' ?> style="background: var(--bg-card); color: var(--text-primary);">Cả tuần</option>
-                <?php for ($w = 1; $w <= 53; $w++): ?>
-                    <option value="<?= $w ?>" <?= (string)($filters['week'] ?? '') === (string)$w ? 'selected' : '' ?> style="background: var(--bg-card); color: var(--text-primary);" data-week="<?= $w ?>">Tuần <?= $w ?></option>
-                <?php endfor; ?>
-            </select>
+            <div class="topbar-search catalog-search-wrap" style="position: relative; width: 280px; margin: 0; height: 38px; border-radius: 8px; flex-shrink: 1; min-width: 150px;">
+                <i class="bi bi-search"></i>
+                <input type="text" name="search" value="<?= htmlspecialchars($filters['search']??'') ?>" placeholder="Tìm tên sách, thành viên..." oninput="this.nextElementSibling.style.display = this.value ? 'inline-block' : 'none';" style="padding-right: 28px;">
+                <i class="bi bi-x-circle-fill search-clear-btn" style="position: absolute; right: 12px; cursor: pointer; color: var(--text-muted); display: <?= !empty($filters['search']) ? 'inline-block' : 'none' ?>; font-size: 14px; top: 50%; transform: translateY(-50%);" onclick="const inp=this.previousElementSibling; inp.value=''; this.style.display='none'; this.closest('form').submit();"></i>
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm" style="height: 38px; padding: 0 16px; font-weight: 600; flex-shrink: 0;">Tìm kiếm</button>
         </div>
-
-        <select name="perPage" class="form-select" style="width: 145px; height: 38px; flex-shrink: 0;" onchange="this.form.submit()">
-            <option value="20"  <?= $perPageRaw === '20'  ? 'selected' : '' ?>>20 phiếu / trang</option>
-            <option value="50"  <?= $perPageRaw === '50'  ? 'selected' : '' ?>>50 phiếu / trang</option>
-            <option value="100" <?= $perPageRaw === '100' ? 'selected' : '' ?>>100 phiếu / trang</option>
-            <option value="all" <?= $perPageRaw === 'all' ? 'selected' : '' ?>>Tất cả</option>
-        </select>
-
-        <div class="topbar-search catalog-search-wrap" style="position: relative; width: 280px; margin: 0; height: 38px; border-radius: 8px; flex-shrink: 1; min-width: 150px;">
-            <i class="bi bi-search"></i>
-            <input type="text" name="search" value="<?= htmlspecialchars($filters['search']??'') ?>" placeholder="Tìm tên sách, thành viên..." oninput="this.nextElementSibling.style.display = this.value ? 'inline-block' : 'none';" style="padding-right: 28px;">
-            <i class="bi bi-x-circle-fill search-clear-btn" style="position: absolute; right: 12px; cursor: pointer; color: var(--text-muted); display: <?= !empty($filters['search']) ? 'inline-block' : 'none' ?>; font-size: 14px; top: 50%; transform: translateY(-50%);" onclick="const inp=this.previousElementSibling; inp.value=''; this.style.display='none'; this.closest('form').submit();"></i>
-        </div>
-        <button type="submit" class="btn btn-primary btn-sm" style="height: 38px; padding: 0 16px; font-weight: 600; flex-shrink: 0;">Tìm kiếm</button>
     </form>
 </div>
 
@@ -308,8 +311,8 @@ $renderSortIcon = function(string $col) use ($queryBase): string {
                         </div>
                     </td>
                     <td><span class="badge <?= $statusClass ?>"><?= $statusLabel ?></span></td>
-                    <td>
-                        <div class="d-flex gap-2 justify-content-center">
+                    <td style="text-align: center;">
+                        <div class="d-flex gap-2" style="justify-content: center; align-items: center;">
                         <?php if ($record->status === 'pending'): ?>
                             <button type="button" class="btn btn-primary btn-xs"
                                     onclick="openApproveModal(
@@ -322,12 +325,12 @@ $renderSortIcon = function(string $col) use ($queryBase): string {
                                 Duyệt
                             </button>
                             <form method="POST" action="<?= $this->url($routePrefix . '/transaction', ['action' => 'reject', 'id' => $record->id]) ?>"
-                                  data-confirm="Từ chối yêu cầu này?" style="display:inline;">
+                                  data-confirm="Từ chối yêu cầu này?" style="margin: 0; display: inline-flex;">
                                 <button type="submit" class="btn btn-xs btn-outline-danger">Từ chối</button>
                             </form>
                         <?php elseif (in_array($record->status, ['borrowed','overdue'], true)): ?>
                             <form method="POST" action="<?= $this->url($routePrefix . '/transaction', ['action' => 'return', 'id' => $record->id]) ?>"
-                                  data-confirm="Xác nhận sinh viên đã trả sách?" style="display:inline;">
+                                  data-confirm="Xác nhận sinh viên đã trả sách?" style="margin: 0; display: inline-flex;">
                                 <button type="submit" class="btn btn-success btn-xs">Xác nhận trả</button>
                             </form>
                         <?php else: ?>

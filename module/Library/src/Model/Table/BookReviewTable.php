@@ -56,6 +56,12 @@ class BookReviewTable
         $this->getAdapter()->query($sql)->execute([$bookId, $userId, $rating, $comment]);
     }
 
+    public function deleteReview(int $reviewId): void
+    {
+        $sql = 'DELETE FROM book_reviews WHERE review_id = ?';
+        $this->getAdapter()->query($sql)->execute([$reviewId]);
+    }
+
 
     public function fetchReviewsForBook(int $bookId): array
     {
@@ -65,5 +71,23 @@ class BookReviewTable
                 ORDER BY r.created_at DESC';
         $results = $this->getAdapter()->query($sql)->execute([$bookId]);
         return iterator_to_array($results);
+    }
+
+    public function countReviewsByUser(int $userId): int
+    {
+        $sql = "SELECT COUNT(*) as cnt FROM book_reviews WHERE user_id = ?";
+        $row = $this->getAdapter()->query($sql)->execute([$userId])->current();
+        return (int) ($row['cnt'] ?? 0);
+    }
+
+    public function getReviewedBookIds(int $userId): array
+    {
+        $sql = "SELECT book_id FROM book_reviews WHERE user_id = ?";
+        $results = $this->getAdapter()->query($sql)->execute([$userId]);
+        $ids = [];
+        foreach ($results as $row) {
+            $ids[] = (int)$row['book_id'];
+        }
+        return $ids;
     }
 }

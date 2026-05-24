@@ -8,6 +8,7 @@ use Library\Controller\TransactionController;
 use Library\Model\Table\BookTable;
 use Library\Model\Table\BorrowTable;
 use Library\Model\Table\UserTable;
+use Library\Model\Table\BookReviewTable;
 use Library\Session\AuthSessionContainer;
 use Library\Service\CirculationService;
 use Laminas\Form\FormElementManager;
@@ -24,6 +25,7 @@ class TransactionControllerFactory
             $container->get(UserTable::class),
             $container->get(CirculationService::class),
             $container->get(FormElementManager::class),
+            $container->get(BookReviewTable::class),
         );
     }
 }

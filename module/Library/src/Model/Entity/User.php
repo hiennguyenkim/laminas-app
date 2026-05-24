@@ -31,6 +31,7 @@ class User
 
     public int    $borrowCount    = 0;
     public int    $overdueCount   = 0;
+    public int    $totalBorrowedCount = 0;
 
     public function exchangeArray(array $data): void
     {
@@ -55,6 +56,7 @@ class User
 
         $this->borrowCount   = (int)    ($data['borrowCount'] ?? $data['borrow_count'] ?? 0);
         $this->overdueCount  = (int)    ($data['overdueCount'] ?? $data['overdue_count'] ?? 0);
+        $this->totalBorrowedCount = (int) ($data['totalBorrowedCount'] ?? $data['total_borrowed'] ?? 0);
     }
 
     public function isAdmin(): bool

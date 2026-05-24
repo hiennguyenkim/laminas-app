@@ -175,6 +175,8 @@ th.sortable a { display: flex; align-items: center; text-decoration: none; color
                     <th style="width: 60px;" class="sortable"><a href="<?= $buildSortUrl('id') ?>">#ID <?= $getSortIcon('id') ?></a></th>
                     <th style="min-width: 250px;" class="sortable"><a href="<?= $buildSortUrl('title') ?>">Đầu sách <?= $getSortIcon('title') ?></a></th>
                     <th class="sortable"><a href="<?= $buildSortUrl('category') ?>">Thể loại <?= $getSortIcon('category') ?></a></th>
+                    <th class="sortable"><a href="<?= $buildSortUrl('rating') ?>">Đánh giá <?= $getSortIcon('rating') ?></a></th>
+                    <th class="sortable"><a href="<?= $buildSortUrl('review_count') ?>">Lượt review</a></th>
                     <th class="sortable"><a href="<?= $buildSortUrl('quantity') ?>">Số lượng <?= $getSortIcon('quantity') ?></a></th>
                     <th class="sortable"><a href="<?= $buildSortUrl('status') ?>">Trạng thái <?= $getSortIcon('status') ?></a></th>
                     <th>Hành động</th>
@@ -183,7 +185,7 @@ th.sortable a { display: flex; align-items: center; text-decoration: none; color
             <tbody>
             <?php if ($books->count() === 0): ?>
                 <tr>
-                    <td colspan="6" class="text-center py-5">
+                    <td colspan="8" class="text-center py-5">
                         <div class="empty-state">
                             <i class="bi bi-book" style="font-size: 3rem; opacity: 0.2;"></i>
                             <p class="mt-3 text-muted">Không tìm thấy đầu sách phù hợp.</p>
@@ -219,12 +221,44 @@ th.sortable a { display: flex; align-items: center; text-decoration: none; color
                         </div>
                     </td>
                     <td><span class="badge badge-gray"><?= htmlspecialchars($book->category) ?></span></td>
+                    <td>
+                        <?php if ($book->reviewCount > 0): ?>
+                            <div class="d-flex align-items-center gap-1">
+                                <span class="fw-bold text-orange"><?= number_format($book->avgRating, 1) ?></span>
+                                <div class="text-orange" style="font-size: 11px;">
+                                    <?php for($i=1; $i<=5; $i++): ?>
+                                        <i class="bi bi-star<?= $i <= round($book->avgRating) ? '-fill' : '' ?>"></i>
+                                    <?php endfor; ?>
+                                </div>
+                            </div>
+                        <?php else: ?>
+                            <span class="text-muted small">Chưa có</span>
+                        <?php endif; ?>
+                    </td>
+                    <td>
+                        <?php if ($book->reviewCount > 0): ?>
+                            <span class="badge badge-outline-purple"><?= $book->reviewCount ?> lượt</span>
+                        <?php else: ?>
+                            <span class="text-muted small">0</span>
+                        <?php endif; ?>
+                    </td>
                     <td class="fw-medium"><?= (int)$book->quantity ?> cuốn</td>
                     <td><span class="badge <?= $statusClass ?>"><?= $statusLabel ?></span></td>
                     <td>
                         <div class="d-flex gap-2">
                             <a href="<?= $this->url('library/book', ['action' => 'view', 'id' => $book->id]) ?>" class="btn btn-outline btn-sm btn-icon" title="Xem chi tiết"><i class="bi bi-eye"></i></a>
                             <a href="<?= $this->url('library/book', ['action' => 'edit', 'id' => $book->id]) ?>" class="btn btn-outline btn-sm btn-icon" title="Chỉnh sửa"><i class="bi bi-pencil"></i></a>
+                            <form action="<?= $this->url('library/book', ['action' => 'toggle-status', 'id' => $book->id]) ?>" method="POST" style="display:inline;">
+                                <?php if ($book->status === 'unavailable'): ?>
+                                    <button type="submit" class="btn btn-outline btn-sm btn-icon" style="color:#22c55e;" title="Mở khóa sách">
+                                        <i class="bi bi-unlock"></i>
+                                    </button>
+                                <?php else: ?>
+                                    <button type="submit" class="btn btn-outline btn-sm btn-icon" style="color:#f97316;" title="Khóa sách">
+                                        <i class="bi bi-lock"></i>
+                                    </button>
+                                <?php endif; ?>
+                            </form>
                             <form action="<?= $this->url('library/book', ['action' => 'delete', 'id' => $book->id]) ?>" method="POST" onsubmit="return confirm('Bạn có chắc muốn xóa sách \'<?= htmlspecialchars($book->title) ?>\'?')" style="display:inline;">
                                 <button type="submit" class="btn btn-outline btn-sm btn-icon" style="color:#ef4444;" title="Xóa"><i class="bi bi-trash"></i></button>
                             </form>
@@ -262,7 +296,7 @@ th.sortable a { display: flex; align-items: center; text-decoration: none; color
         <?php endfor; ?>
 
         <?php if ($page < $totalPages): ?>
-            <a href="<?= $buildPageUrl($page + 1) ?>" class="btn btn-outline btn-sm book-import-pagination-btn">Sau <i class="bi bi-chevron-right"></i></a>
+            <a href="<?= $buildPageUrl(1 + $page) ?>" class="btn btn-outline btn-sm book-import-pagination-btn">Sau <i class="bi bi-chevron-right"></i></a>
             <a href="<?= $buildPageUrl($totalPages) ?>" class="btn btn-outline btn-sm book-import-pagination-btn" title="Trang cuối"><i class="bi bi-chevron-double-right"></i></a>
         <?php endif; ?>
     </div>

@@ -75,10 +75,28 @@ class BorrowTable
             'status' => 'borrow_records.status',
         ];
 
-        if ($sort !== null && array_key_exists($sort, $allowedSorts)) {
+        if ($sort === 'status') {
+            $select->order(new Expression(
+                "CASE 
+                    WHEN borrow_records.status = 'pending' THEN 1
+                    WHEN borrow_records.status = 'borrowed' AND borrow_records.return_date < CURDATE() THEN 2
+                    WHEN borrow_records.status = 'borrowed' THEN 3
+                    WHEN borrow_records.status = 'returned' THEN 4
+                    ELSE 5
+                 END " . $direction . ", borrow_records.created_at DESC"
+            ));
+        } elseif ($sort !== null && array_key_exists($sort, $allowedSorts)) {
             $select->order($allowedSorts[$sort] . ' ' . $direction);
         } else {
-            $select->order('borrow_records.created_at DESC');
+            $select->order(new Expression(
+                "CASE 
+                    WHEN borrow_records.status = 'pending' THEN 1
+                    WHEN borrow_records.status = 'borrowed' AND borrow_records.return_date < CURDATE() THEN 2
+                    WHEN borrow_records.status = 'borrowed' THEN 3
+                    WHEN borrow_records.status = 'returned' THEN 4
+                    ELSE 5
+                 END ASC, borrow_records.created_at DESC"
+            ));
         }
 
         $this->applyFilters($select, $filters, $userId);

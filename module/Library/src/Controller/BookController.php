@@ -253,8 +253,10 @@ class BookController extends BaseController
 
         // Fetch user borrowing history for this book to allow review
         $hasBorrowed = false;
+        $hasReviewed = false;
         if ($currentUser && $currentUser['role'] === 'student') {
             $hasBorrowed = $this->bookReviewTable->hasBorrowedAny((int)$currentUser['id'], $id);
+            $hasReviewed = $this->bookReviewTable->hasReviewed((int)$currentUser['id'], $id);
         }
 
         $viewModel = new ViewModel([
@@ -264,6 +266,7 @@ class BookController extends BaseController
             'canManage'       => $canManage,
             'reviews'         => $reviews,
             'hasBorrowed'     => $hasBorrowed,
+            'hasReviewed'     => $hasReviewed,
         ]);
 
         if ($canManage) {
@@ -440,6 +443,35 @@ class BookController extends BaseController
         return $this->redirect()->toRoute('library/book');
     }
 
+    public function toggleStatusAction(): Response
+    {
+        if ($response = $this->requireAdmin()) {
+            return $response;
+        }
+
+        if (! $this->httpRequest()->isPost()) {
+            return $this->redirect()->toRoute('library/book');
+        }
+
+        $id = $this->routeInt('id');
+        try {
+            $book = $this->bookTable->getBook($id);
+            if ($book->status === 'unavailable') {
+                $book->status = 'available';
+                $this->bookTable->saveBook($book);
+                $this->flash()->addSuccessMessage('Đã mở khóa đầu sách "' . $book->title . '".');
+            } else {
+                $book->status = 'unavailable';
+                $this->bookTable->saveBook($book);
+                $this->flash()->addSuccessMessage('Đã khóa đầu sách "' . $book->title . '".');
+            }
+        } catch (\Exception $e) {
+            $this->flash()->addErrorMessage('Có lỗi xảy ra: ' . $e->getMessage());
+        }
+
+        return $this->redirect()->toRoute('library/book');
+    }
+
     public function reviewAction(): Response
     {
         $currentUser = $this->currentUser();
@@ -450,8 +482,12 @@ class BookController extends BaseController
         }
 
         $route = $this->routeForRole('book');
+        $redirectUrl = trim((string)($this->params()->fromQuery('redirect') ?? $this->postData()['redirect'] ?? ''));
 
         if (!$this->httpRequest()->isPost()) {
+            if ($redirectUrl !== '') {
+                return $this->redirect()->toUrl($redirectUrl);
+            }
             return $this->redirect()->toRoute($route);
         }
 
@@ -466,6 +502,9 @@ class BookController extends BaseController
 
             if (!$hasBorrowed) {
                 $this->flash()->addErrorMessage('Bạn chỉ có thể đánh giá sách sau khi đã hoặc đang mượn.');
+                if ($redirectUrl !== '') {
+                    return $this->redirect()->toUrl($redirectUrl);
+                }
                 return $this->redirect()->toRoute($route, ['action' => 'view', 'id' => $bookId]);
             }
 
@@ -474,6 +513,9 @@ class BookController extends BaseController
 
             if ($hasReviewed) {
                 $this->flash()->addErrorMessage('Bạn đã đánh giá cuốn sách này rồi.');
+                if ($redirectUrl !== '') {
+                    return $this->redirect()->toUrl($redirectUrl);
+                }
                 return $this->redirect()->toRoute($route, ['action' => 'view', 'id' => $bookId]);
             }
 
@@ -483,7 +525,35 @@ class BookController extends BaseController
             $this->flash()->addErrorMessage('Có lỗi xảy ra khi gửi đánh giá: ' . $e->getMessage());
         }
 
+        if ($redirectUrl !== '') {
+            return $this->redirect()->toUrl($redirectUrl);
+        }
         return $this->redirect()->toRoute($route, ['action' => 'view', 'id' => $bookId]);
+    }
+
+    public function deleteReviewAction(): Response
+    {
+        if ($response = $this->requireAdmin()) {
+            return $response;
+        }
+
+        if (! $this->httpRequest()->isPost()) {
+            return $this->redirect()->toRoute('library/book');
+        }
+
+        $reviewId = (int) $this->params()->fromRoute('id', 0);
+        $bookId   = (int) $this->params()->fromQuery('book_id', 0);
+
+        if ($reviewId > 0) {
+            $this->bookReviewTable->deleteReview($reviewId);
+            $this->flash()->addSuccessMessage('Đã xóa đánh giá.');
+        }
+
+        if ($bookId > 0) {
+            return $this->redirect()->toRoute('library/book', ['action' => 'view', 'id' => $bookId]);
+        }
+
+        return $this->redirect()->toRoute('library/book');
     }
 
 

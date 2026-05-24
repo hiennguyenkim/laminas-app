@@ -143,80 +143,74 @@ $buildTabUrl = function(string $statusVal) use ($filters, $routePrefix) {
     return $this->url($routePrefix . '/transaction', [], ['query' => array_filter($q, fn($v) => $v !== null && $v !== '')]);
 };
 ?>
-<div class="tx-filters-bar">
-    <div class="filter-tabs tx-filter-tabs">
-        <a href="<?= $buildTabUrl('') ?>" class="filter-tab <?= $filterStatus===''?'active':'' ?>">
-            Tất cả <span class="count"><?= (int)($summary['borrowed']??0)+(int)($summary['returned']??0)+(int)($summary['overdue']??0)+(int)($summary['pending']??0) ?></span>
-        </a>
-        <a href="<?= $buildTabUrl('borrowed') ?>" class="filter-tab <?= $filterStatus==='borrowed'?'active':'' ?>">
-            Đang mượn <span class="count"><?= (int)($summary['borrowed']??0) ?></span>
-        </a>
-        <a href="<?= $buildTabUrl('pending') ?>" class="filter-tab <?= $filterStatus==='pending'?'active':'' ?>">
-            Chờ duyệt <span class="count"><?= (int)($summary['pending']??0) ?></span>
-        </a>
-        <a href="<?= $buildTabUrl('returned') ?>" class="filter-tab <?= $filterStatus==='returned'?'active':'' ?>">
-            Đã trả <span class="count"><?= (int)($summary['returned']??0) ?></span>
-        </a>
-        <a href="<?= $buildTabUrl('overdue') ?>" class="filter-tab <?= $filterStatus==='overdue'?'active':'' ?>">
-            Quá hạn <span class="count"><?= (int)($summary['overdue']??0) ?></span>
-        </a>
-    </div>
-    <form method="GET" class="tx-filter-form" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-        <!-- Preserve selected status -->
-        <input type="hidden" name="status" value="<?= htmlspecialchars($filterStatus) ?>">
-        <input type="hidden" name="sort" value="<?= htmlspecialchars((string)($filters['sort'] ?? '')) ?>">
-        <input type="hidden" name="direction" value="<?= htmlspecialchars((string)($filters['direction'] ?? '')) ?>">
-
-        <!-- Year Filter -->
-        <div class="topbar-search" style="max-width: 130px; padding: 8px 12px; gap: 6px;">
-            <i class="bi bi-calendar-event" style="color: var(--text-muted);"></i>
-            <select name="year" onchange="this.form.submit()" style="background: none; border: none; outline: none; color: var(--text-primary); font-size: 13px; width: 100%; cursor: pointer;">
-                <option value="all" <?= $filters['year'] === 'all' ? 'selected' : '' ?> style="background: var(--bg-card);">Tất cả năm</option>
-                <?php 
-                $currYear = (int)date('Y');
-                for($y = $currYear - 5; $y <= $currYear; $y++): 
-                ?>
-                    <option value="<?= $y ?>" <?= $y === (int)$filters['year'] ? 'selected' : '' ?> style="background: var(--bg-card);"><?= $y ?></option>
-                <?php endfor; ?>
-            </select>
+<div class="tx-filters-bar" style="margin-bottom: 24px;">
+    <form method="GET" class="tx-filter-form" style="display: flex; gap: 12px; align-items: center; justify-content: space-between; width: 100%; flex-wrap: nowrap;">    
+        <!-- Left: Status filter buttons -->
+        <div class="filter-tabs tx-filter-tabs" style="margin-bottom: 0; flex-shrink: 0; display: flex; gap: 6px;">
+            <a href="<?= $buildTabUrl('') ?>" class="filter-tab <?= $filterStatus===''?'active':'' ?>">Tất cả</a>
+            <a href="<?= $buildTabUrl('pending') ?>" class="filter-tab <?= $filterStatus==='pending'?'active':'' ?>">Chờ duyệt</a>
+            <a href="<?= $buildTabUrl('overdue') ?>" class="filter-tab <?= $filterStatus==='overdue'?'active':'' ?>">Quá hạn</a>
+            <a href="<?= $buildTabUrl('borrowed') ?>" class="filter-tab <?= $filterStatus==='borrowed'?'active':'' ?>">Đang mượn</a>
+            <a href="<?= $buildTabUrl('returned') ?>" class="filter-tab <?= $filterStatus==='returned'?'active':'' ?>">Đã trả</a>
         </div>
 
-        <!-- Period Filter -->
-        <div class="topbar-search" style="max-width: 170px; padding: 8px 12px; gap: 6px;">
-            <i class="bi bi-calendar3" style="color: var(--text-muted);"></i>
-            <select name="period" id="periodSelect" onchange="onPeriodChange()" style="background: none; border: none; outline: none; color: var(--text-primary); font-size: 13px; width: 100%; cursor: pointer;">
-                <option value="year" <?= $filters['period'] === 'year' ? 'selected' : '' ?> style="background: var(--bg-card);">Cả năm</option>
-                <optgroup label="Theo Quý" style="background: var(--bg-card); color: var(--text-muted); font-style: normal;">
-                    <option value="q1" <?= $filters['period'] === 'q1' ? 'selected' : '' ?> style="background: var(--bg-card); color: var(--text-primary);">Quý I</option>
-                    <option value="q2" <?= $filters['period'] === 'q2' ? 'selected' : '' ?> style="background: var(--bg-card); color: var(--text-primary);">Quý II</option>
-                    <option value="q3" <?= $filters['period'] === 'q3' ? 'selected' : '' ?> style="background: var(--bg-card); color: var(--text-primary);">Quý III</option>
-                    <option value="q4" <?= $filters['period'] === 'q4' ? 'selected' : '' ?> style="background: var(--bg-card); color: var(--text-primary);">Quý IV</option>
-                </optgroup>
-                <optgroup label="Theo Tháng" style="background: var(--bg-card); color: var(--text-muted); font-style: normal;">
-                    <?php for ($m = 1; $m <= 12; $m++): ?>
-                        <option value="m<?= $m ?>" <?= $filters['period'] === 'm' . $m ? 'selected' : '' ?> style="background: var(--bg-card); color: var(--text-primary);">Tháng <?= $m ?></option>
+        <!-- Right: Other filters -->
+        <div style="display: flex; gap: 8px; align-items: center; flex-shrink: 0; justify-content: flex-end;">
+            <input type="hidden" name="status" value="<?= htmlspecialchars($filterStatus) ?>">
+            <input type="hidden" name="sort" value="<?= htmlspecialchars((string)($filters['sort'] ?? '')) ?>">
+            <input type="hidden" name="direction" value="<?= htmlspecialchars((string)($filters['direction'] ?? '')) ?>">
+
+            <!-- Year Filter -->
+            <div class="topbar-search" style="max-width: 130px; padding: 8px 12px; gap: 6px; height: 38px; border-radius: 8px; flex-shrink: 0;">
+                <i class="bi bi-calendar-event" style="color: var(--text-muted);"></i>
+                <select name="year" onchange="this.form.submit()" style="background: none; border: none; outline: none; color: var(--text-primary); font-size: 13px; width: 100%; cursor: pointer;">
+                    <option value="all" <?= $filters['year'] === 'all' ? 'selected' : '' ?> style="background: var(--bg-card);">Tất cả năm</option>
+                    <?php 
+                    $currYear = (int)date('Y');
+                    for($y = $currYear - 5; $y <= $currYear; $y++): 
+                    ?>
+                        <option value="<?= $y ?>" <?= $y === (int)$filters['year'] ? 'selected' : '' ?> style="background: var(--bg-card);"><?= $y ?></option>
                     <?php endfor; ?>
-                </optgroup>
-            </select>
-        </div>
+                </select>
+            </div>
 
-        <!-- Week Filter -->
-        <div class="topbar-search" style="max-width: 140px; padding: 8px 12px; gap: 6px;">
-            <i class="bi bi-calendar-week" style="color: var(--text-muted);"></i>
-            <select name="week" id="weekSelect" onchange="this.form.submit()" style="background: none; border: none; outline: none; color: var(--text-primary); font-size: 13px; width: 100%; cursor: pointer;">
-                <option value="all" <?= ($filters['week'] ?? 'all') === 'all' ? 'selected' : '' ?> style="background: var(--bg-card);">Tất cả tuần</option>
-                <?php for ($w = 1; $w <= 53; $w++): ?>
-                    <option value="<?= $w ?>" <?= (string)($filters['week'] ?? '') === (string)$w ? 'selected' : '' ?> style="background: var(--bg-card);" data-week="<?= $w ?>">Tuần <?= $w ?></option>
-                <?php endfor; ?>
-            </select>
-        </div>
+            <!-- Period Filter -->
+            <div class="topbar-search" style="max-width: 170px; padding: 8px 12px; gap: 6px; height: 38px; border-radius: 8px; flex-shrink: 0;">
+                <i class="bi bi-calendar3" style="color: var(--text-muted);"></i>
+                <select name="period" id="periodSelect" onchange="onPeriodChange()" style="background: none; border: none; outline: none; color: var(--text-primary); font-size: 13px; width: 100%; cursor: pointer;">
+                    <option value="year" <?= $filters['period'] === 'year' ? 'selected' : '' ?> style="background: var(--bg-card);">Cả năm</option>
+                    <optgroup label="Theo Quý" style="background: var(--bg-card); color: var(--text-muted); font-style: normal;">
+                        <option value="q1" <?= $filters['period'] === 'q1' ? 'selected' : '' ?> style="background: var(--bg-card); color: var(--text-primary);">Quý I</option>
+                        <option value="q2" <?= $filters['period'] === 'q2' ? 'selected' : '' ?> style="background: var(--bg-card); color: var(--text-primary);">Quý II</option>
+                        <option value="q3" <?= $filters['period'] === 'q3' ? 'selected' : '' ?> style="background: var(--bg-card); color: var(--text-primary);">Quý III</option>
+                        <option value="q4" <?= $filters['period'] === 'q4' ? 'selected' : '' ?> style="background: var(--bg-card); color: var(--text-primary);">Quý IV</option>
+                    </optgroup>
+                    <optgroup label="Theo Tháng" style="background: var(--bg-card); color: var(--text-muted); font-style: normal;">
+                        <?php for ($m = 1; $m <= 12; $m++): ?>
+                            <option value="m<?= $m ?>" <?= $filters['period'] === 'm' . $m ? 'selected' : '' ?> style="background: var(--bg-card); color: var(--text-primary);">Tháng <?= $m ?></option>
+                        <?php endfor; ?>
+                    </optgroup>
+                </select>
+            </div>
 
-        <div class="topbar-search tx-search-wrap" style="position: relative;">
-            <i class="bi bi-search"></i>
-            <input type="text" name="search" value="<?= htmlspecialchars($filters['search']??'') ?>" placeholder="Tìm theo sách..." oninput="this.nextElementSibling.style.display = this.value ? 'inline-block' : 'none';" style="padding-right: 28px;">
-            <i class="bi bi-x-circle-fill search-clear-btn" style="position: absolute; right: 12px; cursor: pointer; color: var(--text-muted); display: <?= !empty($filters['search']) ? 'inline-block' : 'none' ?>; font-size: 14px;" onclick="clearSearchInput(this)"></i>
+            <!-- Week Filter -->
+            <div class="topbar-search" style="max-width: 140px; padding: 8px 12px; gap: 6px; height: 38px; border-radius: 8px; flex-shrink: 0;">
+                <i class="bi bi-calendar-week" style="color: var(--text-muted);"></i>
+                <select name="week" id="weekSelect" onchange="this.form.submit()" style="background: none; border: none; outline: none; color: var(--text-primary); font-size: 13px; width: 100%; cursor: pointer;">
+                    <option value="all" <?= ($filters['week'] ?? 'all') === 'all' ? 'selected' : '' ?> style="background: var(--bg-card);">Tất cả tuần</option>
+                    <?php for ($w = 1; $w <= 53; $w++): ?>
+                        <option value="<?= $w ?>" <?= (string)($filters['week'] ?? '') === (string)$w ? 'selected' : '' ?> style="background: var(--bg-card);" data-week="<?= $w ?>">Tuần <?= $w ?></option>
+                    <?php endfor; ?>
+                </select>
+            </div>
+
+            <div class="topbar-search tx-search-wrap" style="position: relative; width: 280px; margin: 0; height: 38px; border-radius: 8px; flex-shrink: 1; min-width: 150px;">
+                <i class="bi bi-search"></i>
+                <input type="text" name="search" value="<?= htmlspecialchars($filters['search']??'') ?>" placeholder="Tìm theo sách..." oninput="this.nextElementSibling.style.display = this.value ? 'inline-block' : 'none';" style="padding-right: 28px;">
+                <i class="bi bi-x-circle-fill search-clear-btn" style="position: absolute; right: 12px; cursor: pointer; color: var(--text-muted); display: <?= !empty($filters['search']) ? 'inline-block' : 'none' ?>; font-size: 14px;" onclick="clearSearchInput(this)"></i>
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm" style="height: 38px; padding: 0 16px; font-weight: 600; flex-shrink: 0;"><i class="bi bi-search"></i>Tìm</button>
         </div>
-        <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-search"></i>Tìm</button>
     </form>
 </div>
 
@@ -318,15 +312,22 @@ $buildTabUrl = function(string $statusVal) use ($filters, $routePrefix) {
                     <td><span class="badge <?= $statusClass ?>"><?= $statusLabel ?></span></td>
                     <td>
                         <?php if ($record->status === 'pending'): ?>
-                        <span class="tx-status-hint tx-status-hint-italic"><i class="bi bi-hourglass-split"></i> Đang chờ duyệt</span>
+                            <span class="tx-status-hint tx-status-hint-italic"><i class="bi bi-hourglass-split"></i> Đang chờ duyệt</span>
                         <?php elseif (in_array($record->status, ['borrowed','overdue'], true)): ?>
-                        <span class="tx-status-hint">Liên hệ thủ thư để trả</span>
+                            <span class="tx-status-hint">Liên hệ thủ thư để trả</span>
+                        <?php elseif ($record->status === 'returned'): ?>
+                            <?php if (in_array((int)$record->bookId, $reviewedBookIds ?? [], true)): ?>
+                                <a href="<?= $this->url('student/book', ['action' => 'view', 'id' => $record->bookId]) ?>" class="badge badge-outline-green" style="text-decoration: none;" title="Xem đánh giá của bạn">
+                                    <i class="bi bi-patch-check-fill"></i> Đã đánh giá
+                                </a>
+                            <?php else: ?>
+                                <button type="button" class="btn btn-outline-primary btn-sm" style="font-size: 11px; padding: 2px 8px; height: 24px; display: inline-flex; align-items: center; gap: 4px;" 
+                                        onclick="openReviewModal(<?= (int)$record->bookId ?>, '<?= htmlspecialchars(addslashes($record->bookTitle)) ?>')">
+                                    <i class="bi bi-star"></i> Đánh giá
+                                </button>
+                            <?php endif; ?>
                         <?php else: ?>
-                        <?php if ($record->returnedAt): ?>
-                        <span class="tx-status-hint">Trả: <?= htmlspecialchars($record->returnedAt) ?></span>
-                        <?php else: ?>
-                        <span class="tx-status-hint">Hoàn tất</span>
-                        <?php endif; ?>
+                            <span class="tx-status-hint">Hoàn tất</span>
                         <?php endif; ?>
                     </td>
                 </tr>
@@ -353,7 +354,78 @@ $buildTabUrl = function(string $statusVal) use ($filters, $routePrefix) {
 </div>
 <?php endif; ?>
 
+<!-- Review Modal -->
+<div id="reviewModal" class="custom-modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(15, 23, 42, 0.75); backdrop-filter: blur(4px); align-items: center; justify-content: center;">
+    <div class="card" style="width: 100%; max-width: 450px; margin: 16px; border: 1px solid var(--border-color, #e2e8f0); border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3); overflow: hidden; background: var(--bg-surface, #1e293b);">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid var(--border-color, #e2e8f0);">
+            <h3 id="modalBookTitle" style="margin: 0; font-size: 16px; font-weight: 700; color: var(--text-primary);">Đánh giá sách</h3>
+            <button type="button" onclick="closeReviewModal()" style="background: transparent; border: none; color: var(--text-muted); cursor: pointer; font-size: 20px; line-height: 1;"><i class="bi bi-x-lg"></i></button>
+        </div>
+        <form id="reviewForm" method="POST" action="" style="margin: 0;">
+            <div class="card-body" style="padding: 20px; display: flex; flex-direction: column; gap: 16px;">
+                <input type="hidden" name="redirect" id="modalRedirectInput">
+                
+                <div class="form-group" style="margin: 0;">
+                    <label class="form-label" style="display: block; margin-bottom: 8px;">Đánh giá của bạn:</label>
+                    <div class="review-stars">
+                        <input type="radio" id="mstar5" name="rating" value="5" required checked /><label for="mstar5" title="Rất hay"><i class="bi bi-star-fill"></i></label>
+                        <input type="radio" id="mstar4" name="rating" value="4" /><label for="mstar4" title="Hay"><i class="bi bi-star-fill"></i></label>
+                        <input type="radio" id="mstar3" name="rating" value="3" /><label for="mstar3" title="Tạm được"><i class="bi bi-star-fill"></i></label>
+                        <input type="radio" id="mstar2" name="rating" value="2" /><label for="mstar2" title="Kém"><i class="bi bi-star-fill"></i></label>
+                        <input type="radio" id="mstar1" name="rating" value="1" /><label for="mstar1" title="Tệ"><i class="bi bi-star-fill"></i></label>
+                    </div>
+                </div>
+                
+                <div class="form-group" style="margin: 0;">
+                    <label class="form-label" style="display: block; margin-bottom: 8px;">Nhận xét:</label>
+                    <textarea name="comment" class="form-control" rows="4" placeholder="Chia sẻ cảm nghĩ của bạn về cuốn sách này..." required style="resize: none; border-radius: 8px; font-size: 13.5px;"></textarea>
+                </div>
+            </div>
+            <div class="card-footer" style="display: flex; justify-content: flex-end; gap: 10px; padding: 16px 20px; border-top: 1px solid var(--border-color, #e2e8f0); background: rgba(0,0,0,0.05);">
+                <button type="button" class="btn btn-outline" onclick="closeReviewModal()" style="font-size: 13px; height: 36px; padding: 0 16px; border-radius: 6px;">Hủy bỏ</button>
+                <button type="submit" class="btn btn-primary" style="font-size: 13px; height: 36px; padding: 0 16px; border-radius: 6px;">Gửi đánh giá</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
+function openReviewModal(bookId, bookTitle) {
+    const modal = document.getElementById('reviewModal');
+    const form = document.getElementById('reviewForm');
+    const title = document.getElementById('modalBookTitle');
+    const redirectInput = document.getElementById('modalRedirectInput');
+    
+    if (modal && form && title && redirectInput) {
+        title.innerText = 'Đánh giá: ' + bookTitle;
+        form.action = '<?= $this->url('student/book', ['action' => 'review']) ?>/' + bookId;
+        redirectInput.value = window.location.href;
+        modal.style.display = 'flex';
+    }
+}
+
+function closeReviewModal() {
+    const modal = document.getElementById('reviewModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+window.addEventListener('click', function(event) {
+    const modal = document.getElementById('reviewModal');
+    if (event.target === modal) {
+        closeReviewModal();
+    }
+});
+
+function clearSearchInput(btn) {
+    const input = btn.previousElementSibling;
+    input.value = '';
+    btn.style.display = 'none';
+    input.focus();
+    input.form.submit();
+}
+
 // Period to week numbers mapping
 const periodToWeeks = {
     'year': { min: 1, max: 53 },
