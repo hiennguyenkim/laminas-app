@@ -73,6 +73,8 @@ class CirculationService
                 $this->bookTable->decrementAvailability($bookId);
                 $this->borrowTable->borrow($bookId, $userId, $borrowDate, $returnDate);
             } else {
+                // Bắt đầu áp dụng Giữ chỗ chắc chắn (Hard Reservation)
+                $this->bookTable->decrementAvailability($bookId);
                 $this->borrowTable->requestBorrow($bookId, $userId, $borrowDate, $returnDate);
                 $recordId = (int)$this->adapter->getDriver()->getLastGeneratedValue();
                 try {

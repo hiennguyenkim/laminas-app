@@ -317,11 +317,11 @@ $buildTabUrl = function(string $statusVal) use ($filters, $routePrefix) {
                             <span class="tx-status-hint">Liên hệ thủ thư để trả</span>
                         <?php elseif ($record->status === 'returned'): ?>
                             <?php if (in_array((int)$record->bookId, $reviewedBookIds ?? [], true)): ?>
-                                <a href="<?= $this->url('student/book', ['action' => 'view', 'id' => $record->bookId]) ?>" class="badge badge-outline-green" style="text-decoration: none;" title="Xem đánh giá của bạn">
+                                <a href="<?= $this->url('student/book', ['action' => 'view', 'id' => $record->bookId]) ?>" class="badge" style="text-decoration: none; color: #fff; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.15);" title="Xem đánh giá của bạn">
                                     <i class="bi bi-patch-check-fill"></i> Đã đánh giá
                                 </a>
                             <?php else: ?>
-                                <button type="button" class="btn btn-outline-primary btn-sm" style="font-size: 11px; padding: 2px 8px; height: 24px; display: inline-flex; align-items: center; gap: 4px;" 
+                                <button type="button" class="btn btn-outline btn-sm" style="font-size: 11px; padding: 2px 8px; height: 24px; display: inline-flex; align-items: center; gap: 4px;" 
                                         onclick="openReviewModal(<?= (int)$record->bookId ?>, '<?= htmlspecialchars(addslashes($record->bookTitle)) ?>')">
                                     <i class="bi bi-star"></i> Đánh giá
                                 </button>

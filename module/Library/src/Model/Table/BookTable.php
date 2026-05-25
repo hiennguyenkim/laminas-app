@@ -259,7 +259,9 @@ class BookTable
             'unavailable_titles' => new \Laminas\Db\Sql\Expression(
                 "SUM(CASE WHEN status = 'unavailable' THEN 1 ELSE 0 END)"
             ),
-            'total_copies'      => new \Laminas\Db\Sql\Expression('SUM(quantity)'),
+            'total_copies'      => new \Laminas\Db\Sql\Expression(
+                "SUM(quantity) + (SELECT COUNT(*) FROM borrow_records WHERE status IN ('pending', 'borrowed', 'overdue'))"
+            ),
         ]);
         $stmt   = $sql->prepareStatementForSqlObject($select);
         $summary = $this->normalizeSummaryRow($stmt->execute()->current());

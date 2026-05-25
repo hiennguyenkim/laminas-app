@@ -148,5 +148,35 @@ class Module
                 }
             }
         }, -100);
+
+        // Pseudo-cron for Auto-Cancel Pending Requests
+        $eventManager->attach(MvcEvent::EVENT_ROUTE, function (MvcEvent $e) use ($container) {
+            if (defined('PHPUNIT_COMPOSER_INSTALL') || defined('__PHPUNIT_PHAR__')) {
+                return;
+            }
+
+            try {
+                $dbAdapter = $container->get(\Laminas\Db\Adapter\AdapterInterface::class);
+                $stmt = $dbAdapter->query("SELECT setting_value FROM system_settings WHERE setting_key = 'last_cron_run' LIMIT 1");
+                $result = $stmt->execute()->current();
+                
+                $lastRun = $result ? (int) $result['setting_value'] : 0;
+                $now = time();
+                
+                // Run if more than 1 hour (3600 seconds) has passed
+                if ($now - $lastRun >= 3600) {
+                    // Update timestamp immediately to prevent race conditions
+                    $dbAdapter->query("UPDATE system_settings SET setting_value = ? WHERE setting_key = 'last_cron_run'")->execute([$now]);
+                    
+                    // Trigger background script (Windows compatible)
+                    $scriptPath = realpath(__DIR__ . '/../../../bin/cron-cancel-pending.php');
+                    if ($scriptPath) {
+                        pclose(popen("start /B php \"$scriptPath\"", "r"));
+                    }
+                }
+            } catch (\Throwable $t) {
+                // Ignore cron errors to not break the page load
+            }
+        }, -101);
     }
 }

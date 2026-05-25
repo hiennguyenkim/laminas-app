@@ -305,7 +305,9 @@ class BorrowTable
                     ELSE 0
                  END)"
             ),
-        ]);
+        ])
+        ->join('books', 'borrow_records.book_id = books.book_id', [])
+        ->join('users', 'borrow_records.user_id = users.user_id', []);
 
         $this->applyFilters($select, $filters, $userId);
 
@@ -328,7 +330,9 @@ class BorrowTable
                     ELSE 0
                  END)"
             ),
-        ]);
+        ])
+        ->join('books', 'borrow_records.book_id = books.book_id', [])
+        ->join('users', 'borrow_records.user_id = users.user_id', []);
 
         $this->applyFilters($select, $filters, $userId);
 
@@ -453,8 +457,10 @@ class BorrowTable
         $sql    = $this->tableGateway->getSql();
         $select = $sql->select()
             ->columns([
-                'c' => new Expression("SUM(CASE WHEN status = 'returned' THEN 1 ELSE 0 END)"),
-            ]);
+                'c' => new Expression("SUM(CASE WHEN borrow_records.status = 'returned' THEN 1 ELSE 0 END)"),
+            ])
+            ->join('books', 'borrow_records.book_id = books.book_id', [])
+            ->join('users', 'borrow_records.user_id = users.user_id', []);
 
         $this->applyFilters($select, $filters, $userId);
 
@@ -471,8 +477,10 @@ class BorrowTable
         $sql    = $this->tableGateway->getSql();
         $select = $sql->select()
             ->columns([
-                'c' => new Expression("SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END)"),
-            ]);
+                'c' => new Expression("SUM(CASE WHEN borrow_records.status = 'pending' THEN 1 ELSE 0 END)"),
+            ])
+            ->join('books', 'borrow_records.book_id = books.book_id', [])
+            ->join('users', 'borrow_records.user_id = users.user_id', []);
 
         $this->applyFilters($select, $filters, $userId);
 
@@ -646,8 +654,10 @@ class BorrowTable
         $sql    = $this->tableGateway->getSql();
         $select = $sql->select()
             ->columns([
-                'c' => new Expression("SUM(CASE WHEN status IN ('borrowed', 'returned', 'overdue') THEN 1 ELSE 0 END)"),
-            ]);
+                'c' => new Expression("SUM(CASE WHEN borrow_records.status IN ('borrowed', 'returned', 'overdue') THEN 1 ELSE 0 END)"),
+            ])
+            ->join('books', 'borrow_records.book_id = books.book_id', [])
+            ->join('users', 'borrow_records.user_id = users.user_id', []);
 
         $this->applyFilters($select, $filters, $userId);
 

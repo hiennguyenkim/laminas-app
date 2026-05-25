@@ -137,7 +137,7 @@ $buildTabUrl = function(string $statusVal) use ($filters, $routePrefix) {
                             Trạng thái <?= $renderSortIcon('status') ?>
                         </a>
                     </th>
-                    <th class="ticket-table-th--center">Thao tác</th>
+                    <th class="ticket-table-th--center" style="width: 100px; text-align: center;">Thao tác</th>
                 </tr>
             </thead>
             <tbody>
@@ -156,12 +156,10 @@ $buildTabUrl = function(string $statusVal) use ($filters, $routePrefix) {
                     <td class="ticket-table-td--title"><?= htmlspecialchars($t['title']) ?></td>
                     <td class="ticket-table-td--secondary"><?= date('d/m/Y H:i', strtotime($t['updated_at'])) ?></td>
                     <td class="ticket-table-td"><span class="badge <?= $statusClass ?>"><?= $statusLabel ?></span></td>
-                    <td class="ticket-table-td--center" style="text-align: center;">
-                        <div class="d-flex" style="justify-content: center; align-items: center;">
-                            <a href="<?= $this->url($routePrefix . '/ticket', ['action' => 'view', 'id' => $t['id']]) ?>" class="btn btn-sm btn-outline">
-                                Chi tiết
-                            </a>
-                        </div>
+                    <td style="text-align: center; vertical-align: middle;">
+                        <a href="<?= $this->url($routePrefix . '/ticket', ['action' => 'view', 'id' => $t['id']]) ?>" class="btn btn-sm btn-outline">
+                            Chi tiết
+                        </a>
                     </td>
                 </tr>
                 <?php endforeach; ?>
