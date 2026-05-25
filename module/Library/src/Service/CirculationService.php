@@ -229,6 +229,148 @@ class CirculationService
         }
     }
 
+    public function renewBook(int $recordId, int $userId, bool $isAdminDirect = false): void
+    {
+        $connection = $this->adapter->getDriver()->getConnection();
+        $connection->beginTransaction();
+
+        try {
+            $record = $this->borrowTable->getRecord($recordId);
+
+            // Kiểm tra trạng thái tài khoản nếu là sinh viên tự yêu cầu (Hạng mục 2)
+            if (!$isAdminDirect) {
+                $user = $this->userTable->getUser((int)$record->userId);
+                if ($user->isLocked()) {
+                    throw new DomainException('Tài khoản của bạn hiện đang bị khóa. Vui lòng liên hệ thủ thư để được hỗ trợ.');
+                }
+            }
+
+            if (!$isAdminDirect && $record->userId !== $userId) {
+                throw new DomainException('Bạn không có quyền gia hạn phiếu mượn này.');
+            }
+
+            if (!in_array($record->status, ['borrowed', 'overdue'])) {
+                throw new DomainException('Chỉ sách đang mượn hoặc quá hạn mới được phép gia hạn.');
+            }
+
+            if ($record->renewCount > 0) {
+                throw new DomainException('Mỗi cuốn sách chỉ được phép gia hạn 1 lần.');
+            }
+
+            if ($record->isRenewPending && !$isAdminDirect) {
+                throw new DomainException('Yêu cầu gia hạn của bạn đang chờ thủ thư duyệt.');
+            }
+
+            if ($isAdminDirect) {
+                // Admin renews directly
+                $oldReturnDate = $this->parseDate($record->returnDate, 'Hạn trả cũ không hợp lệ.');
+                $newReturnDate = $oldReturnDate->modify('+14 days')->format('Y-m-d');
+                $this->borrowTable->renewBook($recordId, $newReturnDate);
+            } else {
+                // Student requests renewal
+                $this->borrowTable->requestRenew($recordId);
+                // Gửi thông báo cho admin
+                try {
+                    $adminRow = $this->adapter->query("SELECT user_id FROM users WHERE role = 'admin' LIMIT 1")->execute()->current();
+                    if ($adminRow) {
+                        $stmt = $this->adapter->createStatement(
+                            "INSERT INTO notifications (user_id, sender_id, title, message, type, related_id) 
+                             VALUES (?, ?, 'Yêu cầu gia hạn sách', ?, 'borrow', ?)"
+                        );
+                        $stmt->execute([
+                            $adminRow['user_id'],
+                            $userId,
+                            "Sinh viên vừa gửi yêu cầu gia hạn cho cuốn '" . $record->bookTitle . "'.",
+                            $recordId
+                        ]);
+                    }
+                } catch (\Throwable $e) {}
+            }
+            
+            $connection->commit();
+        } catch (\Throwable $throwable) {
+            try {
+                $connection->rollback();
+            } catch (\Throwable) {}
+            throw $throwable;
+        }
+    }
+
+    public function approveRenew(int $recordId): void
+    {
+        $connection = $this->adapter->getDriver()->getConnection();
+        $connection->beginTransaction();
+
+        try {
+            $record = $this->borrowTable->getRecord($recordId);
+
+            if (!$record->isRenewPending) {
+                throw new DomainException('Không có yêu cầu gia hạn nào đang chờ duyệt cho phiếu này.');
+            }
+
+            $oldReturnDate = $this->parseDate($record->returnDate, 'Hạn trả cũ không hợp lệ.');
+            $newReturnDate = $oldReturnDate->modify('+14 days')->format('Y-m-d');
+            
+            $this->borrowTable->approveRenew($recordId, $newReturnDate);
+
+            // Notify student
+            try {
+                $stmt = $this->adapter->createStatement(
+                    "INSERT INTO notifications (user_id, sender_id, title, message, type, related_id) 
+                     VALUES (?, NULL, 'Gia hạn thành công', ?, 'borrow_approved', ?)"
+                );
+                $stmt->execute([
+                    $record->userId,
+                    "Yêu cầu gia hạn cuốn '" . $record->bookTitle . "' đã được phê duyệt. Hạn trả mới: " . date('d/m/Y', strtotime($newReturnDate)),
+                    $recordId
+                ]);
+            } catch (\Throwable $e) {}
+
+            $connection->commit();
+        } catch (\Throwable $throwable) {
+            try {
+                $connection->rollback();
+            } catch (\Throwable) {}
+            throw $throwable;
+        }
+    }
+
+    public function rejectRenew(int $recordId): void
+    {
+        $connection = $this->adapter->getDriver()->getConnection();
+        $connection->beginTransaction();
+
+        try {
+            $record = $this->borrowTable->getRecord($recordId);
+
+            if (!$record->isRenewPending) {
+                throw new DomainException('Không có yêu cầu gia hạn nào đang chờ duyệt cho phiếu này.');
+            }
+
+            $this->borrowTable->rejectRenew($recordId);
+
+            // Notify student
+            try {
+                $stmt = $this->adapter->createStatement(
+                    "INSERT INTO notifications (user_id, sender_id, title, message, type, related_id) 
+                     VALUES (?, NULL, 'Từ chối gia hạn', ?, 'borrow_alert', ?)"
+                );
+                $stmt->execute([
+                    $record->userId,
+                    "Yêu cầu gia hạn cuốn '" . $record->bookTitle . "' đã bị từ chối. Vui lòng mang sách trả đúng hạn.",
+                    $recordId
+                ]);
+            } catch (\Throwable $e) {}
+
+            $connection->commit();
+        } catch (\Throwable $throwable) {
+            try {
+                $connection->rollback();
+            } catch (\Throwable) {}
+            throw $throwable;
+        }
+    }
+
     private function parseDate(string $dateValue, string $errorMessage): DateTimeImmutable
     {
         $parsed = DateTimeImmutable::createFromFormat('Y-m-d', $dateValue);

@@ -42,6 +42,8 @@ class BorrowTable
                 'return_date',
                 'returned_at',
                 'created_at',
+                'renew_count',
+                'is_renew_pending',
                 'status' => new Expression(
                     "CASE
                         WHEN borrow_records.status = 'borrowed' AND borrow_records.return_date < CURDATE()
@@ -184,6 +186,8 @@ class BorrowTable
                 $select->where(
                     "(borrow_records.status = 'borrowed' AND borrow_records.return_date >= CURDATE())"
                 );
+            } elseif ($status === 'renew_pending') {
+                $select->where(['borrow_records.is_renew_pending' => 1]);
             } else {
                 $select->where(['borrow_records.status' => $status]);
             }
@@ -279,6 +283,28 @@ class BorrowTable
     {
         $this->cleanupExpiredReturnedHistory();
         $this->tableGateway->delete([self::PK => $id]);
+    }
+
+    public function requestRenew(int $id): void
+    {
+        $this->tableGateway->update(['is_renew_pending' => 1], [self::PK => $id]);
+    }
+
+    public function approveRenew(int $id, string $newReturnDate): void
+    {
+        $sql = "UPDATE borrow_records SET return_date = ?, renew_count = renew_count + 1, is_renew_pending = 0 WHERE borrow_id = ?";
+        $this->tableGateway->getAdapter()->query($sql)->execute([$newReturnDate, $id]);
+    }
+
+    public function rejectRenew(int $id): void
+    {
+        $this->tableGateway->update(['is_renew_pending' => 0], [self::PK => $id]);
+    }
+
+    public function renewBook(int $id, string $newReturnDate): void
+    {
+        $sql = "UPDATE borrow_records SET return_date = ?, renew_count = renew_count + 1, is_renew_pending = 0 WHERE borrow_id = ?";
+        $this->tableGateway->getAdapter()->query($sql)->execute([$newReturnDate, $id]);
     }
 
     public function returnBook(int $id): void
@@ -490,6 +516,24 @@ class BorrowTable
         return $this->extractCount($result->current());
     }
 
+    public function countRenewPending(array $filters = [], ?int $userId = null): int
+    {
+        $sql    = $this->tableGateway->getSql();
+        $select = $sql->select()
+            ->columns([
+                'c' => new Expression("SUM(CASE WHEN borrow_records.is_renew_pending = 1 THEN 1 ELSE 0 END)"),
+            ])
+            ->join('books', 'borrow_records.book_id = books.book_id', [])
+            ->join('users', 'borrow_records.user_id = users.user_id', []);
+
+        $this->applyFilters($select, $filters, $userId);
+
+        $stmt   = $sql->prepareStatementForSqlObject($select);
+        $result = $stmt->execute();
+
+        return (int) ($result->current()['c'] ?? 0);
+    }
+
     public function countDueSoon(int $userId, int $days = 7): int
     {
         $this->cleanupExpiredReturnedHistory();
@@ -642,6 +686,7 @@ class BorrowTable
             'overdue'   => $this->countOverdue($summaryFilters, $userId),
             'returned'  => $this->countReturned($summaryFilters, $userId),
             'pending'   => $this->countPending($summaryFilters, $userId),
+            'renew_pending' => $this->countRenewPending($summaryFilters, $userId),
             'due_soon'  => $userId !== null ? $this->countDueSoon($userId) : 0,
             'total'     => $this->countTotalBorrowedHistory($summaryFilters, $userId),
         ];

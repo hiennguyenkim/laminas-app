@@ -88,6 +88,7 @@ class DashboardController extends BaseController
             'isLocked'             => $isLocked,
             'lockReason'           => $lockReason,
             'lockedAt'             => $lockedAt,
+            'trendingBooks'        => $this->bookTable->getTrendingBooks(5),
         ]);
 
         if ($isAdmin) {

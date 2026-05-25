@@ -81,6 +81,15 @@ $renderSortIcon = function(string $col) use ($queryBase): string {
 
 <!-- MINI STAT CARDS -->
 <div class="stat-cards tx-stat-cards">
+    <a href="<?= $this->url($routePrefix . '/transaction') ?>" class="stat-card orange tx-stat-card-link">
+        <div class="d-flex align-center gap-3">
+            <div class="stat-icon orange tx-stat-icon"><i class="bi bi-lightning-charge"></i></div>
+            <div>
+                <div class="stat-value tx-stat-value"><?= (int)($summary['borrowed']??0)+(int)($summary['returned']??0)+(int)($summary['overdue']??0)+(int)($summary['pending']??0)+(int)($summary['renew_pending']??0) ?></div>
+                <div class="stat-label">Tổng</div>
+            </div>
+        </div>
+    </a>
     <a href="<?= $this->url($routePrefix . '/transaction', [], ['query' => ['status' => 'borrowed']]) ?>" class="stat-card purple tx-stat-card-link">
         <div class="d-flex align-center gap-3">
             <div class="stat-icon purple tx-stat-icon"><i class="bi bi-bookmark-check"></i></div>
@@ -99,6 +108,15 @@ $renderSortIcon = function(string $col) use ($queryBase): string {
             </div>
         </div>
     </a>
+    <a href="<?= $this->url($routePrefix . '/transaction', [], ['query' => ['status' => 'renew_pending']]) ?>" class="stat-card blue tx-stat-card-link">
+        <div class="d-flex align-center gap-3">
+            <div class="stat-icon blue tx-stat-icon"><i class="bi bi-arrow-repeat"></i></div>
+            <div>
+                <div class="stat-value tx-stat-value"><?= (int)($summary['renew_pending']??0) ?></div>
+                <div class="stat-label">Xin gia hạn</div>
+            </div>
+        </div>
+    </a>
     <a href="<?= $this->url($routePrefix . '/transaction', [], ['query' => ['status' => 'returned']]) ?>" class="stat-card green tx-stat-card-link">
         <div class="d-flex align-center gap-3">
             <div class="stat-icon green tx-stat-icon"><i class="bi bi-check-circle"></i></div>
@@ -114,15 +132,6 @@ $renderSortIcon = function(string $col) use ($queryBase): string {
             <div>
                 <div class="stat-value tx-stat-value"><?= (int)($summary['overdue']??0) ?></div>
                 <div class="stat-label">Quá hạn</div>
-            </div>
-        </div>
-    </a>
-    <a href="<?= $this->url($routePrefix . '/transaction') ?>" class="stat-card orange tx-stat-card-link">
-        <div class="d-flex align-center gap-3">
-            <div class="stat-icon orange tx-stat-icon"><i class="bi bi-lightning-charge"></i></div>
-            <div>
-                <div class="stat-value tx-stat-value"><?= (int)($summary['borrowed']??0)+(int)($summary['returned']??0)+(int)($summary['overdue']??0)+(int)($summary['pending']??0) ?></div>
-                <div class="stat-label">Tổng</div>
             </div>
         </div>
     </a>
@@ -260,6 +269,11 @@ $buildTabUrl = function(string $statusVal) use ($filters, $routePrefix) {
                 $bColor = $bookColors[$idx % count($bookColors)];
                 $isOverdue = $record->status === 'overdue' || ($record->status === 'borrowed' && $record->returnDate < date('Y-m-d'));
                 $idx++;
+                
+                if ($record->isRenewPending) {
+                    $statusLabel = 'Đang duyệt GH';
+                    $statusClass = 'badge-orange';
+                }
                 ?>
                 <tr>
                     <td>
@@ -314,7 +328,19 @@ $buildTabUrl = function(string $statusVal) use ($filters, $routePrefix) {
                         <?php if ($record->status === 'pending'): ?>
                             <span class="tx-status-hint tx-status-hint-italic"><i class="bi bi-hourglass-split"></i> Đang chờ duyệt</span>
                         <?php elseif (in_array($record->status, ['borrowed','overdue'], true)): ?>
-                            <span class="tx-status-hint">Liên hệ thủ thư để trả</span>
+                            <div class="d-flex align-items-center justify-content-start">
+                                <?php if ($record->isRenewPending): ?>
+                                    <span class="badge badge-outline-orange" style="font-size: 11px; padding: 4px 8px;"><i class="bi bi-hourglass-split"></i> Đang duyệt GH</span>
+                                <?php elseif ($record->renewCount === 0): ?>
+                                    <form action="<?= $this->url('student/transaction', ['action' => 'renew', 'id' => $record->id]) ?>" method="POST" style="margin: 0;" onsubmit="return confirm('Bạn có chắc chắn muốn yêu cầu gia hạn sách này thêm 14 ngày?');">
+                                        <button type="submit" class="btn btn-sm btn-primary" style="font-size: 11.5px; font-weight: 500; padding: 4px 12px; border-radius: 6px; box-shadow: 0 2px 6px rgba(124, 106, 255, 0.25);">
+                                            <i class="bi bi-arrow-repeat"></i> Xin gia hạn
+                                        </button>
+                                    </form>
+                                <?php else: ?>
+                                    <span class="tx-status-hint" style="margin-top: 0; font-style: italic;"><i class="bi bi-check-circle"></i> Đã gia hạn 1 lần</span>
+                                <?php endif; ?>
+                            </div>
                         <?php elseif ($record->status === 'returned'): ?>
                             <?php if (in_array((int)$record->bookId, $reviewedBookIds ?? [], true)): ?>
                                 <a href="<?= $this->url('student/book', ['action' => 'view', 'id' => $record->bookId]) ?>" class="badge" style="text-decoration: none; color: #fff; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.15);" title="Xem đánh giá của bạn">

@@ -544,6 +544,77 @@ class TransactionController extends BaseController
         return $viewModel;
     }
 
+    public function renewAction(): Response
+    {
+        if ($response = $this->requireLogin()) {
+            return $response;
+        }
+
+        if (! $this->httpRequest()->isPost()) {
+            return $this->redirect()->toRoute('library/transaction');
+        }
+
+        $isAdmin = $this->isAdmin();
+        $currentUser = $this->currentUser() ?? [];
+        $userId      = (int) ($currentUser['id'] ?? 0);
+
+        try {
+            if ($isAdmin) {
+                // Admin can directly renew any book
+                $this->circulationService->renewBook($this->routeInt('id'), 0, true);
+                $this->flash()->addSuccessMessage('Gia hạn sách thành công! Hạn trả mới đã được cập nhật.');
+            } else {
+                // Students request renewal
+                $this->circulationService->renewBook($this->routeInt('id'), $userId, false);
+                $this->flash()->addSuccessMessage('Yêu cầu gia hạn đã được gửi đến thủ thư. Vui lòng chờ phê duyệt.');
+            }
+        } catch (\Throwable $e) {
+            $this->flash()->addErrorMessage($e->getMessage());
+        }
+
+        return $this->redirect()->toRoute('library/transaction');
+    }
+
+    public function approveRenewAction(): Response
+    {
+        if ($response = $this->requireAdmin()) {
+            return $response;
+        }
+
+        if (! $this->httpRequest()->isPost()) {
+            return $this->redirect()->toRoute('library/transaction');
+        }
+
+        try {
+            $this->circulationService->approveRenew($this->routeInt('id'));
+            $this->flash()->addSuccessMessage('Phê duyệt gia hạn thành công.');
+        } catch (\Throwable $e) {
+            $this->flash()->addErrorMessage($e->getMessage());
+        }
+
+        return $this->redirect()->toRoute('library/transaction');
+    }
+
+    public function rejectRenewAction(): Response
+    {
+        if ($response = $this->requireAdmin()) {
+            return $response;
+        }
+
+        if (! $this->httpRequest()->isPost()) {
+            return $this->redirect()->toRoute('library/transaction');
+        }
+
+        try {
+            $this->circulationService->rejectRenew($this->routeInt('id'));
+            $this->flash()->addSuccessMessage('Đã từ chối yêu cầu gia hạn.');
+        } catch (\Throwable $e) {
+            $this->flash()->addErrorMessage($e->getMessage());
+        }
+
+        return $this->redirect()->toRoute('library/transaction');
+    }
+
     public function returnAction(): Response
     {
         if ($response = $this->requireAdmin()) {

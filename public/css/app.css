@@ -260,7 +260,46 @@ a.sidebar-user-avatar:hover {
 .page-subtitle { color: var(--text-muted); font-size: 13px; }
 
 /* ── STAT CARDS ────────────────────────────────────── */
-.stat-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 18px; margin-bottom: 24px; }
+.stat-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 24px; }
+
+/* Force 6 cards on one row for desktop using Flexbox for higher reliability */
+.tx-stat-cards { 
+  display: flex !important;
+  gap: 8px !important;
+  flex-wrap: nowrap !important;
+  width: 100%;
+}
+.tx-stat-cards .stat-card { 
+  flex: 1;
+  padding: 12px 6px !important; 
+  min-width: 0 !important;
+}
+.tx-stat-cards .stat-value { font-size: 22px; font-weight: 700; }
+.tx-stat-cards .stat-label { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tx-stat-cards .stat-icon { 
+  width: 36px; height: 36px; 
+  font-size: 16px; 
+  margin-bottom: 0;
+  flex-shrink: 0;
+}
+.tx-stat-cards .gap-3 { gap: 6px !important; }
+
+@media (max-width: 1400px) {
+  .tx-stat-cards .stat-value { font-size: 20px; }
+  .tx-stat-cards .stat-icon { width: 32px; height: 32px; font-size: 14px; }
+}
+
+@media (max-width: 1200px) {
+  .tx-stat-cards { 
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important; 
+    gap: 10px !important; 
+  }
+}
+
+@media (max-width: 1024px) {
+  .tx-stat-cards { grid-template-columns: repeat(2, 1fr) !important; }
+}
 
 .stat-card {
   background: var(--bg-card);

@@ -65,6 +65,36 @@ try {
 
     echo "[" . date('Y-m-d H:i:s') . "] Auto-Cancel Cron Job finished successfully. Cancelled requests: {$cancelledCount}." . PHP_EOL;
 
+    // 5. Tự động từ chối yêu cầu gia hạn quá 48h (Hạng mục 4)
+    echo "[" . date('Y-m-d H:i:s') . "] Starting Auto-Reject Expired Renewal Requests..." . PHP_EOL;
+    $renewSql = "SELECT br.borrow_id, br.user_id, b.title AS book_title 
+                 FROM borrow_records br
+                 JOIN books b ON br.book_id = b.book_id
+                 WHERE br.is_renew_pending = 1 AND br.updated_at < DATE_SUB(NOW(), INTERVAL 48 HOUR)";
+    
+    $renewRecords = iterator_to_array($db->query($renewSql)->execute());
+    echo "Found " . count($renewRecords) . " expired renewal request(s) to reject." . PHP_EOL;
+
+    $rejectedRenewCount = 0;
+    foreach ($renewRecords as $row) {
+        $recordId = (int)$row['borrow_id'];
+        $userId = (int)$row['user_id'];
+        $bookTitle = $row['book_title'];
+
+        $circulationService->rejectRenew($recordId);
+        $rejectedRenewCount++;
+        echo " - Rejected Renewal #{$recordId}: Student notified for book \"{$bookTitle}\"." . PHP_EOL;
+    }
+    echo "Auto-Reject Renewals finished. Rejected: {$rejectedRenewCount}." . PHP_EOL;
+
+    // 4. Dọn dẹp thông báo cũ (Hạng mục 1)
+    echo "[" . date('Y-m-d H:i:s') . "] Starting Notification Cleanup..." . PHP_EOL;
+    $cleanupSql = "DELETE FROM notifications 
+                   WHERE (is_read = 1 OR is_deleted = 1) 
+                   AND created_at < DATE_SUB(NOW(), INTERVAL 30 DAY)";
+    $cleanupResult = $db->query($cleanupSql)->execute();
+    echo "Deleted " . $cleanupResult->getAffectedRows() . " old read/deleted notification(s)." . PHP_EOL;
+
 } catch (\Throwable $e) {
     echo "CRITICAL ERROR: " . $e->getMessage() . PHP_EOL;
     exit(1);

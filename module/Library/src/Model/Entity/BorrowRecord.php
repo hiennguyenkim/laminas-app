@@ -14,6 +14,8 @@ class BorrowRecord
     public string $status     = 'borrowed';
     public string $returnedAt = '';
     public string $createdAt  = '';
+    public int $renewCount    = 0;
+    public bool $isRenewPending = false;
 
     // Joined fields
     public string $bookTitle  = '';
@@ -33,6 +35,8 @@ class BorrowRecord
         $this->status       = (string) ($data['status'] ?? 'borrowed');
         $this->returnedAt   = (string) ($data['returned_at'] ?? '');
         $this->createdAt    = (string) ($data['created_at'] ?? '');
+        $this->renewCount   = (int)    ($data['renew_count'] ?? 0);
+        $this->isRenewPending = (bool)   ($data['is_renew_pending'] ?? false);
         $this->bookTitle    = (string) ($data['book_title'] ?? '');
         $this->bookIsbn     = (string) ($data['book_isbn'] ?? '');
         $this->coverImageUrl = (string) ($data['cover_image_url'] ?? '');
@@ -43,14 +47,14 @@ class BorrowRecord
 
     public function isOverdue(): bool
     {
-        if ($this->status !== 'borrowed' || $this->returnDate === '') {
+        if (!in_array($this->status, ['borrowed', 'overdue'])) {
             return false;
         }
         return $this->returnDate < date('Y-m-d');
     }
 
     /**
-     * @return array<string, int|string>
+     * @return array<string, int|string|bool>
      */
     public function getArrayCopy(): array
     {
@@ -63,6 +67,8 @@ class BorrowRecord
             'status'      => $this->status,
             'returned_at' => $this->returnedAt,
             'created_at'  => $this->createdAt,
+            'renew_count' => $this->renewCount,
+            'is_renew_pending' => $this->isRenewPending,
             'book_title'  => $this->bookTitle,
             'book_isbn'   => $this->bookIsbn,
             'cover_image_url' => $this->coverImageUrl,

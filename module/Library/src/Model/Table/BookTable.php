@@ -362,6 +362,36 @@ class BookTable
         return $stats;
     }
 
+    public function getTrendingBooks(int $limit = 5): array
+    {
+        $sql = $this->tableGateway->getSql();
+        $select = $sql->select()
+            ->columns([
+                'book_id',
+                'title',
+                'author',
+                'category',
+                'cover_image_url',
+                'borrow_count' => new Expression(
+                    '(SELECT COUNT(*) FROM borrow_records br WHERE br.book_id = books.book_id)'
+                ),
+                'avg_rating' => new Expression(
+                    '(SELECT IFNULL(AVG(rev.rating), 0) FROM book_reviews rev WHERE rev.book_id = books.book_id)'
+                ),
+            ])
+            ->order(new Expression('borrow_count DESC, avg_rating DESC'))
+            ->limit($limit);
+
+        $result = $sql->prepareStatementForSqlObject($select)->execute();
+        $books = [];
+        foreach ($result as $row) {
+            if (is_array($row)) {
+                $books[] = $row;
+            }
+        }
+        return $books;
+    }
+
     /**
      * Tìm kiếm sách cho AJAX autocomplete.
      *
