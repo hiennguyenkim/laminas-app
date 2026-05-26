@@ -80,7 +80,7 @@ $totalPages = (int) ($totalPages ?? 1);
 </div>
 
 <!-- FILTERS SECTION -->
-<div class="ann-filters-bar" style="display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 28px; margin-top: 24px; flex-wrap: nowrap;">
+<div class="ann-filters-bar" style="display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 28px; margin-top: 24px; flex-wrap: wrap;">
     <div class="filter-tabs ann-filter-tabs-wrap" style="margin-bottom: 0; flex-shrink: 0;">
         <?php foreach ($typeTabs as $key => $tab): ?>
         <a href="<?= $this->url($baseRoute, [], ['query' => ['type' => $key, 'search' => $searchVal]]) ?>"
@@ -91,7 +91,7 @@ $totalPages = (int) ($totalPages ?? 1);
         <?php endforeach; ?>
     </div>
     
-    <form method="GET" action="<?= $this->url($baseRoute) ?>" class="ann-search-form" style="display: flex; gap: 8px; align-items: center; flex: 1; justify-content: flex-end; flex-wrap: nowrap; min-width: 0;">
+    <form method="GET" action="<?= $this->url($baseRoute) ?>" class="ann-search-form" style="display: flex; gap: 8px; align-items: center; flex: 1; justify-content: flex-end; flex-wrap: wrap; min-width: 0;">
         <input type="hidden" name="type" value="<?= htmlspecialchars($typeFilter) ?>">
         <div class="topbar-search ann-search-input-wrap" style="position: relative; width: 280px; margin: 0; height: 38px; border-radius: 8px; flex-shrink: 1; min-width: 150px;">
             <i class="bi bi-search"></i>
@@ -107,7 +107,7 @@ $totalPages = (int) ($totalPages ?? 1);
 <!-- CỘNG ĐỒNG & BẢNG XẾP HẠNG -->
 <div class="news-community-grid">
     <!-- KÊNH THẢO LUẬN -->
-    <div class="forum-section">
+    <div class="forum-section" style="min-width: 0;">
         <div class="forum-header">
             <i class="bi bi-chat-quote-fill forum-header-icon"></i>
             <h2 class="forum-header-title">Kênh Thảo Luận</h2>
@@ -144,7 +144,7 @@ $totalPages = (int) ($totalPages ?? 1);
     </div>
 
     <!-- BẢNG XẾP HẠNG -->
-    <div class="leaderboard-section">
+    <div class="leaderboard-section" style="min-width: 0;">
         <div class="forum-header" style="display: flex; justify-content: space-between; align-items: center; width: 100%; gap: 10px;">
             <div style="display: flex; align-items: center; gap: 8px;">
                 <i class="bi bi-trophy-fill forum-header-icon" style="color: #f59e0b;"></i>
@@ -269,7 +269,7 @@ $buildPageUrl = function(int $p) use ($baseRoute, $typeFilter, $searchVal): stri
 
 <style>
 .news-community-grid { display: grid; grid-template-columns: 3fr 1fr; gap: 24px; margin-bottom: 36px; align-items: stretch; }
-@media (max-width: 992px) { .news-community-grid { grid-template-columns: 1fr; } }
+@media (max-width: 1200px) { .news-community-grid { grid-template-columns: 1fr; } }
 .forum-section { display: flex; flex-direction: column; }
 .leaderboard-section { display: flex; flex-direction: column; align-self: start; }
 .forum-card-wrap { background: #1e1e2e; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; height: 100%; }

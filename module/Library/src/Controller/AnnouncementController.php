@@ -379,6 +379,7 @@ class AnnouncementController extends BaseController
             }
         }
 
+        return $this->redirect()->toRoute('library/announcements');
     }
 
     public function viewAnnouncementAction(): ViewModel|Response

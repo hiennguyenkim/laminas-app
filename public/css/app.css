@@ -48,7 +48,7 @@ input, button, select, textarea {
 ::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 3px; }
 
 /* ── LAYOUT ────────────────────────────────────────── */
-.app-shell { display: flex; min-height: 100vh; }
+.app-shell { min-height: 100vh; }
 
 /* ── SIDEBAR ───────────────────────────────────────── */
 .sidebar {
@@ -187,7 +187,6 @@ a.sidebar-user-avatar:hover {
 /* ── MAIN CONTENT ──────────────────────────────────── */
 .main-content {
   margin-left: var(--sidebar-width);
-  flex: 1;
   display: flex;
   flex-direction: column;
   min-height: 100vh;
