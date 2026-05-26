@@ -686,4 +686,49 @@ class TransactionController extends BaseController
 
         return $this->redirect()->toRoute('library/transaction');
     }
+
+    public function cancelAction(): Response
+    {
+        if ($response = $this->requireLogin()) {
+            return $response;
+        }
+
+        if (!$this->httpRequest()->isPost()) {
+            return $this->redirect()->toRoute('library/transaction');
+        }
+
+        $id = $this->routeInt('id');
+        $userId = (int)($this->currentUser()['id'] ?? 0);
+
+        try {
+            $this->circulationService->cancelRequest($id, $userId);
+            $this->flash()->addSuccessMessage('Hủy yêu cầu mượn sách thành công. Số lượng sách đã được hoàn trả.');
+        } catch (\Throwable $e) {
+            $this->flash()->addErrorMessage($e->getMessage());
+        }
+
+        return $this->redirect()->toRoute('library/transaction');
+    }
+
+    public function lostAction(): Response
+    {
+        if ($response = $this->requireAdmin()) {
+            return $response;
+        }
+
+        if (!$this->httpRequest()->isPost()) {
+            return $this->redirect()->toRoute('library/transaction');
+        }
+
+        $id = $this->routeInt('id');
+
+        try {
+            $this->circulationService->reportLostBook($id);
+            $this->flash()->addSuccessMessage('Đã ghi nhận báo mất sách. Tài khoản sinh viên đã bị khóa vĩnh viễn.');
+        } catch (\Throwable $e) {
+            $this->flash()->addErrorMessage($e->getMessage());
+        }
+
+        return $this->redirect()->toRoute('library/transaction');
+    }
 }

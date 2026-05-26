@@ -27,6 +27,12 @@ class UserTable
         return $this->firstUserFromRowset($rowset);
     }
 
+    public function getByGoogleId(string $googleId): ?User
+    {
+        $rowset = $this->tableGateway->select(['google_id' => $googleId]);
+        return $this->firstUserFromRowset($rowset);
+    }
+
     /**
      * @psalm-suppress PossiblyUnusedMethod
      */
@@ -65,6 +71,7 @@ class UserTable
                 'account_status',
                 'lock_reason',
                 'locked_at',
+                'locked_until',
                 'phone',
                 'borrow_limit',
                 'last_returned_at' => new Expression(
@@ -138,6 +145,7 @@ class UserTable
                 'account_status',
                 'lock_reason',
                 'locked_at',
+                'locked_until',
                 'phone',
                 'borrow_limit',
                 'last_returned_at' => new Expression(
@@ -226,6 +234,10 @@ class UserTable
         if ($status !== '') {
             $select->where(['account_status' => $status]);
         }
+
+        if (isset($filters['is_approved'])) {
+            $select->where(['is_approved' => (int)$filters['is_approved']]);
+        }
     }
 
     public function fetchStudentOptions(): array
@@ -292,13 +304,35 @@ class UserTable
         $this->tableGateway->delete([self::PK => $id]);
     }
 
-    public function lockUser(int $id, string $reason = ''): void
+    public function lockUser(int $id, string $reason = '', ?string $until = null, ?int $adminId = null): void
     {
-        $this->tableGateway->update([
+        $updateData = [
             'account_status' => 'locked',
-            'lock_reason'    => $reason,
             'locked_at'      => new Expression('NOW()'),
-        ], [self::PK => $id]);
+        ];
+
+        if ($until !== null) {
+            // Chỉ cập nhật ngày mở khóa và lý do nếu hình phạt mới NẶNG HƠN hoặc NGANG BẰNG hình phạt cũ
+            // Sử dụng câu lệnh SQL để so sánh và quyết định cập nhật lý do
+            $updateData['locked_until'] = new Expression("GREATEST(IFNULL(locked_until, '0000-00-00'), ?)", [$until]);
+            
+            // Logic: Nếu ngày mới >= ngày cũ thì dùng lý do mới, nếu không giữ nguyên lý do cũ
+            $updateData['lock_reason'] = new Expression(
+                "CASE WHEN ? >= IFNULL(locked_until, '0000-00-00') THEN ? ELSE lock_reason END",
+                [$until, $reason]
+            );
+        } else {
+            $updateData['lock_reason'] = $reason;
+            $updateData['locked_until'] = null;
+        }
+
+        $this->tableGateway->update($updateData, [self::PK => $id]);
+
+        // Ghi nhật ký xử phạt (Hạng mục 4)
+        try {
+            $sql = "INSERT INTO penalty_logs (user_id, admin_id, reason, locked_until, created_at) VALUES (?, ?, ?, ?, NOW())";
+            $this->tableGateway->getAdapter()->query($sql)->execute([$id, $adminId, $reason, $until]);
+        } catch (\Throwable $e) {}
     }
 
     public function unlockUser(int $id): void
@@ -307,6 +341,7 @@ class UserTable
             'account_status' => 'active',
             'lock_reason'    => null,
             'locked_at'      => null,
+            'locked_until'   => null,
         ], [self::PK => $id]);
     }
 
@@ -320,13 +355,22 @@ class UserTable
         $this->tableGateway->update(['avatar_url' => null], [self::PK => $id]);
     }
 
+    public function getSystemSetting(string $key): string
+    {
+        $sql = "SELECT setting_value FROM system_settings WHERE setting_key = ? LIMIT 1";
+        $row = $this->tableGateway->getAdapter()->query($sql)->execute([$key])->current();
+        return (string)($row['setting_value'] ?? '');
+    }
+
     public function saveUser(User $user, ?string $passwordHash = null): void
     {
         $data = [
             'username'       => $user->username,
             'email'          => $user->email,
+            'google_id'      => $user->googleId !== '' ? $user->googleId : null,
             'full_name'      => $user->fullName,
             'role'           => $user->role,
+            'is_approved'    => $user->isApproved ? 1 : 0,
             'nickname'       => $user->nickname,
             'date_of_birth'  => $user->dateOfBirth !== '' ? $user->dateOfBirth : null,
             'avatar_url'     => $user->avatarUrl !== '' ? $user->avatarUrl : null,
@@ -346,7 +390,7 @@ class UserTable
             }
 
             $this->tableGateway->insert($data);
-            $user->id = $this->tableGateway->getLastInsertValue();
+            $user->id = (int)$this->tableGateway->getLastInsertValue();
             $user->password = $passwordHash;
 
             return;

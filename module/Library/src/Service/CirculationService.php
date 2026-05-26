@@ -113,6 +113,12 @@ class CirculationService
                 throw new DomainException('Phiếu mượn này đã được duyệt hoặc xử lý trước đó.');
             }
 
+            // FINAL SAFETY CHECK: Ensure user is still active (Race condition prevention)
+            $borrower = $this->userTable->getUser((int)$record->userId);
+            if ($borrower->isLocked()) {
+                throw new DomainException('Không thể duyệt phiếu: Tài khoản sinh viên hiện đang bị khóa.');
+            }
+
             if ($borrowDate === null || trim($borrowDate) === '') {
                 $borrowDate = date('Y-m-d');
             }
@@ -135,8 +141,6 @@ class CirculationService
                 ));
             }
 
-            // Decrement book availability and change status to borrowed
-            $this->bookTable->decrementAvailability($record->bookId);
             $this->borrowTable->approve($recordId, $borrowDate, $returnDate);
 
             // Tự động gửi thông báo cho sinh viên
@@ -218,6 +222,45 @@ class CirculationService
 
             $this->borrowTable->returnBook($recordId);
             $this->bookTable->incrementAvailability($record->bookId);
+
+            // Xử lý phạt theo số lần trả muộn (Hạng mục 2 nâng cấp)
+            // Chỉ thực hiện phạt nếu sinh viên ĐÃ TRẢ HẾT TẤT CẢ CÁC SÁCH ĐANG MƯỢN
+            $activeLoansCount = $this->borrowTable->countActiveLoansForUser((int)$record->userId);
+            
+            if ($activeLoansCount === 0) {
+                // Tính tổng số lần từng trả muộn trong lịch sử
+                $lateCount = $this->borrowTable->countReturnedLateForUser((int)$record->userId);
+                
+                if ($lateCount >= 5) {
+                    $lockDays = 0;
+                    $reasonPrefix = "";
+
+                    if ($lateCount >= 5 && $lateCount <= 9) {
+                        $lockDays = 1;
+                        $reasonPrefix = "Mốc 1 (5-9 lần)";
+                    } elseif ($lateCount >= 10 && $lateCount <= 14) {
+                        $lockDays = 3;
+                        $reasonPrefix = "Mốc 2 (10-14 lần)";
+                    } elseif ($lateCount == 15) {
+                        $lockDays = 7;
+                        $reasonPrefix = "Mốc 3 (15 lần)";
+                    } else {
+                        // Trên 15 lần: Khóa vĩnh viễn
+                        $lockUntil = '9999-12-31';
+                        $reason = "Vi phạm Mốc 4: Trả sách trễ hạn trên 15 lần ({$lateCount} lần). Tạm khóa tài khoản VĨNH VIỄN.";
+                        $this->userTable->lockUser((int)$record->userId, $reason, $lockUntil);
+                        $connection->commit();
+                        return;
+                    }
+
+                    if ($lockDays > 0) {
+                        $lockUntil = date('Y-m-d', strtotime("+$lockDays days"));
+                        $reason = "Vi phạm {$reasonPrefix}: Trả sách trễ hạn {$lateCount} lần trong lịch sử. Tạm khóa quyền mượn sách {$lockDays} ngày (đến hết " . date('d/m/Y', strtotime($lockUntil)) . ").";
+                        $this->userTable->lockUser((int)$record->userId, $reason, $lockUntil);
+                    }
+                }
+            }
+
             $connection->commit();
         } catch (\Throwable $throwable) {
             try {
@@ -361,6 +404,76 @@ class CirculationService
                     $recordId
                 ]);
             } catch (\Throwable $e) {}
+
+            $connection->commit();
+        } catch (\Throwable $throwable) {
+            try {
+                $connection->rollback();
+            } catch (\Throwable) {}
+            throw $throwable;
+        }
+    }
+
+    public function cancelRequest(int $recordId, int $userId): void
+    {
+        $connection = $this->adapter->getDriver()->getConnection();
+        $connection->beginTransaction();
+
+        try {
+            $record = $this->borrowTable->getRecord($recordId);
+
+            if ($record->status !== 'pending') {
+                throw new DomainException('Chỉ có thể hủy yêu cầu đang ở trạng thái chờ duyệt.');
+            }
+
+            if ($record->userId !== $userId) {
+                throw new DomainException('Bạn không có quyền hủy yêu cầu này.');
+            }
+
+            // Restore availability first
+            $this->bookTable->incrementAvailability($record->bookId);
+            
+            // Delete the record
+            $this->borrowTable->reject($recordId);
+
+            $connection->commit();
+        } catch (\Throwable $throwable) {
+            try {
+                $connection->rollback();
+            } catch (\Throwable) {}
+            throw $throwable;
+        }
+    }
+
+    public function reportLostBook(int $recordId): void
+    {
+        $connection = $this->adapter->getDriver()->getConnection();
+        $connection->beginTransaction();
+
+        try {
+            $record = $this->borrowTable->getRecord($recordId);
+
+            if (in_array($record->status, ['returned', 'lost'])) {
+                throw new DomainException('Phiếu mượn này đã kết thúc.');
+            }
+
+            // 1. Update borrow record status to 'lost'
+            $this->adapter->query("UPDATE borrow_records SET status = 'lost', returned_at = NOW() WHERE borrow_id = ?")->execute([$recordId]);
+
+            // 2. We do NOT increment availability. Instead, if it was the last copy, we might mark book as 'lost'.
+            // For simplicity, we just keep the quantity as it is (it was already decremented when borrowed).
+            // But we can check if total quantity is now 0 and update status.
+            $book = $this->bookTable->getBook($record->bookId);
+            if ($book->quantity === 0) {
+                $this->adapter->query("UPDATE books SET status = 'lost' WHERE book_id = ?")->execute([$record->bookId]);
+            }
+
+            // 3. Penalty: Lock user account permanently
+            $reason = sprintf(
+                "Làm mất sách: '%s'. Tài khoản bị khóa VĨNH VIỄN cho đến khi hoàn tất thủ tục đền bù.",
+                $record->bookTitle
+            );
+            $this->userTable->lockUser($record->userId, $reason, '9999-12-31');
 
             $connection->commit();
         } catch (\Throwable $throwable) {

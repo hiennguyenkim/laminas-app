@@ -232,6 +232,17 @@ class UserController extends BaseController
         $onTimeRate = $this->borrowTable->getOnTimeRateForUser($id);
         $overdueCount = $this->borrowTable->countOverdueOccurrencesForUser($id);
 
+        // Fetch Penalty Logs (Hạng mục 4)
+        $penaltyLogs = [];
+        try {
+            $sql = "SELECT pl.*, u.full_name as admin_name 
+                    FROM penalty_logs pl 
+                    LEFT JOIN users u ON pl.admin_id = u.user_id 
+                    WHERE pl.user_id = ? 
+                    ORDER BY pl.created_at DESC";
+            $penaltyLogs = iterator_to_array($this->userTable->getAdapter()->query($sql)->execute([$id]));
+        } catch (\Throwable $e) {}
+
         return new ViewModel([
             'user'                => $user,
             'currentId'           => $currentId,
@@ -244,6 +255,7 @@ class UserController extends BaseController
             'borrowRecords'       => $this->borrowTable->fetchAllWithDetails([], $id),
             'canDelete'           => $canDelete,
             'deleteBlockedReason' => $deleteBlockedReason,
+            'penaltyLogs'         => $penaltyLogs,
         ]);
     }
 
@@ -272,7 +284,7 @@ class UserController extends BaseController
                 } else {
                     $user = new User();
                     $user->exchangeArray($data);
-                    // Ensure borrow_limit is cast to int
+                    $user->isApproved = true; // Manual add = auto approved
                     $user->borrowLimit = (int)($data['borrow_limit'] ?? 5);
 
                     $this->userTable->saveUser(
@@ -338,15 +350,14 @@ class UserController extends BaseController
                     $form->get('role')->setMessages(['Phải luôn duy trì ít nhất một quản trị viên trong hệ thống.']);
                 } else {
                     $updated = new User();
-                    $updated->exchangeArray([
-                        'id'        => $id,
-                        'username'  => $data['username'],
-                        'email'     => $data['email'],
-                        'full_name' => $data['full_name'],
-                        'role'      => $data['role'],
-                        'nickname'  => $data['nickname'] ?? '',
-                        'borrow_limit' => (int)($data['borrow_limit'] ?? 5),
-                    ]);
+                    $updated->exchangeArray($user->getArrayCopy()); // Start with original data
+                    $updated->id = $id;
+                    $updated->username = $data['username'];
+                    $updated->email = $data['email'];
+                    $updated->fullName = $data['full_name'];
+                    $updated->role = $data['role'];
+                    $updated->nickname = $data['nickname'] ?? '';
+                    $updated->borrowLimit = (int)($data['borrow_limit'] ?? 5);
 
                     $passwordHash = $data['password'] !== ''
                         ? password_hash($data['password'], PASSWORD_DEFAULT)
@@ -429,6 +440,65 @@ class UserController extends BaseController
         $this->flash()->addSuccessMessage('Đã xóa tài khoản sinh viên thành công.');
 
         return $this->redirect()->toRoute('library/user');
+    }
+
+    public function pendingAction(): Response|ViewModel
+    {
+        if ($response = $this->requireAdmin()) {
+            return $response;
+        }
+
+        $filters = ['is_approved' => 0];
+        $users = $this->userTable->fetchAll($filters);
+
+        return new ViewModel([
+            'users' => $users,
+        ]);
+    }
+
+    public function approveAction(): Response
+    {
+        if ($response = $this->requireAdmin()) {
+            return $response;
+        }
+
+        if (!$this->httpRequest()->isPost()) {
+            return $this->redirect()->toRoute('library/user', ['action' => 'pending']);
+        }
+
+        $id = $this->routeInt('id');
+        try {
+            $user = $this->userTable->getUser($id);
+            $user->isApproved = true;
+            $this->userTable->saveUser($user);
+            $this->flash()->addSuccessMessage("Đã phê duyệt tài khoản: " . $user->fullName);
+        } catch (\Throwable $e) {
+            $this->flash()->addErrorMessage($e->getMessage());
+        }
+
+        return $this->redirect()->toRoute('library/user', ['action' => 'pending']);
+    }
+
+    public function rejectAction(): Response
+    {
+        if ($response = $this->requireAdmin()) {
+            return $response;
+        }
+
+        if (!$this->httpRequest()->isPost()) {
+            return $this->redirect()->toRoute('library/user', ['action' => 'pending']);
+        }
+
+        $id = $this->routeInt('id');
+        try {
+            $user = $this->userTable->getUser($id);
+            $this->userTable->deleteUser($id);
+            $this->flash()->addSuccessMessage("Đã từ chối và xóa tài khoản: " . $user->fullName);
+        } catch (\Throwable $e) {
+            $this->flash()->addErrorMessage($e->getMessage());
+        }
+
+        return $this->redirect()->toRoute('library/user', ['action' => 'pending']);
     }
 
     public function lockAction(): Response

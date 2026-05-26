@@ -13,9 +13,11 @@ class User
     public int    $id            = 0;
     public string $username      = '';
     public string $email         = '';
+    public string $googleId      = '';
     public string $password      = '';
     public string $fullName      = '';
     public string $role          = 'student';
+    public bool   $isApproved    = false;
     public string $createdAt     = '';
     public string $lastReturnedAt = '';
 
@@ -26,6 +28,7 @@ class User
     public string $accountStatus  = 'active';
     public string $lockReason     = '';
     public string $lockedAt       = '';
+    public string $lockedUntil    = '';
     public string $phone          = '';
     public int    $borrowLimit    = 5;
 
@@ -38,9 +41,11 @@ class User
         $this->id             = (int)    ($data['id'] ?? $data['user_id'] ?? 0);
         $this->username       = (string) ($data['username'] ?? '');
         $this->email          = (string) ($data['email'] ?? '');
+        $this->googleId       = (string) ($data['google_id'] ?? '');
         $this->password       = (string) ($data['password'] ?? '');
         $this->fullName       = (string) ($data['full_name'] ?? '');
         $this->role           = (string) ($data['role'] ?? 'student');
+        $this->isApproved     = (bool)   ($data['is_approved'] ?? false);
         $this->createdAt      = (string) ($data['created_at'] ?? '');
         $this->lastReturnedAt = (string) ($data['last_returned_at'] ?? '');
 
@@ -51,6 +56,7 @@ class User
         $this->accountStatus = (string) ($data['account_status'] ?? 'active');
         $this->lockReason    = (string) ($data['lock_reason'] ?? '');
         $this->lockedAt      = (string) ($data['locked_at'] ?? '');
+        $this->lockedUntil   = (string) ($data['locked_until'] ?? '');
         $this->phone         = (string) ($data['phone'] ?? '');
         $this->borrowLimit   = (int)    ($data['borrow_limit'] ?? 5);
 
@@ -83,13 +89,16 @@ class User
             'id'             => $this->id,
             'username'       => $this->username,
             'email'          => $this->email,
+            'google_id'      => $this->googleId,
             'full_name'      => $this->fullName,
             'role'           => $this->role,
+            'is_approved'    => $this->isApproved,
             'nickname'       => $this->nickname,
             'date_of_birth'  => $this->dateOfBirth,
             'avatar_url'     => $this->avatarUrl,
             'account_status' => $this->accountStatus,
             'lock_reason'    => $this->lockReason,
+            'locked_until'   => $this->lockedUntil,
             'phone'          => $this->phone,
             'borrow_limit'   => $this->borrowLimit,
         ];

@@ -127,6 +127,83 @@ $currentLogoUrl = $logoFile ? 'img/uploads/' . $logoFile : null;
         </div>
     </div>
 
+    <!-- ══ HÀNG 2: CẤU HÌNH GOOGLE LOGIN (New) ════════════════════ -->
+    <div class="card" style="grid-column: span 2; margin-top: 24px;">
+        <div class="card-header" style="border-bottom: 2px solid rgba(59,130,246,0.15);">
+            <div class="card-title" style="font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+                <i class="bi bi-google" style="color: #3b82f6;"></i>Cấu hình Đăng nhập Google (OAuth2)
+            </div>
+        </div>
+        <div class="card-body" style="padding: 24px;">
+            <form method="post" action="<?= $this->url('library/settings', ['action' => 'google']) ?>">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                    <div class="form-group" style="margin: 0;">
+                        <label class="form-label" style="font-size: 12px; font-weight: 700;">Google Client ID</label>
+                        <input type="text" name="google_client_id" class="form-control" 
+                               value="<?= htmlspecialchars($googleConfig['client_id']) ?>" placeholder="Nhập Client ID từ Google Cloud Console">
+                    </div>
+                    <div class="form-group" style="margin: 0;">
+                        <label class="form-label" style="font-size: 12px; font-weight: 700;">Google Client Secret</label>
+                        <input type="password" name="google_client_secret" class="form-control" 
+                               value="<?= htmlspecialchars($googleConfig['client_secret']) ?>" placeholder="••••••••••••••••">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" style="font-size: 12px; font-weight: 700;">Redirect URI (Cố định)</label>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="text" name="google_redirect_uri" class="form-control" readonly 
+                               value="<?= htmlspecialchars($googleConfig['redirect_uri'] ?: 'http://localhost/auth/google-callback') ?>" 
+                               style="background: rgba(0,0,0,0.15); color: var(--text-muted); cursor: not-allowed;">
+                        <button type="button" class="btn btn-outline btn-sm" onclick="navigator.clipboard.writeText(this.previousElementSibling.value); alert('Đã copy!')">
+                            <i class="bi bi-clipboard"></i> Copy
+                        </button>
+                    </div>
+                    <div style="font-size: 11px; opacity: 0.6; margin-top: 8px;">
+                        <i class="bi bi-info-circle me-1"></i> Sử dụng địa chỉ này để đăng ký trong mục <strong>Authorized redirect URIs</strong> trên Google Cloud Console.
+                    </div>
+                </div>
+                <div style="display: flex; justify-content: flex-end; border-top: 1px solid var(--border-color); padding-top: 20px;">
+                    <button type="submit" class="btn btn-primary" style="padding: 10px 24px;">
+                        <i class="bi bi-save me-2"></i>Lưu cấu hình Google
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ══ HÀNG 3: CẤU HÌNH MÁY CHỦ GỬI THƯ (SMTP) ════════════════════ -->
+    <div class="card" style="grid-column: span 2; margin-top: 24px;">
+        <div class="card-header" style="border-bottom: 2px solid rgba(16,185,129,0.15);">
+            <div class="card-title" style="font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+                <i class="bi bi-envelope-paper-heart" style="color: #10b981;"></i>Cấu hình Máy chủ Gửi thư (SMTP - Gmail)
+            </div>
+        </div>
+        <div class="card-body" style="padding: 24px;">
+            <form method="post" action="<?= $this->url('library/settings', ['action' => 'smtp']) ?>">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                    <div class="form-group" style="margin: 0;">
+                        <label class="form-label" style="font-size: 12px; font-weight: 700;">Email gửi thư (Gmail)</label>
+                        <input type="email" name="smtp_user" class="form-control" 
+                               value="<?= htmlspecialchars($smtpConfig['user'] ?? '') ?>" placeholder="thuvien@gmail.com">
+                    </div>
+                    <div class="form-group" style="margin: 0;">
+                        <label class="form-label" style="font-size: 12px; font-weight: 700;">Mật khẩu ứng dụng (16 ký tự)</label>
+                        <input type="password" name="smtp_pass" class="form-control" 
+                               placeholder="<?= ($smtpConfig['has_pass'] ?? false) ? '•••••••••••••••• (Đã lưu)' : 'Nhập mật khẩu ứng dụng' ?>">
+                    </div>
+                </div>
+                <div style="font-size: 13px; color: var(--text-muted); background: rgba(255,255,255,0.05); padding: 12px; border-radius: 8px; margin-bottom: 20px;">
+                    <i class="bi bi-info-circle text-info me-2"></i><strong>Hướng dẫn:</strong> Bạn cần bật Xác minh 2 bước cho tài khoản Gmail ở trên, sau đó tạo <strong>App Password</strong> và dán vào ô Mật khẩu. Các thông số Host (smtp.gmail.com) và Port (587) đã được cấu hình mặc định.
+                </div>
+                <div style="display: flex; justify-content: flex-end; border-top: 1px solid var(--border-color); padding-top: 20px;">
+                    <button type="submit" class="btn btn-primary" style="padding: 10px 24px;">
+                        <i class="bi bi-save me-2"></i>Lưu cấu hình Email
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
 </div>
 
 <script>

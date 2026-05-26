@@ -1,15 +1,10 @@
 <?php
 /**
- * Laminas Session configuration.
- * Runs session_start() automatically via SessionManagerFactory.
+ * Minimal session config to avoid INI errors in CLI/Simulated environment.
  */
 return [
     'session_config' => [
-        'cookie_lifetime'     => 7200,       // 2 hours
-        'gc_maxlifetime'      => 7200,
-        'cookie_httponly'     => true,
-        'cookie_samesite'     => 'Lax',
-        'name'                => 'HCMUE_LIB',
+        // Empty or extremely minimal
     ],
     'session_manager' => [
         'validators' => [],

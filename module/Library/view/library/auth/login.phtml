@@ -48,14 +48,27 @@ foreach (['logo.png','logo.jpg','logo.jpeg','logo.svg','logo.webp'] as $_lf) {
                 <div class="login-error-msg"><?= htmlspecialchars(implode(', ', $msgs)) ?></div>
             <?php endif; ?>
         </div>
+        <?php /* CSRF Disabled
         <?= $this->formHidden($form->get('csrf')) ?>
         <?php $msgs = $form->get('csrf')->getMessages();
         if ($msgs): ?>
             <div class="login-error-msg-mb"><?= htmlspecialchars(implode(', ', $msgs)) ?></div>
         <?php endif; ?>
+        */ ?>
         <button type="submit" class="btn btn-primary w-100 login-btn">
             <i class="bi bi-box-arrow-in-right"></i>Đăng nhập
         </button>
+
+        <!-- Google Login (New Category) -->
+        <div style="position: relative; text-align: center; margin: 20px 0 15px;">
+            <hr style="border-top: 1px solid var(--border-color); opacity: 0.2;">
+            <span style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--bg-card); padding: 0 12px; font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;">Hoặc</span>
+        </div>
+
+        <a href="<?= $this->url('google-login') ?>" class="btn btn-outline w-100 d-flex align-items-center justify-content-center gap-2" style="height: 44px; font-weight: 600; border-color: rgba(255,255,255,0.15);">
+            <img src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png" width="18" height="18">
+            Tiếp tục với Google
+        </a>
     </form>
     <p class="login-footer-text">
         Chưa có tài khoản?

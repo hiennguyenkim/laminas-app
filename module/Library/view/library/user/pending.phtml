@@ -1,0 +1,77 @@
+<?php
+$this->headTitle('Duyệt thành viên mới');
+$this->layout('layout/library-layout');
+$authUser = $this->currentUser();
+?>
+
+<div class="page-header">
+    <div class="d-flex align-center gap-3">
+        <a href="<?= $this->url('library/user') ?>" class="btn btn-outline-secondary btn-sm btn-icon">
+            <i class="bi bi-arrow-left"></i>
+        </a>
+        <div>
+            <div class="page-title">Duyệt thành viên mới</div>
+            <div class="page-subtitle">Có <?= count($users) ?> tài khoản đang chờ phê duyệt</div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body p-0">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Người dùng</th>
+                    <th>Email</th>
+                    <th>Ngày đăng ký</th>
+                    <th style="text-align: center;">Thao tác</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php if (count($users) === 0): ?>
+                <tr>
+                    <td colspan="4">
+                        <div class="ui-empty-state">
+                            <i class="bi bi-person-check ui-empty-icon"></i>
+                            <div class="ui-empty-title">Không có yêu cầu chờ duyệt</div>
+                            <div class="ui-empty-desc">Hiện tại không có thành viên nào đang chờ bạn phê duyệt tài khoản.</div>
+                        </div>
+                    </td>
+                </tr>
+                <?php else: ?>
+                <?php foreach ($users as $user): ?>
+                <tr>
+                    <td>
+                        <div class="avatar-row">
+                            <div class="avatar" style="background: var(--accent-purple); color: white; display: flex; align-items: center; justify-content: center; font-weight: 600;">
+                                <?= substr($user->fullName ?: $user->username, 0, 1) ?>
+                            </div>
+                            <div>
+                                <div class="fw-bold"><?= htmlspecialchars($user->fullName ?: $user->username) ?></div>
+                                <div class="text-muted small">@<?= htmlspecialchars($user->username) ?></div>
+                            </div>
+                        </div>
+                    </td>
+                    <td><?= htmlspecialchars($user->email) ?></td>
+                    <td class="text-muted small"><?= date('d/m/Y H:i', strtotime($user->createdAt)) ?></td>
+                    <td style="text-align: center;">
+                        <div class="d-flex gap-2 justify-content-center">
+                            <form action="<?= $this->url('library/user', ['action' => 'approve', 'id' => $user->id]) ?>" method="POST" onsubmit="return confirm('Phê duyệt tài khoản này?')">
+                                <button type="submit" class="btn btn-success btn-sm">
+                                    <i class="bi bi-check-circle me-1"></i> Phê duyệt
+                                </button>
+                            </form>
+                            <form action="<?= $this->url('library/user', ['action' => 'reject', 'id' => $user->id]) ?>" method="POST" onsubmit="return confirm('Từ chối và xóa yêu cầu đăng ký này?')">
+                                <button type="submit" class="btn btn-outline-danger btn-sm">
+                                    Từ chối
+                                </button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                <?php endforeach; ?>
+                <?php endif; ?>
+            </tbody>
+        </table>
+    </div>
+</div>

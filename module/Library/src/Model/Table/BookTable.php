@@ -275,6 +275,25 @@ class BookTable
         ];
     }
 
+    public function getInventoryStatus(): array
+    {
+        $sql = "SELECT 
+                    SUM(quantity) as on_shelf,
+                    (SELECT COUNT(*) FROM borrow_records WHERE status = 'borrowed') as borrowed,
+                    (SELECT COUNT(*) FROM borrow_records WHERE status = 'overdue') as overdue,
+                    (SELECT COUNT(*) FROM borrow_records WHERE status = 'pending') as pending,
+                    SUM(CASE WHEN status = 'unavailable' THEN quantity ELSE 0 END) as unavailable
+                FROM books";
+        $row = $this->tableGateway->getAdapter()->query($sql)->execute()->current();
+        return [
+            'Sẵn sàng' => (int)($row['on_shelf'] ?? 0),
+            'Đang mượn' => (int)($row['borrowed'] ?? 0),
+            'Quá hạn'   => (int)($row['overdue'] ?? 0),
+            'Chờ duyệt' => (int)($row['pending'] ?? 0),
+            'Tạm khóa'  => (int)($row['unavailable'] ?? 0),
+        ];
+    }
+
     public function decrementAvailability(int $bookId): void
     {
         $book = $this->getBook($bookId);
@@ -469,14 +488,12 @@ class BookTable
     {
         $searchValue = trim((string) ($filters['search'] ?? ''));
         if ($searchValue !== '') {
-            $search = '%' . $searchValue . '%';
-            $select->where(function (Where $where) use ($search): void {
+            $select->where(function (Where $where) use ($searchValue): void {
+                $searchWildcard = '%' . $searchValue . '%';
                 $where->nest()
-                    ->like('title', $search)
+                    ->expression('MATCH(title, author) AGAINST(? IN NATURAL LANGUAGE MODE)', $searchValue)
                     ->or
-                    ->like('author', $search)
-                    ->or
-                    ->like('isbn', $search)
+                    ->like('isbn', $searchWildcard)
                     ->unnest();
             });
         }

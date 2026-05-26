@@ -163,77 +163,43 @@ $statusLabels = [
     </div>
 </div>
 
-<div class="dashboard-grid-2" style="margin-top: 24px; display: grid; grid-template-columns: 1fr 1.5fr; gap: 24px;">
-    <!-- TRENDING BOOKS (Hạng mục 3) -->
-    <div class="card dashboard-card-flat">
-        <div class="card-header">
-            <div>
-                <div class="card-title"><i class="bi bi-fire text-orange me-2"></i>Sách mượn nhiều nhất</div>
-                <div class="card-subtitle">Top 5 đầu sách đang thịnh hành</div>
-            </div>
+<!-- ROW 3: RECENT TRANSACTIONS -->
+<div class="card dashboard-card-flat" style="margin-top: 24px;">
+    <div class="card-header">
+        <div>
+            <div class="card-title"><i class="bi bi-clock-history dashboard-recent-icon"></i>Hoạt động mượn gần đây</div>
+            <div class="card-subtitle">Lịch sử các lượt mượn trả mới nhất của bạn</div>
         </div>
-        <div class="card-body p-0">
-            <div class="list-group list-group-flush" style="--bs-list-group-bg: transparent; --bs-list-group-border-color: var(--border-color);">
-                <?php foreach ($trendingBooks as $tb): ?>
-                <div class="list-group-item py-3 px-4 d-flex align-items-center gap-3">
-                    <div class="avatar" style="width: 40px; height: 56px; border-radius: 4px; overflow: hidden; flex-shrink: 0; background: var(--bg-secondary);">
-                        <?php if ($tb['cover_image_url']): ?>
-                            <img src="<?= $this->basePath($tb['cover_image_url']) ?>" style="width: 100%; height: 100%; object-fit: cover;">
-                        <?php else: ?>
-                            <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; opacity: 0.2;"><i class="bi bi-book"></i></div>
-                        <?php endif; ?>
-                    </div>
-                    <div class="flex-grow-1 min-width-0">
-                        <div class="fw-medium text-truncate" style="font-size: 13.5px;"><?= htmlspecialchars($tb['title']) ?></div>
-                        <div class="text-muted small text-truncate"><?= htmlspecialchars($tb['author']) ?></div>
-                    </div>
-                    <div class="text-end" style="min-width: 60px;">
-                        <div class="fw-bold text-primary" style="font-size: 14px;"><?= number_format((int)$tb['borrow_count']) ?></div>
-                        <div class="text-muted" style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;">Lượt mượn</div>
-                    </div>
-                </div>
-                <?php endforeach; ?>
-            </div>
-        </div>
+        <a href="<?= $this->url('student/transaction') ?>" class="btn btn-outline btn-sm">Xem tất cả</a>
     </div>
-
-    <!-- RECENT TRANSACTIONS -->
-    <div class="card dashboard-card-flat">
-        <div class="card-header">
-            <div>
-                <div class="card-title"><i class="bi bi-clock-history dashboard-recent-icon"></i>Hoạt động mượn gần đây</div>
-            </div>
-            <a href="<?= $this->url('student/transaction') ?>" class="btn btn-outline btn-sm">Xem tất cả</a>
-        </div>
-        <div class="dashboard-table-responsive">
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>#ID</th>
-                        <th>Tên đầu sách</th>
-                        <th>Ngày mượn</th>
-                        <th>Hạn trả</th>
-                        <th>Trạng thái</th>
-                    </tr>
-                </thead>
-                <tbody>
-                <?php if ($recentBorrows === []): ?>
-                    <tr><td colspan="5" class="dashboard-table-empty">Chưa có dữ liệu mượn trả gần đây.</td></tr>
-                <?php else: ?>
-                    <?php foreach ($recentBorrows as $record): ?>
-                    <?php $s = $statusLabels[$record->status] ?? ['label' => $record->status, 'class' => 'badge-gray']; ?>
-                    <tr>
-                        <td class="text-muted">#<?= (int)$record->id ?></td>
-                        <td class="fw-medium"><?= htmlspecialchars($record->bookTitle) ?></td>
-                        <td><?= htmlspecialchars($record->borrowDate) ?></td>
-                        <td><?= htmlspecialchars($record->returnDate) ?></td>
-                        <td><span class="badge <?= $s['class'] ?>"><?= $s['label'] ?></span></td>
-                    </tr>
-                    <?php endforeach; ?>
-                <?php endif; ?>
-                </tbody>
-            </table>
-        </div>
+    <div class="dashboard-table-responsive">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>#ID</th>
+                    <th>Tên đầu sách</th>
+                    <th>Ngày mượn</th>
+                    <th>Hạn trả</th>
+                    <th>Trạng thái</th>
+                </tr>
+            </thead>
+            <tbody>
+            <?php if ($recentBorrows === []): ?>
+                <tr><td colspan="5" class="dashboard-table-empty">Chưa có dữ liệu mượn trả gần đây.</td></tr>
+            <?php else: ?>
+                <?php foreach ($recentBorrows as $record): ?>
+                <?php $s = $statusLabels[$record->status] ?? ['label' => $record->status, 'class' => 'badge-gray']; ?>
+                <tr>
+                    <td class="text-muted">#<?= (int)$record->id ?></td>
+                    <td class="fw-medium"><?= htmlspecialchars($record->bookTitle) ?></td>
+                    <td><?= htmlspecialchars($record->borrowDate) ?></td>
+                    <td><?= htmlspecialchars($record->returnDate) ?></td>
+                    <td><span class="badge <?= $s['class'] ?>"><?= $s['label'] ?></span></td>
+                </tr>
+                <?php endforeach; ?>
+            <?php endif; ?>
+            </tbody>
+        </table>
     </div>
 </div>
 

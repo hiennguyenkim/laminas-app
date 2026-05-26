@@ -64,8 +64,12 @@ class DashboardController extends BaseController
         }
 
         $categoryMonthlyStats = [];
+        $inventoryStatus = [];
+        $borrowingCategoryStats = [];
         if ($isAdmin) {
             $categoryMonthlyStats = $this->borrowTable->getCategoryMonthlyStats((int) date('Y'));
+            $inventoryStatus = $this->bookTable->getInventoryStatus();
+            $borrowingCategoryStats = $this->borrowTable->getCurrentlyBorrowedCategoryStats();
         }
 
         $viewModel = new ViewModel([
@@ -85,10 +89,13 @@ class DashboardController extends BaseController
             'monthlyStats'         => $this->borrowTable->getMonthlyStats((int) date('Y'), $isAdmin ? null : $userId),
             'categoryStats'        => $this->bookTable->getCategoryStats($isAdmin ? null : $userId),
             'categoryMonthlyStats' => $categoryMonthlyStats,
+            'inventoryStatus'      => $inventoryStatus,
+            'borrowingCategoryStats' => $borrowingCategoryStats,
             'isLocked'             => $isLocked,
             'lockReason'           => $lockReason,
             'lockedAt'             => $lockedAt,
             'trendingBooks'        => $this->bookTable->getTrendingBooks(5),
+            'topReaders'           => $this->borrowTable->getTopReaders(5, 'month'),
         ]);
 
         if ($isAdmin) {

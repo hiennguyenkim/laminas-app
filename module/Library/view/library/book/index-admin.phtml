@@ -198,8 +198,8 @@ th.sortable a { display: flex; align-items: center; text-decoration: none; color
                     [$statusLabel, $statusClass] = $statusMap[$book->status] ?? [$book->status, 'badge-gray'];
                 ?>
                 <tr>
-                    <td class="text-muted">#<?= (int)$book->id ?></td>
-                    <td>
+                    <td data-label="ID" class="text-muted">#<?= (int)$book->id ?></td>
+                    <td data-label="Tên sách">
                         <div class="avatar-row">
                             <div class="avatar" style="width: 40px; height: 56px; border-radius: 4px; background: #2f3049; overflow: hidden; display: flex; align-items: center; justify-content: center;">
                                 <?php if ($book->coverImageUrl): ?>
@@ -220,8 +220,8 @@ th.sortable a { display: flex; align-items: center; text-decoration: none; color
                             </div>
                         </div>
                     </td>
-                    <td><span class="badge badge-gray"><?= htmlspecialchars($book->category) ?></span></td>
-                    <td>
+                    <td data-label="Thể loại"><span class="badge badge-gray"><?= htmlspecialchars($book->category) ?></span></td>
+                    <td data-label="Đánh giá">
                         <?php if ($book->reviewCount > 0): ?>
                             <div class="d-flex align-items-center gap-1">
                                 <span class="fw-bold text-orange"><?= number_format($book->avgRating, 1) ?></span>
@@ -235,16 +235,16 @@ th.sortable a { display: flex; align-items: center; text-decoration: none; color
                             <span class="text-muted small">Chưa có</span>
                         <?php endif; ?>
                     </td>
-                    <td>
+                    <td data-label="Lượt đánh giá">
                         <?php if ($book->reviewCount > 0): ?>
                             <span class="badge badge-outline-purple"><?= $book->reviewCount ?> lượt</span>
                         <?php else: ?>
                             <span class="text-muted small">0</span>
                         <?php endif; ?>
                     </td>
-                    <td class="fw-medium"><?= (int)$book->quantity ?> cuốn</td>
-                    <td><span class="badge <?= $statusClass ?>"><?= $statusLabel ?></span></td>
-                    <td>
+                    <td data-label="Tồn kho" class="fw-medium"><?= (int)$book->quantity ?> cuốn</td>
+                    <td data-label="Trạng thái"><span class="badge <?= $statusClass ?>"><?= $statusLabel ?></span></td>
+                    <td data-label="Hành động">
                         <div class="d-flex gap-2">
                             <a href="<?= $this->url('library/book', ['action' => 'view', 'id' => $book->id]) ?>" class="btn btn-outline btn-sm btn-icon" title="Xem chi tiết"><i class="bi bi-eye"></i></a>
                             <a href="<?= $this->url('library/book', ['action' => 'edit', 'id' => $book->id]) ?>" class="btn btn-outline btn-sm btn-icon" title="Chỉnh sửa"><i class="bi bi-pencil"></i></a>

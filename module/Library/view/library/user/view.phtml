@@ -252,3 +252,45 @@ $statusMap = [
         </tbody>
     </table>
 </div>
+
+<?php if ($authUser['role'] === 'admin' && !empty($penaltyLogs)): ?>
+<div class="card" style="margin-top: 24px;">
+    <div class="card-header">
+        <div class="card-title user-view-card-title">
+            <i class="bi bi-shield-exclamation user-view-title-icon"></i>Lịch sử vi phạm & xử phạt
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Ngày ghi nhận</th>
+                    <th>Lý do vi phạm</th>
+                    <th>Thời hạn khóa</th>
+                    <th>Người thực hiện</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ($penaltyLogs as $log): ?>
+                <tr>
+                    <td class="text-muted small"><?= date('d/m/Y H:i', strtotime($log['created_at'])) ?></td>
+                    <td style="max-width: 300px;"><?= htmlspecialchars($log['reason']) ?></td>
+                    <td>
+                        <?php if ($log['locked_until']): ?>
+                            <?php if ($log['locked_until'] === '9999-12-31'): ?>
+                                <span class="badge badge-red">Vĩnh viễn</span>
+                            <?php else: ?>
+                                <span class="text-danger fw-bold"><?= date('d/m/Y', strtotime($log['locked_until'])) ?></span>
+                            <?php endif; ?>
+                        <?php else: ?>
+                            <span class="text-muted">—</span>
+                        <?php endif; ?>
+                    </td>
+                    <td class="text-muted small"><?= htmlspecialchars($log['admin_name'] ?: 'Hệ thống') ?></td>
+                </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
+</div>
+<?php endif; ?>

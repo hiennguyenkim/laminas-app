@@ -58,6 +58,9 @@ $initials = function(string $name): string {
         </div>
     </div>
     <div style="display: flex; gap: 12px; align-items: center;">
+        <a href="<?= $this->url('library/user', ['action' => 'pending']) ?>" class="btn btn-outline-warning d-flex align-items-center gap-2" style="font-weight: 600; height: 38px;">
+            <i class="bi bi-person-check"></i>Duyệt thành viên
+        </a>
         <a href="<?= $this->url('library/user', ['action' => 'export'], ['query' => $filters]) ?>" class="btn btn-outline d-flex align-items-center gap-2" title="Xuất Excel (.xlsx)" style="font-weight: 600; height: 38px;">
             <i class="bi bi-file-earmark-excel" style="color:#1d6f42;"></i>Xuất .xlsx
         </a>
@@ -137,10 +140,11 @@ th.sortable a { display: flex; align-items: center; text-decoration: none; color
             <tbody>
             <?php if (count($users) === 0): ?>
                 <tr>
-                    <td colspan="8" class="text-center py-5">
-                        <div class="empty-state">
-                            <i class="bi bi-people" style="font-size: 3rem; opacity: 0.2;"></i>
-                            <p class="mt-3 text-muted">Không tìm thấy thành viên phù hợp.</p>
+                    <td colspan="8">
+                        <div class="ui-empty-state">
+                            <i class="bi bi-people ui-empty-icon"></i>
+                            <div class="ui-empty-title">Không tìm thấy thành viên</div>
+                            <div class="ui-empty-desc">Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm để có kết quả khác.</div>
                         </div>
                     </td>
                 </tr>
@@ -166,8 +170,8 @@ th.sortable a { display: flex; align-items: center; text-decoration: none; color
                     }
                 ?>
                 <tr>
-                    <td class="text-muted">#<?= (int)$user->id ?></td>
-                    <td>
+                    <td data-label="ID" class="text-muted">#<?= (int)$user->id ?></td>
+                    <td data-label="Thành viên">
                         <div class="avatar-row">
                             <?php if (!empty($user->avatarUrl)): ?>
                                 <div class="avatar" style="width: 40px; height: 40px; border-radius: 50%; background: transparent; overflow: hidden;">
@@ -184,12 +188,12 @@ th.sortable a { display: flex; align-items: center; text-decoration: none; color
                             </div>
                         </div>
                     </td>
-                    <td><?= $roleBadge ?></td>
-                    <td class="fw-medium text-center"><?= $borrowCount ?></td>
-                    <td class="fw-medium text-center"><?= $totalBorrowedCount ?></td>
-                    <td class="fw-medium text-center <?= $overdueCount > 0 ? 'text-danger' : '' ?>"><?= $overdueCount ?></td>
-                    <td><?= $statusBadge ?></td>
-                    <td>
+                    <td data-label="Vai trò"><?= $roleBadge ?></td>
+                    <td data-label="Lượt mượn" class="fw-medium text-center"><?= $borrowCount ?></td>
+                    <td data-label="Tổng mượn" class="fw-medium text-center"><?= $totalBorrowedCount ?></td>
+                    <td data-label="Trễ hạn" class="fw-medium text-center <?= $overdueCount > 0 ? 'text-danger' : '' ?>"><?= $overdueCount ?></td>
+                    <td data-label="Trạng thái"><?= $statusBadge ?></td>
+                    <td data-label="Hành động">
                         <div class="d-flex gap-2">
                             <a href="<?= $this->url('library/user', ['action' => 'view', 'id' => $user->id]) ?>" class="btn btn-outline btn-sm btn-icon" title="Xem chi tiết"><i class="bi bi-eye"></i></a>
                             <a href="<?= $this->url('library/user', ['action' => 'edit', 'id' => $user->id]) ?>" class="btn btn-outline btn-sm btn-icon" title="Chỉnh sửa"><i class="bi bi-pencil"></i></a>

@@ -53,10 +53,35 @@ class SettingsController extends BaseController
             // ignore
         }
 
+        // 3. Fetch Google OAuth Configuration
+        $googleConfig = [
+            'client_id'     => '',
+            'client_secret' => '',
+            'redirect_uri'  => '',
+        ];
+        try {
+            $googleConfig['client_id']     = $this->systemSettingsTable->getSetting('google_client_id', '');
+            $googleConfig['client_secret'] = $this->systemSettingsTable->getSetting('google_client_secret', '');
+            $googleConfig['redirect_uri']  = $this->systemSettingsTable->getSetting('google_redirect_uri', '');
+        } catch (\Throwable $e) {}
+
+        // 4. Fetch SMTP Configuration
+        $smtpConfig = [
+            'user' => '',
+            'has_pass' => false,
+        ];
+        try {
+            $smtpConfig['user'] = $this->systemSettingsTable->getSetting('smtp_user', '');
+            $smtpPass = $this->systemSettingsTable->getSetting('smtp_pass', '');
+            $smtpConfig['has_pass'] = !empty($smtpPass);
+        } catch (\Throwable $e) {}
+
         return new ViewModel([
             'logoFile'         => $logoFile,
             'maintenanceMode'  => $maintenanceMode,
             'maintenanceUntil' => $maintenanceUntil,
+            'googleConfig'     => $googleConfig,
+            'smtpConfig'       => $smtpConfig,
         ]);
     }
 
@@ -158,6 +183,67 @@ class SettingsController extends BaseController
             }
         } catch (\Throwable $e) {
             $this->flash()->addErrorMessage('Lỗi hệ thống khi cập nhật: ' . $e->getMessage());
+        }
+
+        return $this->redirect()->toRoute('library/settings');
+    }
+
+    // ── Google OAuth settings ───────────────────────────────────────
+    public function googleAction(): Response
+    {
+        if ($response = $this->requireAdmin()) {
+            return $response;
+        }
+
+        if (!$this->getRequest()->isPost()) {
+            return $this->redirect()->toRoute('library/settings');
+        }
+
+        $data = $this->postData();
+        $clientId = trim((string)($data['google_client_id'] ?? ''));
+        $clientSecret = trim((string)($data['google_client_secret'] ?? ''));
+        $redirectUri = trim((string)($data['google_redirect_uri'] ?? ''));
+
+        try {
+            $this->systemSettingsTable->saveSetting('google_client_id', $clientId);
+            $this->systemSettingsTable->saveSetting('google_client_secret', $clientSecret);
+            $this->systemSettingsTable->saveSetting('google_redirect_uri', $redirectUri);
+
+            $this->flash()->addSuccessMessage('Đã cập nhật cấu hình Google Login thành công.');
+        } catch (\Throwable $e) {
+            $this->flash()->addErrorMessage('Lỗi hệ thống khi cập nhật Google OAuth: ' . $e->getMessage());
+        }
+
+        return $this->redirect()->toRoute('library/settings');
+    }
+
+    // ── SMTP settings ─────────────────────────────────────────────
+    public function smtpAction(): Response
+    {
+        if ($response = $this->requireAdmin()) {
+            return $response;
+        }
+
+        if (!$this->getRequest()->isPost()) {
+            return $this->redirect()->toRoute('library/settings');
+        }
+
+        $data = $this->postData();
+        $smtpUser = trim((string)($data['smtp_user'] ?? ''));
+        $smtpPass = trim((string)($data['smtp_pass'] ?? ''));
+        
+        try {
+            $this->systemSettingsTable->saveSetting('smtp_user', $smtpUser);
+            if ($smtpPass !== '') {
+                // Chỉ cập nhật mật khẩu nếu người dùng có nhập (tránh ghi đè bằng rỗng nếu họ chỉ muốn đổi email)
+                $this->systemSettingsTable->saveSetting('smtp_pass', $smtpPass);
+            }
+            // Mặc định from_email giống smtp_user đối với Gmail
+            $this->systemSettingsTable->saveSetting('smtp_from_email', $smtpUser);
+
+            $this->flash()->addSuccessMessage('Đã cập nhật cấu hình Máy chủ Gửi thư (SMTP) thành công.');
+        } catch (\Throwable $e) {
+            $this->flash()->addErrorMessage('Lỗi hệ thống khi cập nhật SMTP: ' . $e->getMessage());
         }
 
         return $this->redirect()->toRoute('library/settings');

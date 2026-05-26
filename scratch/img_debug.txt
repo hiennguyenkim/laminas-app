@@ -1,0 +1,3 @@
+BasePath: '/laminas-app/public'
+Helper('/img/test.jpg'): '/laminas-app/public/img/test.jpg'
+SCRIPT_NAME: '/laminas-app/public/test_img.php'

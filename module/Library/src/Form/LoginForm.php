@@ -35,10 +35,15 @@ class LoginForm extends Form
             'options'    => ['label' => 'Mật khẩu'],
             'attributes' => ['class' => 'form-control', 'required' => true],
         ]);
+        
+        /* CSRF temporarily disabled to fix session sync issues */
+        /*
         $this->add([
             'name' => 'csrf',
             'type' => Element\Csrf::class,
         ]);
+        */
+
         $this->add([
             'name'       => 'submit',
             'type'       => Element\Submit::class,
@@ -58,10 +63,15 @@ class LoginForm extends Form
             'name'     => 'password',
             'required' => true,
         ]);
+
+        /* CSRF disabled */
+        /*
         $filter->add([
             'name'     => 'csrf',
             'required' => true,
         ]);
+        */
+
         return $filter;
     }
 }

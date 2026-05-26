@@ -86,8 +86,8 @@ $renderSortIcon = function(string $col) use ($queryBase): string {
         <div class="d-flex align-center gap-3">
             <div class="stat-icon orange tx-stat-icon"><i class="bi bi-lightning-charge"></i></div>
             <div>
-                <div class="stat-value tx-stat-value"><?= (int)($summary['total']??0) ?></div>
-                <div class="stat-label">Tổng lượt mượn</div>
+                <div class="stat-value tx-stat-value"><?= (int)($summary['borrowed']??0)+(int)($summary['returned']??0)+(int)($summary['overdue']??0)+(int)($summary['pending']??0)+(int)($summary['renew_pending']??0) ?></div>
+                <div class="stat-label">Tổng</div>
             </div>
         </div>
     </a>
@@ -243,13 +243,14 @@ $renderSortIcon = function(string $col) use ($queryBase): string {
                             Trạng thái <?= $renderSortIcon('status') ?>
                         </a>
                     </th>
+                    <th style="color: var(--text-muted);">Vi phạm</th>
                     <th style="color: var(--text-muted);">Thao tác</th>
                 </tr>
             </thead>
             <tbody>
             <?php if (empty($records)): ?>
                 <tr>
-                    <td colspan="6" class="tx-empty-state">
+                    <td colspan="7" class="tx-empty-state">
                         <i class="bi bi-inbox tx-empty-icon"></i>
                         Không tìm thấy giao dịch nào.
                     </td>
@@ -269,7 +270,7 @@ $renderSortIcon = function(string $col) use ($queryBase): string {
                 }
                 ?>
                 <tr>
-                    <td>
+                    <td data-label="Thành viên">
                         <div class="avatar-row">
                             <div class="avatar" style="background:<?= $aColor ?>; overflow: hidden; display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 50%; color: white; font-weight: 600; font-size: 12px;">
                                 <?php if (!empty($record->avatarUrl)): ?>
@@ -284,7 +285,7 @@ $renderSortIcon = function(string $col) use ($queryBase): string {
                             </div>
                         </div>
                     </td>
-                    <td>
+                    <td data-label="Sách">
                         <div class="avatar-row">
                             <div class="avatar tx-book-avatar" style="background:<?= $bColor ?>; overflow: hidden; display: flex; align-items: center; justify-content: center; width: 32px; height: 44px; border-radius: 4px; font-size: 16px;">
                                 <?php if (!empty($record->coverImageUrl)): ?>
@@ -305,20 +306,27 @@ $renderSortIcon = function(string $col) use ($queryBase): string {
                             </div>
                         </div>
                     </td>
-                    <td>
+                    <td data-label="Ngày mượn">
                         <div class="d-flex align-center gap-2">
                             <i class="bi bi-calendar3 tx-icon-muted"></i>
                             <?= htmlspecialchars(($record->borrowDate && $record->borrowDate !== '0000-00-00') ? date('d/m/Y', strtotime($record->borrowDate)) : '—') ?>
                         </div>
                     </td>
-                    <td>
+                    <td data-label="Hạn trả">
                         <div class="d-flex align-center gap-2 <?= $isOverdue ? 'tx-overdue-alert' : '' ?>">
                             <i class="bi bi-clock <?= $isOverdue ? 'tx-color-danger' : 'tx-color-muted' ?>"></i>
                             <?= htmlspecialchars(($record->returnDate && $record->returnDate !== '0000-00-00') ? date('d/m/Y', strtotime($record->returnDate)) : '—') ?>
                         </div>
                     </td>
-                    <td><span class="badge <?= $statusClass ?>"><?= $statusLabel ?></span></td>
-                    <td style="text-align: center; vertical-align: middle;">
+                    <td data-label="Trạng thái"><span class="badge <?= $statusClass ?>"><?= $statusLabel ?></span></td>
+                    <td data-label="Vi phạm">
+                        <?php if ($isOverdue): ?>
+                            <span class="text-danger small fw-bold">Chờ xử phạt</span>
+                        <?php else: ?>
+                            <span class="text-muted small">—</span>
+                        <?php endif; ?>
+                    </td>
+                    <td data-label="Thao tác" style="text-align: center; vertical-align: middle;">
                         <div class="d-flex gap-2 justify-content-center align-items-center">
                         <?php if ($record->status === 'pending'): ?>
                             <button type="button" class="btn btn-primary btn-xs"
@@ -359,9 +367,19 @@ $renderSortIcon = function(string $col) use ($queryBase): string {
                                         </button>
                                     </form>
                                 <?php endif; ?>
+
+                                <form method="POST" action="<?= $this->url($routePrefix . '/transaction', ['action' => 'lost', 'id' => $record->id]) ?>"
+                                      data-confirm="XÁC NHẬN BÁO MẤT: Hành động này sẽ trừ vĩnh viễn sách khỏi kho và KHÓA TÀI KHOẢN sinh viên vĩnh viễn cho đến khi đền bù. Tiếp tục?" style="margin: 0;">
+                                    <button type="submit" class="btn btn-danger btn-xs" style="white-space: nowrap;">
+                                        <i class="bi bi-patch-exclamation"></i> Báo mất
+                                    </button>
+                                </form>
                             <?php endif; ?>
                         <?php else: ?>
                             <span class="text-muted small"><?= $record->returnedAt ? date('d/m/Y', strtotime($record->returnedAt)) : 'Xong' ?></span>
+                            <?php if ($record->status === 'lost'): ?>
+                                <span class="badge badge-red ms-1" style="font-size: 9px;">ĐÃ MẤT</span>
+                            <?php endif; ?>
                         <?php endif; ?>
                         </div>
                     </td>

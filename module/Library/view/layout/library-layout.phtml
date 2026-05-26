@@ -76,6 +76,7 @@ $pageLabel = $authUser ? ($pageLabels[$activeKey] ?? '') : 'Đăng nhập';
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="referrer" content="no-referrer">
     <?= $this->headTitle() ?>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -293,6 +294,26 @@ setTimeout(() => {
         setTimeout(() => a.remove(), 400);
     });
 }, 4000);
+
+// GLOBAL LOADING STATES (New Category)
+document.addEventListener('submit', function(e) {
+    const form = e.target;
+    const btn = form.querySelector('button[type="submit"]');
+    if (btn && !btn.classList.contains('no-loader')) {
+        btn.classList.add('btn-loading');
+    }
+});
+
+document.querySelectorAll('.btn-xs, .btn-sm, .btn').forEach(btn => {
+    btn.addEventListener('click', function(e) {
+        if (this.tagName === 'BUTTON' && this.type !== 'submit' && !this.classList.contains('no-loader')) {
+            // Delay a bit to allow confirm dialogs to show if any
+            setTimeout(() => {
+                if (!e.defaultPrevented) this.classList.add('btn-loading');
+            }, 50);
+        }
+    });
+});
 </script>
 
     <?php

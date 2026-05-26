@@ -104,6 +104,21 @@ return [
                     ],
                 ],
             ],
+            // Google Login Routes
+            'google-login' => [
+                'type' => Literal::class,
+                'options' => [
+                    'route' => '/auth/google',
+                    'defaults' => ['controller' => AuthController::class, 'action' => 'googleRedirect'],
+                ],
+            ],
+            'google-callback' => [
+                'type' => Literal::class,
+                'options' => [
+                    'route' => '/auth/google-callback',
+                    'defaults' => ['controller' => AuthController::class, 'action' => 'googleCallback'],
+                ],
+            ],
             'library' => [
                 'type'    => Literal::class,
                 'options' => [
@@ -195,7 +210,7 @@ return [
                         'options' => [
                             'route'       => '/settings[/:action[/:id]]',
                             'constraints' => [
-                                'action' => '[a-zA-Z][a-zA-Z0-9_-]*',
+                                'action' => 'index|logo|maintenance|google|smtp|addCategory|editCategory|deleteCategory',
                                 'id'     => '[0-9]+',
                             ],
                             'defaults'    => ['controller' => SettingsController::class, 'action' => 'index'],
@@ -338,11 +353,11 @@ return [
                 ],
             ],
             'api' => [
-                'type' => Literal::class,
+                'type' => Segment::class,
                 'options' => [
-                    'route'    => '/api',
+                    'route'    => '[/laminas-app]/api',
                     'defaults' => [
-                        'controller' => BookApiController::class, // Default, though routes usually specific
+                        'controller' => BookApiController::class, // Default
                     ],
                 ],
                 'may_terminate' => false,
@@ -358,8 +373,6 @@ return [
                         ],
                     ],
                     'books-search' => [
-                        // Literal route for URL assembly via $this->url('api/books-search')
-                        // Tách khỏi Segment parent để tránh lỗi Missing parameter "id"
                         'type'    => Literal::class,
                         'options' => [
                             'route'    => '/books/search',

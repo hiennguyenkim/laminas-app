@@ -331,9 +331,12 @@ class BorrowTable
                     ELSE 0
                  END)"
             ),
-        ])
-        ->join('books', 'borrow_records.book_id = books.book_id', [])
-        ->join('users', 'borrow_records.user_id = users.user_id', []);
+        ]);
+
+        if (!empty($filters['search']) || !empty($filters['category'])) {
+            $select->join('books', 'borrow_records.book_id = books.book_id', [])
+                   ->join('users', 'borrow_records.user_id = users.user_id', []);
+        }
 
         $this->applyFilters($select, $filters, $userId);
 
@@ -356,9 +359,12 @@ class BorrowTable
                     ELSE 0
                  END)"
             ),
-        ])
-        ->join('books', 'borrow_records.book_id = books.book_id', [])
-        ->join('users', 'borrow_records.user_id = users.user_id', []);
+        ]);
+
+        if (!empty($filters['search']) || !empty($filters['category'])) {
+            $select->join('books', 'borrow_records.book_id = books.book_id', [])
+                   ->join('users', 'borrow_records.user_id = users.user_id', []);
+        }
 
         $this->applyFilters($select, $filters, $userId);
 
@@ -396,6 +402,28 @@ class BorrowTable
                 LIMIT ?";
         $result = $this->tableGateway->getAdapter()->query($sql)->execute([$limit]);
         return iterator_to_array($result);
+    }
+
+    public function getCurrentlyBorrowedCategoryStats(): array
+    {
+        $sql = $this->tableGateway->getSql();
+        $select = $sql->select()
+            ->columns(['cnt' => new Expression('COUNT(*)')])
+            ->join('books', 'borrow_records.book_id = books.book_id', ['category'])
+            ->where(function ($where) {
+                $where->in('borrow_records.status', ['borrowed', 'overdue']);
+            })
+            ->group('books.category')
+            ->order(new Expression('COUNT(*) DESC'));
+
+        $result = $sql->prepareStatementForSqlObject($select)->execute();
+        $stats = [];
+        foreach ($result as $row) {
+            if (is_array($row) && !empty($row['category'])) {
+                $stats[(string)$row['category']] = (int)$row['cnt'];
+            }
+        }
+        return $stats;
     }
 
     public function countOverdueOccurrencesForUser(int $userId): int
@@ -484,9 +512,12 @@ class BorrowTable
         $select = $sql->select()
             ->columns([
                 'c' => new Expression("SUM(CASE WHEN borrow_records.status = 'returned' THEN 1 ELSE 0 END)"),
-            ])
-            ->join('books', 'borrow_records.book_id = books.book_id', [])
-            ->join('users', 'borrow_records.user_id = users.user_id', []);
+            ]);
+
+        if (!empty($filters['search']) || !empty($filters['category'])) {
+            $select->join('books', 'borrow_records.book_id = books.book_id', [])
+                   ->join('users', 'borrow_records.user_id = users.user_id', []);
+        }
 
         $this->applyFilters($select, $filters, $userId);
 
@@ -504,9 +535,12 @@ class BorrowTable
         $select = $sql->select()
             ->columns([
                 'c' => new Expression("SUM(CASE WHEN borrow_records.status = 'pending' THEN 1 ELSE 0 END)"),
-            ])
-            ->join('books', 'borrow_records.book_id = books.book_id', [])
-            ->join('users', 'borrow_records.user_id = users.user_id', []);
+            ]);
+
+        if (!empty($filters['search']) || !empty($filters['category'])) {
+            $select->join('books', 'borrow_records.book_id = books.book_id', [])
+                   ->join('users', 'borrow_records.user_id = users.user_id', []);
+        }
 
         $this->applyFilters($select, $filters, $userId);
 
@@ -522,9 +556,12 @@ class BorrowTable
         $select = $sql->select()
             ->columns([
                 'c' => new Expression("SUM(CASE WHEN borrow_records.is_renew_pending = 1 THEN 1 ELSE 0 END)"),
-            ])
-            ->join('books', 'borrow_records.book_id = books.book_id', [])
-            ->join('users', 'borrow_records.user_id = users.user_id', []);
+            ]);
+
+        if (!empty($filters['search']) || !empty($filters['category'])) {
+            $select->join('books', 'borrow_records.book_id = books.book_id', [])
+                   ->join('users', 'borrow_records.user_id = users.user_id', []);
+        }
 
         $this->applyFilters($select, $filters, $userId);
 
@@ -570,7 +607,7 @@ class BorrowTable
             ->columns([
                 'c' => new Expression(
                     "SUM(CASE
-                        WHEN status IN ('borrowed', 'overdue')
+                        WHEN status IN ('borrowed', 'overdue', 'pending')
                             THEN 1
                         ELSE 0
                      END)"
@@ -858,3 +895,4 @@ class BorrowTable
         return null;
     }
 }
+
