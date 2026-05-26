@@ -130,8 +130,7 @@ class AnnouncementTable
 
     public function deleteAnnouncement(int $id): void
     {
-        $sql = "DELETE FROM announcements WHERE id = ?";
-        $this->getAdapter()->query($sql)->execute([$id]);
+        $this->tableGateway->delete(['id' => $id]);
     }
 
     public function fetchActiveForSidebar(int $limit = 3): array

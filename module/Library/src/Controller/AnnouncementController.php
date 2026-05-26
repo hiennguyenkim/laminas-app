@@ -20,6 +20,29 @@ class AnnouncementController extends BaseController
         parent::__construct($authSessionContainer);
     }
 
+    public function onDispatch(\Laminas\Mvc\MvcEvent $e)
+    {
+        $currentUser = $this->currentUser();
+        $isAdmin = $currentUser !== null && ($currentUser['role'] ?? '') === 'admin';
+        $isStudent = $currentUser !== null && ($currentUser['role'] ?? '') === 'student';
+
+        $routeMatch = $e->getRouteMatch();
+        $matchedRouteName = $routeMatch ? $routeMatch->getMatchedRouteName() : '';
+
+        // Only redirect if trying to access an announcement route of another role
+        if ($isAdmin && (str_starts_with($matchedRouteName, 'student/announcements') || $matchedRouteName === 'announcements' || $matchedRouteName === 'announcements/view')) {
+            return $this->redirect()->toRoute('library/announcements');
+        }
+        if ($isStudent && (str_starts_with($matchedRouteName, 'library/announcements') || $matchedRouteName === 'announcements' || $matchedRouteName === 'announcements/view')) {
+            return $this->redirect()->toRoute('student/announcements');
+        }
+        if ($currentUser === null && (str_starts_with($matchedRouteName, 'library/announcements') || str_starts_with($matchedRouteName, 'student/announcements'))) {
+            return $this->redirect()->toRoute('announcements');
+        }
+
+        return parent::onDispatch($e);
+    }
+
     public function announcementsAction(): ViewModel|Response
     {
         $currentUser = $this->currentUser();
@@ -28,21 +51,9 @@ class AnnouncementController extends BaseController
             $leaderboardPeriod = 'month';
         }
         $isAdmin = $currentUser !== null && ($currentUser['role'] ?? '') === 'admin';
-        $isStudent = $currentUser !== null && ($currentUser['role'] ?? '') === 'student';
 
         $routeMatch = $this->getEvent()->getRouteMatch();
         $matchedRouteName = $routeMatch ? $routeMatch->getMatchedRouteName() : '';
-
-        if ($isAdmin && $matchedRouteName !== 'library/announcements') {
-            return $this->redirect()->toRoute('library/announcements');
-        }
-        if ($isStudent && $matchedRouteName !== 'student/announcements') {
-            return $this->redirect()->toRoute('student/announcements');
-        }
-        if ($currentUser === null && $matchedRouteName !== 'announcements') {
-            return $this->redirect()->toRoute('announcements');
-        }
-
         $baseRoute = $matchedRouteName;
 
         if ($currentUser === null) {
@@ -335,8 +346,14 @@ class AnnouncementController extends BaseController
 
         $id = (int)$this->params()->fromRoute('id', 0);
         if ($id > 0) {
-            $this->announcementTable->deleteAnnouncement($id);
-            $this->flash()->addSuccessMessage('Đã xóa bản tin.');
+            try {
+                $this->announcementTable->deleteAnnouncement($id);
+                $this->flash()->addSuccessMessage('Đã xóa bản tin thành công.');
+            } catch (\Throwable $e) {
+                $this->flash()->addErrorMessage('Lỗi khi xóa bản tin: ' . $e->getMessage());
+            }
+        } else {
+            $this->flash()->addErrorMessage('ID bản tin không hợp lệ hoặc không tìm thấy.');
         }
 
         return $this->redirect()->toRoute('library/announcements');

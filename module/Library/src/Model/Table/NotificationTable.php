@@ -52,9 +52,9 @@ class NotificationTable
     public function deleteNotification(int $id, ?int $userId = null): void
     {
         if ($userId === null) {
-            $this->getAdapter()->query("UPDATE notifications SET is_deleted = 1 WHERE id = ? AND user_id IS NULL")->execute([$id]);
+            $this->getAdapter()->query("DELETE FROM notifications WHERE id = ? AND user_id IS NULL")->execute([$id]);
         } else {
-            $this->getAdapter()->query("UPDATE notifications SET is_deleted = 1 WHERE id = ? AND user_id = ?")->execute([$id, $userId]);
+            $this->getAdapter()->query("DELETE FROM notifications WHERE id = ? AND user_id = ?")->execute([$id, $userId]);
         }
     }
 
