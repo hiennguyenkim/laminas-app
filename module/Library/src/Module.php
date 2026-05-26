@@ -33,7 +33,17 @@ class Module
         if ($container->has(SessionManager::class)) {
             $sessionManager = $container->get(SessionManager::class);
             SessionContainer::setDefaultManager($sessionManager);
-            $sessionManager->start();
+            try {
+                $sessionManager->start();
+            } catch (\Throwable) {
+                // If session is corrupt (Fatal Error was happening here), destroy it and start clean
+                @session_unset();
+                if (isset($_COOKIE[session_name()])) {
+                    setcookie(session_name(), '', time() - 3600, '/');
+                }
+                $sessionManager->destroy();
+                $sessionManager->start();
+            }
         }
 
         // Attach Maintenance Check Listener

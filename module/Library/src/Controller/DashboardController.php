@@ -21,19 +21,22 @@ class DashboardController extends BaseController
     private BorrowTable $borrowTable;
     private UserTable $userTable;
     private \Library\Model\Table\PublicChatTable $publicChatTable;
+    private \Library\Service\GeminiService $geminiService;
 
     public function __construct(
         AuthSessionContainer $authSessionContainer,
         BookTable $bookTable,
         BorrowTable $borrowTable,
         UserTable $userTable,
-        \Library\Model\Table\PublicChatTable $publicChatTable
+        \Library\Model\Table\PublicChatTable $publicChatTable,
+        \Library\Service\GeminiService $geminiService
     ) {
         parent::__construct($authSessionContainer);
         $this->bookTable   = $bookTable;
         $this->borrowTable = $borrowTable;
         $this->userTable   = $userTable;
         $this->publicChatTable = $publicChatTable;
+        $this->geminiService = $geminiService;
     }
 
     /**
@@ -215,6 +218,11 @@ class DashboardController extends BaseController
             }
             if (mb_strlen($message) > 255) {
                 return $this->jsonResponse(['error' => 'Message is too long'], 400);
+            }
+
+            // Gemini Moderation
+            if (!$this->geminiService->checkContent($message)) {
+                return $this->jsonResponse(['error' => 'Tin nhắn chứa nội dung không phù hợp và đã bị chặn.'], 400);
             }
 
             $userId = (int)$currentUser['id'];

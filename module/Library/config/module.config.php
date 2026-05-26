@@ -355,7 +355,7 @@ return [
             'api' => [
                 'type' => Segment::class,
                 'options' => [
-                    'route'    => '[/laminas-app]/api',
+                    'route'    => '/api',
                     'defaults' => [
                         'controller' => BookApiController::class, // Default
                     ],
@@ -481,6 +481,7 @@ return [
             \Library\Model\Table\ChatLogTable::class => \Library\Factory\Table\ChatLogTableFactory::class,
             \Library\Model\Table\BookImportTable::class => \Library\Factory\Table\BookImportTableFactory::class,
             \Library\Model\Table\BookReviewTable::class => \Library\Factory\Table\BookReviewTableFactory::class,
+            \Library\Service\GeminiService::class => \Library\Factory\Service\GeminiServiceFactory::class,
             CirculationService::class => CirculationServiceFactory::class,
             AuthSessionContainer::class => AuthSessionContainerFactory::class,
         ],

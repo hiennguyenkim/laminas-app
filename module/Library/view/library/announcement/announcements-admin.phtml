@@ -788,12 +788,26 @@ document.addEventListener('DOMContentLoaded', () => {
         const input = document.getElementById('catalog-chat-input');
         if (!input || !input.value.trim()) return;
         const msg = input.value; input.value = '';
-        await fetch('<?= $this->url("library/dashboard", ["action" => "chat"]) ?>', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: 'message=' + encodeURIComponent(msg)
-        });
-        pollNewMessages();
+        
+        try {
+            const response = await fetch('<?= $this->url("library/dashboard", ["action" => "chat"]) ?>', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'message=' + encodeURIComponent(msg)
+            });
+            
+            const data = await response.json();
+            if (!response.ok) {
+                alert(data.error || 'Có lỗi xảy ra khi gửi tin nhắn.');
+                input.value = msg;
+                return;
+            }
+            pollNewMessages();
+        } catch (e) {
+            console.error(e);
+            alert('Không thể kết nối đến máy chủ.');
+            input.value = msg;
+        }
     };
 
     window.deleteCatalogMessage = async function(id) {

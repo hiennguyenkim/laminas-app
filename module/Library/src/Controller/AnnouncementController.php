@@ -254,6 +254,21 @@ class AnnouncementController extends BaseController
                     'is_active'  => $isActive,
                     'created_by' => $currentUser['id'],
                 ]);
+
+                // Gửi thông báo cho tất cả người dùng (user_id = NULL)
+                if ($isActive) {
+                    try {
+                        $newId = (int)$this->announcementTable->getAdapter()->getDriver()->getLastGeneratedValue();
+                        $sqlNoti = "INSERT INTO notifications (user_id, sender_id, title, message, type, related_id) 
+                                    VALUES (NULL, ?, 'Bảng tin mới', ?, 'borrow_approved', ?)";
+                        $this->announcementTable->getAdapter()->query($sqlNoti)->execute([
+                            $currentUser['id'],
+                            "Thư viện vừa đăng bản tin mới: <strong>" . htmlspecialchars($title) . "</strong>.",
+                            $newId
+                        ]);
+                    } catch (\Throwable $e) {}
+                }
+
                 $this->flash()->addSuccessMessage('Đã đăng bản tin "' . htmlspecialchars($title) . '" thành công.');
             } catch (\Throwable $e) {
                 $this->flash()->addErrorMessage('Lỗi hệ thống: ' . $e->getMessage());
@@ -324,7 +339,23 @@ class AnnouncementController extends BaseController
                     'end_date'   => $endDate,
                     'is_active'  => $isActive,
                 ]);
-                $this->flash()->addSuccessMessage('Đã cập nhật bản tin "' . htmlspecialchars($title) . '" thành công.');
+
+                // Nếu từ chưa kích hoạt chuyển sang kích hoạt, gửi thông báo mới
+                if ($isActive && (int)$ann->isActive === 0) {
+                    try {
+                        $currentUser = $this->currentUser();
+                        $sqlNoti = "INSERT INTO notifications (user_id, sender_id, title, message, type, related_id) 
+                                    VALUES (NULL, ?, 'Bảng tin mới', ?, 'borrow_approved', ?)";
+                        $this->announcementTable->getAdapter()->query($sqlNoti)->execute([
+                            $currentUser['id'],
+                            "Thư viện vừa cập nhật bản tin mới: <strong>" . htmlspecialchars($title) . "</strong>.",
+                            $id
+                        ]);
+                    } catch (\Throwable $e) {}
+                }
+
+                $this->flash()->addSuccessMessage('Đã cập nhật bản tin thành công.');
+
             } catch (\Throwable $e) {
                 $this->flash()->addErrorMessage('Lỗi hệ thống: ' . $e->getMessage());
             }

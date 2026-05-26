@@ -27,6 +27,7 @@ if (! class_exists(Application::class)) {
     throw new RuntimeException("Unable to load application. Run `composer install` first.");
 }
 
+/** 
 // Fix Base URL detection for subdirectory hosting without '/public' in URL
 if (isset($_SERVER['SCRIPT_NAME']) && strpos($_SERVER['SCRIPT_NAME'], '/public/index.php') !== false) {
     $_SERVER['SCRIPT_NAME'] = str_replace('/public/index.php', '/index.php', $_SERVER['SCRIPT_NAME']);
@@ -38,6 +39,7 @@ if (isset($_SERVER['SCRIPT_FILENAME'])) {
     // Tricking Laminas to think the script is in the root project dir
     $_SERVER['SCRIPT_FILENAME'] = str_replace('public/index.php', 'index.php', str_replace('\\', '/', $_SERVER['SCRIPT_FILENAME']));
 }
+**/
 
 $container = require __DIR__ . '/../config/container.php';
 /** @var Application $app */

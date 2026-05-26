@@ -143,6 +143,11 @@ class CirculationService
 
             $this->borrowTable->approve($recordId, $borrowDate, $returnDate);
 
+            // Mark existing pending notifications for this record as read
+            try {
+                $this->adapter->query("UPDATE notifications SET is_read = 1 WHERE related_id = ? AND type = 'borrow'")->execute([$recordId]);
+            } catch (\Throwable $e) {}
+
             // Tự động gửi thông báo cho sinh viên
             try {
                 $db = $this->adapter;
@@ -190,8 +195,21 @@ class CirculationService
                 throw new DomainException('Phiếu mượn này đã được duyệt hoặc xử lý trước đó.');
             }
 
-            // Delete the pending borrow request
+            // Delete the pending borrow request (or mark as rejected if you want to keep history, but here it's deleted)
             $this->borrowTable->reject($recordId);
+
+            // Notify student
+            try {
+                $stmt = $this->adapter->createStatement(
+                    "INSERT INTO notifications (user_id, sender_id, title, message, type, related_id) 
+                     VALUES (?, NULL, 'Từ chối yêu cầu mượn sách', ?, 'borrow_alert', ?)"
+                );
+                $stmt->execute([
+                    $record->userId,
+                    "Yêu cầu mượn cuốn sách '" . $record->bookTitle . "' của bạn đã bị từ chối.",
+                    $recordId
+                ]);
+            } catch (\Throwable $e) {}
 
             $connection->commit();
         } catch (\Throwable $throwable) {
@@ -223,41 +241,68 @@ class CirculationService
             $this->borrowTable->returnBook($recordId);
             $this->bookTable->incrementAvailability($record->bookId);
 
+            // Notify student
+            try {
+                $stmt = $this->adapter->createStatement(
+                    "INSERT INTO notifications (user_id, sender_id, title, message, type, related_id) 
+                     VALUES (?, NULL, 'Xác nhận trả sách', ?, 'borrow_approved', ?)"
+                );
+                $stmt->execute([
+                    $record->userId,
+                    "Cảm ơn bạn đã trả cuốn sách '" . $record->bookTitle . "'. Thủ thư đã xác nhận việc trả sách.",
+                    $recordId
+                ]);
+            } catch (\Throwable $e) {}
+
             // Xử lý phạt theo số lần trả muộn (Hạng mục 2 nâng cấp)
-            // Chỉ thực hiện phạt nếu sinh viên ĐÃ TRẢ HẾT TẤT CẢ CÁC SÁCH ĐANG MƯỢN
-            $activeLoansCount = $this->borrowTable->countActiveLoansForUser((int)$record->userId);
+            // Tính tổng số lần từng trả muộn trong lịch sử
+            $lateCount = $this->borrowTable->countReturnedLateForUser((int)$record->userId);
             
-            if ($activeLoansCount === 0) {
-                // Tính tổng số lần từng trả muộn trong lịch sử
-                $lateCount = $this->borrowTable->countReturnedLateForUser((int)$record->userId);
-                
-                if ($lateCount >= 5) {
-                    $lockDays = 0;
-                    $reasonPrefix = "";
+            if ($lateCount >= 5) {
+                $lockDays = 0;
+                $reasonPrefix = "";
 
-                    if ($lateCount >= 5 && $lateCount <= 9) {
-                        $lockDays = 1;
-                        $reasonPrefix = "Mốc 1 (5-9 lần)";
-                    } elseif ($lateCount >= 10 && $lateCount <= 14) {
-                        $lockDays = 3;
-                        $reasonPrefix = "Mốc 2 (10-14 lần)";
-                    } elseif ($lateCount == 15) {
-                        $lockDays = 7;
-                        $reasonPrefix = "Mốc 3 (15 lần)";
-                    } else {
-                        // Trên 15 lần: Khóa vĩnh viễn
-                        $lockUntil = '9999-12-31';
-                        $reason = "Vi phạm Mốc 4: Trả sách trễ hạn trên 15 lần ({$lateCount} lần). Tạm khóa tài khoản VĨNH VIỄN.";
-                        $this->userTable->lockUser((int)$record->userId, $reason, $lockUntil);
-                        $connection->commit();
-                        return;
-                    }
+                if ($lateCount >= 5 && $lateCount <= 9) {
+                    $lockDays = 1;
+                    $reasonPrefix = "Mốc 1 (5-9 lần)";
+                } elseif ($lateCount >= 10 && $lateCount <= 14) {
+                    $lockDays = 3;
+                    $reasonPrefix = "Mốc 2 (10-14 lần)";
+                } elseif ($lateCount == 15) {
+                    $lockDays = 7;
+                    $reasonPrefix = "Mốc 3 (15 lần)";
+                } else {
+                    // Trên 15 lần: Khóa vĩnh viễn
+                    $lockUntil = '9999-12-31';
+                    $reason = "Vi phạm Mốc 4: Trả sách trễ hạn trên 15 lần ({$lateCount} lần). Tạm khóa tài khoản VĨNH VIỄN.";
+                    $this->userTable->lockUser((int)$record->userId, $reason, $lockUntil);
+                    
+                    // Notify student about lock
+                    try {
+                        $stmt = $this->adapter->createStatement(
+                            "INSERT INTO notifications (user_id, sender_id, title, message, type, related_id) 
+                             VALUES (?, NULL, 'Tài khoản bị khóa', ?, 'borrow_alert', ?)"
+                        );
+                        $stmt->execute([$record->userId, $reason, $recordId]);
+                    } catch (\Throwable $e) {}
 
-                    if ($lockDays > 0) {
-                        $lockUntil = date('Y-m-d', strtotime("+$lockDays days"));
-                        $reason = "Vi phạm {$reasonPrefix}: Trả sách trễ hạn {$lateCount} lần trong lịch sử. Tạm khóa quyền mượn sách {$lockDays} ngày (đến hết " . date('d/m/Y', strtotime($lockUntil)) . ").";
-                        $this->userTable->lockUser((int)$record->userId, $reason, $lockUntil);
-                    }
+                    $connection->commit();
+                    return;
+                }
+
+                if ($lockDays > 0) {
+                    $lockUntil = date('Y-m-d', strtotime("+$lockDays days"));
+                    $reason = "Vi phạm {$reasonPrefix}: Trả sách trễ hạn {$lateCount} lần trong lịch sử. Tạm khóa quyền mượn sách {$lockDays} ngày (đến hết " . date('d/m/Y', strtotime($lockUntil)) . ").";
+                    $this->userTable->lockUser((int)$record->userId, $reason, $lockUntil);
+
+                    // Notify student about temporary lock
+                    try {
+                        $stmt = $this->adapter->createStatement(
+                            "INSERT INTO notifications (user_id, sender_id, title, message, type, related_id) 
+                             VALUES (?, NULL, 'Tài khoản bị tạm khóa', ?, 'borrow_alert', ?)"
+                        );
+                        $stmt->execute([$record->userId, $reason, $recordId]);
+                    } catch (\Throwable $e) {}
                 }
             }
 
@@ -436,6 +481,23 @@ class CirculationService
             // Delete the record
             $this->borrowTable->reject($recordId);
 
+            // Notify admin
+            try {
+                $adminRow = $this->adapter->query("SELECT user_id FROM users WHERE role = 'admin' LIMIT 1")->execute()->current();
+                if ($adminRow) {
+                    $stmt = $this->adapter->createStatement(
+                        "INSERT INTO notifications (user_id, sender_id, title, message, type, related_id) 
+                         VALUES (?, ?, 'Yêu cầu mượn đã bị hủy', ?, 'borrow_alert', ?)"
+                    );
+                    $stmt->execute([
+                        $adminRow['user_id'],
+                        $userId,
+                        "Độc giả đã hủy yêu cầu mượn cuốn '" . $record->bookTitle . "'.",
+                        $recordId
+                    ]);
+                }
+            } catch (\Throwable $e) {}
+
             $connection->commit();
         } catch (\Throwable $throwable) {
             try {
@@ -474,6 +536,19 @@ class CirculationService
                 $record->bookTitle
             );
             $this->userTable->lockUser($record->userId, $reason, '9999-12-31');
+
+            // 4. Notify student
+            try {
+                $stmt = $this->adapter->createStatement(
+                    "INSERT INTO notifications (user_id, sender_id, title, message, type, related_id) 
+                     VALUES (?, NULL, 'Tài khoản bị khóa vĩnh viễn', ?, 'borrow_alert', ?)"
+                );
+                $stmt->execute([
+                    $record->userId,
+                    "Bạn đã báo mất cuốn '" . $record->bookTitle . "'. " . $reason,
+                    $recordId
+                ]);
+            } catch (\Throwable $e) {}
 
             $connection->commit();
         } catch (\Throwable $throwable) {

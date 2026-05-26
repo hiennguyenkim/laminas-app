@@ -27,6 +27,13 @@ class NotificationApiController extends AbstractActionController
         $isAdmin = ($currentUser['role'] ?? '') === 'admin';
         $userId = (int) ($currentUser['id'] ?? 0);
 
+        // Auto cleanup old read notifications (older than 30 days) - Run with 10% chance to save performance
+        if (mt_rand(1, 10) === 1) {
+            try {
+                $this->notificationTable->cleanupOldNotifications(30);
+            } catch (\Throwable $e) {}
+        }
+
         // Fetch first admin ID to set as sender_id for system/automatic notifications
         $adminId = null;
         try {
@@ -96,7 +103,7 @@ class NotificationApiController extends AbstractActionController
 
         if ($isAdmin) {
             // Auto-insert pending borrow requests as notifications (if not already there)
-            $results = $this->notificationTable->getRecentPendingBorrows(5);
+            $results = $this->notificationTable->getRecentPendingBorrows(50);
             foreach ($results as $row) {
                 if (!$this->notificationTable->notificationExists('borrow', (int)$row['borrow_id'], null)) {
                     $this->notificationTable->insertNotification(
@@ -111,7 +118,7 @@ class NotificationApiController extends AbstractActionController
             }
 
             // Auto-insert open tickets as notifications (if not already there)
-            $results = $this->notificationTable->getRecentOpenTickets(5);
+            $results = $this->notificationTable->getRecentOpenTickets(50);
             foreach ($results as $row) {
                 if (!$this->notificationTable->notificationExists('ticket', (int)$row['id'], null)) {
                     $this->notificationTable->insertNotification(
@@ -126,7 +133,7 @@ class NotificationApiController extends AbstractActionController
             }
         } else {
             // Auto-insert approved borrow records as notifications (if not already there)
-            $results = $this->notificationTable->getRecentBorrowedByStudent($userId, 5);
+            $results = $this->notificationTable->getRecentBorrowedByStudent($userId, 20);
             foreach ($results as $row) {
                 if (!$this->notificationTable->notificationExists('borrow_approved', (int)$row['borrow_id'], $userId)) {
                     $this->notificationTable->insertNotification(
@@ -141,7 +148,7 @@ class NotificationApiController extends AbstractActionController
             }
 
             // Auto-insert answered tickets as notifications (if not already there)
-            $results = $this->notificationTable->getRecentInProgressTicketsByStudent($userId, 5);
+            $results = $this->notificationTable->getRecentInProgressTicketsByStudent($userId, 20);
             foreach ($results as $row) {
                 if (!$this->notificationTable->notificationExists('ticket_answered', (int)$row['id'], $userId)) {
                     $this->notificationTable->insertNotification(
@@ -166,13 +173,25 @@ class NotificationApiController extends AbstractActionController
         }
 
         foreach ($dbResults as $row) {
+            $url = $this->url()->fromRoute($isAdmin ? 'library/transaction' : 'student/transaction');
+            $type = $row['type'];
+
+            if ($type === 'ticket' || $type === 'ticket_answered') {
+                $url = $this->url()->fromRoute($isAdmin ? 'library/ticket' : 'student/ticket', ['action' => 'view', 'id' => $row['related_id']]);
+            } elseif ($type === 'borrow_approved' && $row['title'] === 'Bảng tin mới') {
+                // Announcement notification (using borrow_approved as type for now)
+                $url = $this->url()->fromRoute('announcements/view', ['id' => $row['related_id']]);
+            } elseif ($type === 'borrow_approved' && $row['title'] === 'Tài khoản đã được phê duyệt') {
+                $url = $this->url()->fromRoute($isAdmin ? 'library/profile' : 'student/profile');
+            } elseif ($type === 'borrow_alert' && strpos($row['title'], 'Tài khoản') !== false) {
+                $url = $this->url()->fromRoute($isAdmin ? 'library/profile' : 'student/profile');
+            }
+
             $notifications[] = [
                 'id'          => 'db_' . $row['id'],
                 'title'       => $row['title'],
                 'description' => $row['message'],
-                'url'         => $row['type'] === 'ticket' || $row['type'] === 'ticket_answered' 
-                                 ? $this->url()->fromRoute($isAdmin ? 'library/ticket' : 'student/ticket', ['action' => 'view', 'id' => $row['related_id']])
-                                 : $this->url()->fromRoute($isAdmin ? 'library/transaction' : 'student/transaction'),
+                'url'         => $url,
                 'time'        => $this->formatTimeElapsed($row['created_at']),
                 'type'        => $row['type'],
                 'is_read'     => (int) $row['is_read']

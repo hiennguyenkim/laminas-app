@@ -21,7 +21,8 @@ class BookApiController extends AbstractRestfulController
 {
     public function __construct(
         private BookTable $table,
-        private ChatLogTable $chatLogTable
+        private ChatLogTable $chatLogTable,
+        private \Library\Service\GeminiService $geminiService
     ) {
     }
 
@@ -134,7 +135,7 @@ class BookApiController extends AbstractRestfulController
 
     /**
      * POST /api/books/chat
-     * Endpoint xử lý Chatbox tư vấn sách
+     * Endpoint xử lý Chatbox tư vấn sách với Gemini AI
      */
     public function chatAction(): Response
     {
@@ -151,105 +152,51 @@ class BookApiController extends AbstractRestfulController
             return $this->jsonResponse(['error' => 'Tin nhắn trống'], 400);
         }
 
-        $responseMsg = "Xin lỗi, tôi chưa hiểu rõ ý bạn. Bạn có thể nói rõ thể loại hoặc tên sách bạn muốn tìm không?";
-        $suggestions = [];
+        // Lấy danh sách thể loại và một số sách mới nhất để AI có dữ liệu gợi ý
+        $categories = [];
+        try {
+            $catResults = $this->table->getAdapter()->query("SELECT name FROM book_categories LIMIT 20")->execute();
+            foreach ($catResults as $cat) $categories[] = $cat['name'];
+        } catch (\Throwable $e) {}
 
-        $lowerMsg = mb_strtolower($message, 'UTF-8');
+        $recentBooks = [];
+        try {
+            $bookResults = $this->table->getAdapter()->query("SELECT title, author, category FROM books WHERE status = 'available' ORDER BY created_at DESC LIMIT 10")->execute();
+            foreach ($bookResults as $b) $recentBooks[] = "{$b['title']} (Tác giả: {$b['author']}, Thể loại: {$b['category']})";
+        } catch (\Throwable $e) {}
+
+        $systemPrompt = "Bạn là thủ thư ảo của Thư viện HDPE. Bạn có nhiệm vụ tư vấn sách và trả lời các thắc mắc về thư viện một cách chuyên nghiệp, thân thiện.
+        Các thể loại sách hiện có: " . implode(', ', $categories) . ".
+        Một số sách mới và đang có sẵn: " . implode('; ', $recentBooks) . ".
+        Nếu người dùng hỏi về sách, hãy dựa trên dữ liệu này để gợi ý. Nếu không có, hãy khuyên họ tìm theo các thể loại trên.
+        Câu trả lời nên ngắn gọn, súc tích và bằng tiếng Việt.";
+
+        $responseMsg = $this->geminiService->generateResponse($message, $systemPrompt);
         
-        // Keyword-based recommendation
-        if (strpos($lowerMsg, 'văn học') !== false || strpos($lowerMsg, 'tiểu thuyết') !== false) {
-            $books = $this->table->searchAvailable('Văn học', true, 3);
-            if ($books) {
-                $responseMsg = "Chào bạn! Đây là một số cuốn tiểu thuyết và sách văn học hay mà thư viện đang có sẵn:";
-                foreach ($books as $b) {
-                    $suggestions[] = ['title' => $b['title'], 'author' => $b['author'], 'id' => $b['id']];
+        // Extract suggestions from AI response or manual search if AI mentions a book
+        $suggestions = [];
+        $lowerResponse = mb_strtolower($responseMsg, 'UTF-8');
+        
+        // Tìm kiếm nhanh trong DB các sách mà AI gợi ý (để hiển thị link/nút)
+        foreach ($recentBooks as $bStr) {
+            $parts = explode(' (', $bStr);
+            $title = $parts[0];
+            if (mb_strpos($lowerResponse, mb_strtolower($title, 'UTF-8')) !== false) {
+                $bookData = $this->table->searchAvailable($title, true, 1);
+                if ($bookData) {
+                    $suggestions[] = ['title' => $bookData[0]['title'], 'author' => $bookData[0]['author'], 'id' => $bookData[0]['id']];
                 }
-            } else {
-                $responseMsg = "Hiện tại các sách Văn học đã hết, bạn vui lòng quay lại sau nhé.";
-            }
-        } elseif (strpos($lowerMsg, 'công nghệ') !== false || strpos($lowerMsg, 'cntt') !== false || strpos($lowerMsg, 'lập trình') !== false) {
-            $books = $this->table->searchAvailable('Công nghệ', true, 3);
-            if ($books) {
-                $responseMsg = "Bạn đang tìm sách Công nghệ thông tin? Dưới đây là các đầu sách nổi bật:";
-                foreach ($books as $b) {
-                    $suggestions[] = ['title' => $b['title'], 'author' => $b['author'], 'id' => $b['id']];
-                }
-            } else {
-                $responseMsg = "Hiện tại các sách Công nghệ thông tin đã hết, bạn vui lòng quay lại sau nhé.";
-            }
-        } elseif (strpos($lowerMsg, 'kinh tế') !== false || strpos($lowerMsg, 'kinh doanh') !== false) {
-            $books = $this->table->searchAvailable('Kinh tế', true, 3);
-            if ($books) {
-                $responseMsg = "Sách Kinh tế - Quản trị thư viện đang có sẵn những cuốn này nè:";
-                foreach ($books as $b) {
-                    $suggestions[] = ['title' => $b['title'], 'author' => $b['author'], 'id' => $b['id']];
-                }
-            } else {
-                $responseMsg = "Hiện tại các sách Kinh tế - Kinh doanh đã hết, bạn vui lòng quay lại sau nhé.";
-            }
-        } elseif (strpos($lowerMsg, 'kỹ năng') !== false || strpos($lowerMsg, 'kĩ năng') !== false) {
-            $books = $this->table->searchAvailable('Kỹ năng', true, 3);
-            if ($books) {
-                $responseMsg = "Chào bạn! Đây là một số cuốn sách Kỹ năng sống cực kỳ bổ ích và hay đang có sẵn:";
-                foreach ($books as $b) {
-                    $suggestions[] = ['title' => $b['title'], 'author' => $b['author'], 'id' => $b['id']];
-                }
-            } else {
-                $responseMsg = "Hiện tại các sách Kỹ năng sống đã hết, bạn vui lòng quay lại sau nhé.";
-            }
-        } elseif (strpos($lowerMsg, 'thiếu nhi') !== false || strpos($lowerMsg, 'trẻ em') !== false) {
-            $books = $this->table->searchAvailable('Thiếu nhi', true, 3);
-            if ($books) {
-                $responseMsg = "Thư viện có những tựa sách Thiếu nhi rất thú vị dành cho bạn đây:";
-                foreach ($books as $b) {
-                    $suggestions[] = ['title' => $b['title'], 'author' => $b['author'], 'id' => $b['id']];
-                }
-            } else {
-                $responseMsg = "Hiện tại các sách Thiếu nhi đã hết, bạn vui lòng quay lại sau nhé.";
-            }
-        } elseif (strpos($lowerMsg, 'khoa học') !== false) {
-            $books = $this->table->searchAvailable('Khoa học', true, 3);
-            if ($books) {
-                $responseMsg = "Bạn đam mê khám phá? Thư viện đang sẵn có các sách Khoa học sau:";
-                foreach ($books as $b) {
-                    $suggestions[] = ['title' => $b['title'], 'author' => $b['author'], 'id' => $b['id']];
-                }
-            } else {
-                $responseMsg = "Hiện tại các sách Khoa học đã hết, bạn vui lòng quay lại sau nhé.";
-            }
-        } elseif (strpos($lowerMsg, 'lịch sử') !== false) {
-            $books = $this->table->searchAvailable('Lịch sử', true, 3);
-            if ($books) {
-                $responseMsg = "Tìm hiểu lịch sử cùng những cuốn sách nổi bật này nhé:";
-                foreach ($books as $b) {
-                    $suggestions[] = ['title' => $b['title'], 'author' => $b['author'], 'id' => $b['id']];
-                }
-            } else {
-                $responseMsg = "Hiện tại các sách Lịch sử đã hết, bạn vui lòng quay lại sau nhé.";
-            }
-        } else {
-            // General search
-            $books = $this->table->searchAvailable($lowerMsg, true, 2);
-            if ($books) {
-                $responseMsg = "Tôi tìm thấy vài cuốn sách có thể khớp với từ khóa của bạn:";
-                foreach ($books as $b) {
-                    $suggestions[] = ['title' => $b['title'], 'author' => $b['author'], 'id' => $b['id']];
-                }
-            } else {
-                $responseMsg = "Hiện tại tôi chưa tìm thấy sách nào khớp với yêu cầu của bạn. Bạn có thể tìm thể loại khác nhé (VD: Công nghệ, Văn học, Kinh tế, Kỹ năng, Thiếu nhi, Khoa học, Lịch sử...).";
             }
         }
 
-        // Save to DB via ChatLogTable
+        // Save to DB
         try {
             $this->chatLogTable->insertLog($userId, $message, $responseMsg);
-        } catch (\Exception $e) {
-            // ignore
-        }
+        } catch (\Exception $e) {}
 
         return $this->jsonResponse([
             'reply' => $responseMsg,
-            'suggestions' => $suggestions
+            'suggestions' => array_slice($suggestions, 0, 3)
         ]);
     }
 

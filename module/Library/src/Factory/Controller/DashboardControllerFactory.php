@@ -10,6 +10,7 @@ use Library\Model\Table\BorrowTable;
 use Library\Model\Table\UserTable;
 use Library\Model\Table\PublicChatTable;
 use Library\Session\AuthSessionContainer;
+use Library\Service\GeminiService;
 use Psr\Container\ContainerInterface;
 
 class DashboardControllerFactory
@@ -21,7 +22,8 @@ class DashboardControllerFactory
             $container->get(BookTable::class),
             $container->get(BorrowTable::class),
             $container->get(UserTable::class),
-            $container->get(PublicChatTable::class)
+            $container->get(PublicChatTable::class),
+            $container->get(GeminiService::class)
         );
     }
 }

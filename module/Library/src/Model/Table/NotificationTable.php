@@ -21,6 +21,19 @@ class NotificationTable
         return $this->tableGateway->getAdapter();
     }
 
+    public function cleanupOldNotifications(int $days = 30): void
+    {
+        $sql = "DELETE FROM notifications WHERE (is_read = 1 OR is_deleted = 1) AND created_at < DATE_SUB(NOW(), INTERVAL ? DAY)";
+        $this->getAdapter()->query($sql)->execute([$days]);
+        
+        // Cleanup old read markers and hidden markers
+        $sqlRead = "DELETE FROM user_notifications_read WHERE read_at < DATE_SUB(NOW(), INTERVAL ? DAY)";
+        $this->getAdapter()->query($sqlRead)->execute([$days]);
+
+        $sqlHidden = "DELETE FROM user_notifications_hidden WHERE hidden_at < DATE_SUB(NOW(), INTERVAL ? DAY)";
+        $this->getAdapter()->query($sqlHidden)->execute([$days]);
+    }
+
     public function findAdminId(): ?int
     {
         $sql = "SELECT user_id FROM users WHERE role = 'admin' LIMIT 1";
@@ -52,18 +65,42 @@ class NotificationTable
     public function deleteNotification(int $id, ?int $userId = null): void
     {
         if ($userId === null) {
-            $this->getAdapter()->query("DELETE FROM notifications WHERE id = ? AND user_id IS NULL")->execute([$id]);
+            // Admin soft-deleting a system/broadcast notification
+            $this->getAdapter()->query("UPDATE notifications SET is_deleted = 1 WHERE id = ? AND user_id IS NULL")->execute([$id]);
         } else {
-            $this->getAdapter()->query("DELETE FROM notifications WHERE id = ? AND user_id = ?")->execute([$id, $userId]);
+            // Check if it's a broadcast notification
+            $sqlCheck = "SELECT user_id FROM notifications WHERE id = ?";
+            $row = $this->getAdapter()->query($sqlCheck)->execute([$id])->current();
+            
+            if ($row && $row['user_id'] === null) {
+                // Broadcast notification: Hide for this user (junction table)
+                $sqlHide = "INSERT IGNORE INTO user_notifications_hidden (user_id, notification_id) VALUES (?, ?)";
+                $this->getAdapter()->query($sqlHide)->execute([$userId, $id]);
+            } else {
+                // Personal notification: Soft delete
+                $this->getAdapter()->query("UPDATE notifications SET is_deleted = 1 WHERE id = ? AND user_id = ?")->execute([$id, $userId]);
+            }
         }
     }
 
     public function markAsRead(int $id, ?int $userId = null): void
     {
         if ($userId === null) {
+            // Admin marking a system/broadcast notification as read
             $this->getAdapter()->query("UPDATE notifications SET is_read = 1 WHERE id = ? AND user_id IS NULL")->execute([$id]);
         } else {
-            $this->getAdapter()->query("UPDATE notifications SET is_read = 1 WHERE id = ? AND user_id = ?")->execute([$id, $userId]);
+            // Check if it's a broadcast notification
+            $sqlCheck = "SELECT user_id FROM notifications WHERE id = ?";
+            $row = $this->getAdapter()->query($sqlCheck)->execute([$id])->current();
+            
+            if ($row && $row['user_id'] === null) {
+                // Broadcast notification: Mark for this user in junction table
+                $sqlInsert = "INSERT IGNORE INTO user_notifications_read (user_id, notification_id) VALUES (?, ?)";
+                $this->getAdapter()->query($sqlInsert)->execute([$userId, $id]);
+            } else {
+                // Personal notification: Mark in main table
+                $this->getAdapter()->query("UPDATE notifications SET is_read = 1 WHERE id = ? AND user_id = ?")->execute([$id, $userId]);
+            }
         }
     }
 
@@ -72,7 +109,13 @@ class NotificationTable
         if ($userId === null) {
             $this->getAdapter()->query("UPDATE notifications SET is_read = 1 WHERE user_id IS NULL AND is_read = 0")->execute();
         } else {
+            // 1. Mark personal notifications
             $this->getAdapter()->query("UPDATE notifications SET is_read = 1 WHERE user_id = ? AND is_read = 0")->execute([$userId]);
+            
+            // 2. Mark all current broadcast notifications as read for this user
+            $sqlBroadcast = "INSERT IGNORE INTO user_notifications_read (user_id, notification_id) 
+                             SELECT ?, id FROM notifications WHERE user_id IS NULL";
+            $this->getAdapter()->query($sqlBroadcast)->execute([$userId]);
         }
     }
 
@@ -95,11 +138,30 @@ class NotificationTable
     public function fetchRecentNotifications(?int $userId, int $limit = 15): array
     {
         if ($userId === null) {
-            $sql = "SELECT * FROM notifications WHERE user_id IS NULL ORDER BY created_at DESC LIMIT ?";
+            // Admin: Fetch notifications assigned to admin (user_id IS NULL)
+            $sql = "SELECT * FROM notifications WHERE user_id IS NULL AND is_deleted = 0 ORDER BY created_at DESC LIMIT ?";
             $results = $this->getAdapter()->query($sql)->execute([$limit]);
         } else {
-            $sql = "SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT ?";
-            $results = $this->getAdapter()->query($sql)->execute([$userId, $limit]);
+            // Student: Fetch personal notifications OR broadcast notifications
+            // Exclude hidden notifications for this user AND soft-deleted ones
+            $sql = "SELECT n.*, 
+                    CASE 
+                        WHEN n.user_id IS NULL THEN (SELECT 1 FROM user_notifications_read unr WHERE unr.notification_id = n.id AND unr.user_id = ?)
+                        ELSE n.is_read 
+                    END as is_read_effective
+                    FROM notifications n 
+                    WHERE (n.user_id = ? OR n.user_id IS NULL)
+                    AND n.is_deleted = 0
+                    AND NOT EXISTS (SELECT 1 FROM user_notifications_hidden unh WHERE unh.notification_id = n.id AND unh.user_id = ?)
+                    ORDER BY n.created_at DESC LIMIT ?";
+            $results = $this->getAdapter()->query($sql)->execute([$userId, $userId, $userId, $limit]);
+            
+            // Map effective read status back to is_read for consistency
+            $data = iterator_to_array($results);
+            foreach ($data as &$row) {
+                $row['is_read'] = (int)($row['is_read_effective'] ?? 0);
+            }
+            return $data;
         }
         return iterator_to_array($results);
     }

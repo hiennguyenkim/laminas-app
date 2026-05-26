@@ -471,6 +471,20 @@ class UserController extends BaseController
             $user = $this->userTable->getUser($id);
             $user->isApproved = true;
             $this->userTable->saveUser($user);
+
+            // Gửi thông báo chào mừng cho sinh viên
+            try {
+                $stmt = $this->userTable->getAdapter()->createStatement(
+                    "INSERT INTO notifications (user_id, sender_id, title, message, type, related_id) 
+                     VALUES (?, NULL, 'Tài khoản đã được phê duyệt', ?, 'borrow_approved', ?)"
+                );
+                $stmt->execute([
+                    $id,
+                    "Chúc mừng! Tài khoản của bạn đã được quản trị viên phê duyệt. Bạn có thể bắt đầu mượn sách ngay bây giờ.",
+                    $id
+                ]);
+            } catch (\Throwable $e) {}
+
             $this->flash()->addSuccessMessage("Đã phê duyệt tài khoản: " . $user->fullName);
         } catch (\Throwable $e) {
             $this->flash()->addErrorMessage($e->getMessage());
@@ -521,6 +535,20 @@ class UserController extends BaseController
                 return $this->redirect()->toRoute('library/user');
             }
             $this->userTable->lockUser($id, $reason);
+
+            // Gửi thông báo cho sinh viên
+            try {
+                $currentUser = $this->currentUser();
+                $sqlNoti = "INSERT INTO notifications (user_id, sender_id, title, message, type, related_id) 
+                            VALUES (?, ?, 'Tài khoản đã bị khóa', ?, 'borrow_alert', ?)";
+                $this->userTable->getAdapter()->query($sqlNoti)->execute([
+                    $id,
+                    $currentUser['id'],
+                    "Tài khoản của bạn đã bị quản trị viên khóa. Lý do: <em>" . htmlspecialchars($reason) . "</em>.",
+                    $id
+                ]);
+            } catch (\Throwable $e) {}
+
             $this->flash()->addSuccessMessage('Đã khóa tài khoản ' . $user->username . '.');
         } catch (\Exception $e) {
             $this->flash()->addErrorMessage($e->getMessage());
@@ -544,6 +572,20 @@ class UserController extends BaseController
         try {
             $user = $this->userTable->getUser($id);
             $this->userTable->unlockUser($id);
+
+            // Gửi thông báo cho sinh viên
+            try {
+                $currentUser = $this->currentUser();
+                $sqlNoti = "INSERT INTO notifications (user_id, sender_id, title, message, type, related_id) 
+                            VALUES (?, ?, 'Tài khoản đã được mở khóa', ?, 'borrow_approved', ?)";
+                $this->userTable->getAdapter()->query($sqlNoti)->execute([
+                    $id,
+                    $currentUser['id'],
+                    "Tài khoản của bạn đã được quản trị viên mở khóa. Bạn có thể tiếp tục sử dụng các dịch vụ của thư viện.",
+                    $id
+                ]);
+            } catch (\Throwable $e) {}
+
             $this->flash()->addSuccessMessage('Đã mở khóa tài khoản ' . $user->username . '.');
         } catch (\Exception $e) {
             $this->flash()->addErrorMessage($e->getMessage());

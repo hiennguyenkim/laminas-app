@@ -185,7 +185,7 @@ $pageLabel = $authUser ? ($pageLabels[$activeKey] ?? '') : 'Đăng nhập';
                         <div class="notification-header noti-dropdown-header">
                             <span>Thông báo</span>
                             <div class="noti-dropdown-header-actions">
-                                <span class="badge badge-purple" id="notification-count-badge">0 mới</span>
+                                <span class="badge badge-purple" id="notification-count-badge" style="display:none;">0 mới</span>
                                 <a href="#" onclick="markAllNotificationsRead(event)"><i class="bi bi-check2-all"></i> Đọc hết</a>
                             </div>
                         </div>
@@ -423,6 +423,18 @@ document.querySelectorAll('.btn-xs, .btn-sm, .btn').forEach(btn => {
             if (typingIndicatorEl) {
                 typingIndicatorEl.remove();
             }
+
+            if (!res.ok) {
+                body.innerHTML += `
+                    <div class="chat-msg-row ai">
+                        <div class="chat-avatar ai-avatar"><i class="bi bi-robot"></i></div>
+                        <div class="chat-msg-wrapper">
+                            <div class="chat-msg ai-msg chat-msg-error">${escapeHtml(data.error || 'Đã xảy ra lỗi.')}</div>
+                        </div>
+                    </div>`;
+                body.scrollTop = body.scrollHeight;
+                return;
+            }
             
             let suggestionsHtml = '';
             if (data.suggestions && data.suggestions.length > 0) {
@@ -487,7 +499,9 @@ document.querySelectorAll('.btn-xs, .btn-sm, .btn').forEach(btn => {
         }
     });
 
-    async function loadNotifications() {
+    let lastNotificationCount = 0;
+
+    async function loadNotifications(isPolling = false) {
         try {
             const response = await fetch('<?= $this->url('api/notifications') ?>');
             if (!response.ok) return;
@@ -499,76 +513,122 @@ document.querySelectorAll('.btn-xs, .btn-sm, .btn').forEach(btn => {
             
             const unreadCount = data.filter(item => item.is_read === 0).length;
             
-            if (data.length > 0) {
-                if (unreadCount > 0) {
-                    badge.textContent = unreadCount;
-                    badge.style.display = 'flex';
-                    countBadge.textContent = unreadCount + ' mới';
-                } else {
-                    badge.style.display = 'none';
-                    countBadge.textContent = '0 mới';
-                }
+            // Update badge regardless of polling
+            if (unreadCount > 0) {
+                badge.textContent = unreadCount;
+                badge.style.display = 'flex';
+                countBadge.textContent = unreadCount + ' mới';
                 
-                let html = '';
-                data.forEach(item => {
-                    let iconClass = 'bi-bell';
-                    if (item.type === 'borrow') iconClass = 'bi-book';
-                    else if (item.type === 'ticket') iconClass = 'bi-chat-left-text';
-                    else if (item.type === 'borrow_approved') iconClass = 'bi-patch-check-fill';
-                    else if (item.type === 'ticket_answered') iconClass = 'bi-chat-left-text-fill';
-                    else if (item.type === 'borrow_alert') iconClass = 'bi-exclamation-triangle-fill';
-
-                    const readClass = item.is_read ? 'read' : '';
-
-                    html += `
-                        <div class="notification-item-wrapper ${readClass}">
-                            <a href="${item.url}" class="notification-item ${item.type}" 
-                               onclick="markNotificationRead('${item.id}', '${item.url}', event); return false;">
-                                <div class="noti-icon">
-                                    <i class="bi ${iconClass}"></i>
-                                </div>
-                                <div class="noti-content">
-                                    <div class="noti-title">${item.title}</div>
-                                    <div class="noti-desc">${item.description}</div>
-                                    <div class="noti-time">${item.time}</div>
-                                </div>
-                            </a>
-                            <button class="delete-noti-btn" onclick="deleteNotification('${item.id}', event)" title="Xóa thông báo">
-                                <i class="bi bi-x-lg"></i>
-                            </button>
-                        </div>
-                    `;
-                });
-                list.innerHTML = html;
+                // If polling and count increased, flash the bell
+                if (isPolling && unreadCount > lastNotificationCount) {
+                    const bellBtn = document.querySelector('.noti-bell-btn i');
+                    if (bellBtn) {
+                        bellBtn.classList.add('bi-bell-fill-animated');
+                        setTimeout(() => bellBtn.classList.remove('bi-bell-fill-animated'), 2000);
+                    }
+                }
             } else {
                 badge.style.display = 'none';
                 countBadge.textContent = '0 mới';
-                list.innerHTML = `
-                    <div class="notification-empty noti-empty">
-                        <i class="bi bi-bell-slash"></i>
-                        Không có thông báo nào mới.
-                    </div>
-                `;
+            }
+            lastNotificationCount = unreadCount;
+
+            // Only update list if dropdown is open OR if it's the first load
+            const dropdown = document.getElementById('notification-dropdown');
+            if (dropdown.style.display === 'block' || !isPolling) {
+                if (data.length > 0) {
+                    let html = '';
+                    data.forEach(item => {
+                        let iconClass = 'bi-bell';
+                        if (item.type === 'borrow') iconClass = 'bi-book';
+                        else if (item.type === 'ticket') iconClass = 'bi-chat-left-text';
+                        else if (item.type === 'borrow_approved') iconClass = 'bi-patch-check-fill';
+                        else if (item.type === 'ticket_answered') iconClass = 'bi-chat-left-text-fill';
+                        else if (item.type === 'borrow_alert') iconClass = 'bi-exclamation-triangle-fill';
+
+                        const readClass = item.is_read ? 'read' : 'unread';
+
+                        html += `
+                            <div class="notification-item-wrapper ${readClass}" id="noti-item-${item.id}">
+                                <a href="${item.url}" class="notification-item ${item.type}" 
+                                   onclick="markNotificationRead('${item.id}', '${item.url}', event); return false;">
+                                    <div class="noti-icon">
+                                        <i class="bi ${iconClass}"></i>
+                                    </div>
+                                    <div class="noti-content">
+                                        <div class="noti-title">${item.title}</div>
+                                        <div class="noti-desc">${item.description}</div>
+                                        <div class="noti-time">${item.time}</div>
+                                    </div>
+                                </a>
+                                <div class="noti-actions">
+                                    ${!item.is_read ? `
+                                    <button class="mark-read-btn" onclick="markNotificationReadOnly('${item.id}', event)" title="Đánh dấu đã đọc">
+                                        <i class="bi bi-check2"></i>
+                                    </button>` : ''}
+                                    <button class="delete-noti-btn" onclick="deleteNotification('${item.id}', event)" title="Xóa thông báo">
+                                        <i class="bi bi-x-lg"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    list.innerHTML = html;
+                } else {
+                    list.innerHTML = `
+                        <div class="notification-empty noti-empty">
+                            <i class="bi bi-bell-slash"></i>
+                            Không có thông báo nào mới.
+                        </div>
+                    `;
+                }
             }
         } catch (e) {
             console.error('Failed to load notifications:', e);
         }
     }
 
+    // Polling every 20 seconds
+    setInterval(() => {
+        loadNotifications(true);
+    }, 20000);
+
+    // Initial load
+    window.addEventListener('DOMContentLoaded', () => {
+        loadNotifications();
+    });
+
     async function markNotificationRead(itemId, itemUrl, event) {
         if (event) event.preventDefault();
         try {
             await fetch('<?= $this->url('api/notifications') ?>', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ id: itemId })
             });
         } catch (e) {
             console.error('Failed to mark notification read:', e);
         }
         window.location.href = itemUrl;
+    }
+
+    async function markNotificationReadOnly(itemId, event) {
+        if (event) {
+            event.stopPropagation();
+            event.preventDefault();
+        }
+        try {
+            const response = await fetch('<?= $this->url('api/notifications') ?>', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: itemId })
+            });
+            if (response.ok) {
+                loadNotifications();
+            }
+        } catch (e) {
+            console.error('Failed to mark notification read:', e);
+        }
     }
 
     async function deleteNotification(itemId, event) {
@@ -579,6 +639,7 @@ document.querySelectorAll('.btn-xs, .btn-sm, .btn').forEach(btn => {
         if (!confirm('Bạn có chắc chắn muốn xóa thông báo này?')) {
             return;
         }
+        console.log('Attempting to delete notification:', itemId);
         try {
             const response = await fetch('<?= $this->url('api/notifications') ?>', {
                 method: 'POST',
@@ -587,11 +648,16 @@ document.querySelectorAll('.btn-xs, .btn-sm, .btn').forEach(btn => {
                 },
                 body: JSON.stringify({ id: itemId, action: 'delete' })
             });
+            const data = await response.json();
+            console.log('Delete response:', data);
             if (response.ok) {
                 loadNotifications();
+            } else {
+                alert('Không thể xóa thông báo: ' + (data.error || 'Lỗi không xác định'));
             }
         } catch (e) {
             console.error('Failed to delete notification:', e);
+            alert('Lỗi kết nối khi xóa thông báo.');
         }
     }
 
@@ -599,7 +665,9 @@ document.querySelectorAll('.btn-xs, .btn-sm, .btn').forEach(btn => {
         if (event) event.preventDefault();
         try {
             const response = await fetch('<?= $this->url('api/notifications') ?>', {
-                method: 'POST'
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({}) // Empty object to trigger mark all
             });
             if (response.ok) {
                 loadNotifications();
@@ -619,12 +687,6 @@ document.querySelectorAll('.btn-xs, .btn-sm, .btn').forEach(btn => {
                 form.submit();
             }
         }
-    }
-
-    // Initial load and poll every 30 seconds
-    if (document.getElementById('notification-badge')) {
-        loadNotifications();
-        setInterval(loadNotifications, 30000);
     }
     </script>
 </body>

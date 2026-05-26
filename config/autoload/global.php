@@ -29,4 +29,7 @@ return [
         ],
         'json_options' => 256, // JSON_UNESCAPED_UNICODE
     ],
+    'gemini' => [
+        'api_key' => '', // Đặt API Key thật vào file local.php
+    ],
 ];

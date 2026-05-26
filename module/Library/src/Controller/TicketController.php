@@ -175,8 +175,22 @@ class TicketController extends BaseController
 
             if ($action === 'close' && $isAdmin) {
                 $this->ticketTable->closeTicket($id);
+
+                // Gửi thông báo cho sinh viên
+                try {
+                    $this->notificationTable->insertNotification(
+                        (int)$ticket['user_id'],
+                        (int)$currentUser['id'],
+                        'Yêu cầu hỗ trợ đã đóng',
+                        "Thủ thư đã đóng ticket hỗ trợ: <em>" . htmlspecialchars($ticket['title']) . "</em>.",
+                        'ticket_answered',
+                        $id
+                    );
+                } catch (\Throwable $e) {}
+
                 $this->flash()->addSuccessMessage('Đã đóng yêu cầu hỗ trợ.');
-            } elseif ($message) {
+            }
+ elseif ($message) {
                 // schema: ticket_messages(ticket_id, sender_id, sender_role, message, sent_at)
                 $senderRole = $isAdmin ? 'admin' : 'user';
                 $this->ticketMessageTable->insertMessage($id, (int)$currentUser['id'], $senderRole, $message);
@@ -196,11 +210,17 @@ class TicketController extends BaseController
                             $id
                         );
                     } else {
+                        $isReopened = ($ticket['status'] === 'closed');
+                        $title = $isReopened ? 'Ticket hỗ trợ đã mở lại' : 'Phản hồi hỗ trợ mới';
+                        $msgText = $isReopened 
+                            ? "Độc giả <strong>" . htmlspecialchars($currentUser['full_name'] ?? $currentUser['username']) . "</strong> đã mở lại ticket: <em>" . htmlspecialchars($ticket['title']) . "</em>."
+                            : "Độc giả <strong>" . htmlspecialchars($currentUser['full_name'] ?? $currentUser['username']) . "</strong> đã phản hồi ticket: <em>" . htmlspecialchars($ticket['title']) . "</em>.";
+
                         $this->notificationTable->insertNotification(
                             null,
                             (int)$currentUser['id'],
-                            'Phản hồi hỗ trợ mới',
-                            "Độc giả <strong>" . htmlspecialchars($currentUser['full_name'] ?? $currentUser['username']) . "</strong> đã phản hồi ticket: <em>" . htmlspecialchars($ticket['title']) . "</em>.",
+                            $title,
+                            $msgText,
                             'ticket',
                             $id
                         );

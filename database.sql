@@ -201,6 +201,41 @@ CREATE TABLE IF NOT EXISTS notifications (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_notification_user FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ───────────────────────────────────────────────
+-- 10.1. BẢNG user_notifications_read (Vết đọc thông báo chung)
+-- ───────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS user_notifications_read (
+    user_id         INT UNSIGNED NOT NULL,
+    notification_id INT UNSIGNED NOT NULL,
+    read_at         TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, notification_id),
+    CONSTRAINT fk_read_user FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    CONSTRAINT fk_read_noti FOREIGN KEY (notification_id) REFERENCES notifications(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ───────────────────────────────────────────────
+-- 10.2. BẢNG user_notifications_hidden (Vết ẩn thông báo chung)
+-- ───────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS user_notifications_hidden (
+    user_id         INT UNSIGNED NOT NULL,
+    notification_id INT UNSIGNED NOT NULL,
+    hidden_at       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, notification_id),
+    CONSTRAINT fk_hidden_user FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    CONSTRAINT fk_hidden_noti FOREIGN KEY (notification_id) REFERENCES notifications(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ───────────────────────────────────────────────
+-- 10.3. BẢNG ai_responses_cache (Bộ nhớ đệm phản hồi AI)
+-- ───────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS ai_responses_cache (
+    prompt_hash     CHAR(64) PRIMARY KEY,
+    prompt_text     TEXT NOT NULL,
+    response_text   TEXT NOT NULL,
+    created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- ───────────────────────────────────────────────
 -- 11. BẢNG public_chats (Kênh thảo luận công khai)
 -- ───────────────────────────────────────────────
