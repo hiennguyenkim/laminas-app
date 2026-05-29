@@ -137,6 +137,11 @@ abstract class BaseController extends AbstractActionController
                     return $this->redirect()->toRoute('student/dashboard');
                 }
             } else {
+                // Guest (chưa đăng nhập) không được truy cập khu vực admin
+                if ($currentUser === null) {
+                    $this->flash()->addInfoMessage('Vui lòng đăng nhập để tiếp tục.');
+                    return $this->redirect()->toRoute('library/auth', ['action' => 'login']);
+                }
                 if ($role === 'student') {
                     $this->flash()->addErrorMessage('Chỉ quản trị viên mới có quyền truy cập.');
                     return $this->redirect()->toRoute('student/dashboard');

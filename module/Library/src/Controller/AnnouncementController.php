@@ -30,10 +30,10 @@ class AnnouncementController extends BaseController
         $matchedRouteName = $routeMatch ? $routeMatch->getMatchedRouteName() : '';
 
         // Only redirect if trying to access an announcement route of another role
-        if ($isAdmin && (str_starts_with($matchedRouteName, 'student/announcements') || $matchedRouteName === 'announcements' || $matchedRouteName === 'announcements/view')) {
+        if ($isAdmin && (str_starts_with($matchedRouteName, 'student/announcements') || $matchedRouteName === 'announcements')) {
             return $this->redirect()->toRoute('library/announcements');
         }
-        if ($isStudent && (str_starts_with($matchedRouteName, 'library/announcements') || $matchedRouteName === 'announcements' || $matchedRouteName === 'announcements/view')) {
+        if ($isStudent && (str_starts_with($matchedRouteName, 'library/announcements') || $matchedRouteName === 'announcements')) {
             return $this->redirect()->toRoute('student/announcements');
         }
         if ($currentUser === null && (str_starts_with($matchedRouteName, 'library/announcements') || str_starts_with($matchedRouteName, 'student/announcements'))) {

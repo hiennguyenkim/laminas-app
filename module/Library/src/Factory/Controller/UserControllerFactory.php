@@ -20,6 +20,7 @@ class UserControllerFactory
             $container->get(BorrowTable::class),
             $container->get(UserTable::class),
             $container->get(FormElementManager::class),
+            $container->get(\Library\Service\MailService::class)
         );
     }
 }

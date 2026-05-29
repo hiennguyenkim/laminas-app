@@ -535,4 +535,9 @@ class BookTable
 
         return $normalized;
     }
+
+    public function getAdapter(): \Laminas\Db\Adapter\AdapterInterface
+    {
+        return $this->tableGateway->getAdapter();
+    }
 }

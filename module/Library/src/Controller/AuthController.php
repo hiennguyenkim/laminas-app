@@ -93,7 +93,7 @@ class AuthController extends BaseController
             $form->setData($this->postData());
 
             if ($form->isValid()) {
-                /** @var array{username:string, email:string, password:string, password_confirm:string} $data */
+                /** @var array{username:string, email:string, full_name:string, password:string, password_confirm:string} $data */
                 $data = $form->getData();
 
                 if ($this->userTable->usernameExists($data['username'])) {
@@ -105,7 +105,7 @@ class AuthController extends BaseController
                     $user->exchangeArray([
                         'username'  => $data['username'],
                         'email'     => $data['email'],
-                        'full_name' => $data['username'],
+                        'full_name' => $data['full_name'],
                         'role'      => 'student',
                         'is_approved' => false,
                     ]);
@@ -140,10 +140,10 @@ class AuthController extends BaseController
         try {
             $clientId = $this->userTable->getSystemSetting('google_client_id');
             $clientSecret = $this->userTable->getSystemSetting('google_client_secret');
-            $redirectUri = $this->userTable->getSystemSetting('google_redirect_uri');
+            $redirectUri = $this->getGoogleRedirectUri();
             
-            if (empty($clientId) || empty($clientSecret) || empty($redirectUri)) {
-                $this->flash()->addErrorMessage('Cấu hình Google Login chưa hoàn tất (Thiếu Client Secret). Vui lòng cập nhật trong Cài đặt hệ thống.');
+            if (empty($clientId) || empty($clientSecret)) {
+                $this->flash()->addErrorMessage('Cấu hình Google Login chưa hoàn tất. Vui lòng cập nhật trong Cài đặt hệ thống.');
                 return $this->redirect()->toRoute('library/auth', ['action' => 'login']);
             }
 
@@ -173,13 +173,15 @@ class AuthController extends BaseController
         try {
             $clientId = $this->userTable->getSystemSetting('google_client_id');
             $clientSecret = $this->userTable->getSystemSetting('google_client_secret');
-            $redirectUri = $this->userTable->getSystemSetting('google_redirect_uri');
+            $redirectUri = $this->getGoogleRedirectUri();
 
             // 1. Exchange code for access token
             $ch = curl_init('https://oauth2.googleapis.com/token');
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             curl_setopt($ch, CURLOPT_POST, true);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false); // Fix for local XAMPP
+            // Chỉ tắt SSL verify trên môi trường local (localhost/127.0.0.1)
+            $isLocal = in_array($_SERVER['SERVER_NAME'] ?? '', ['localhost', '127.0.0.1', '::1'], true);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, !$isLocal);
             curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query([
                 'code' => $code,
                 'client_id' => $clientId,
@@ -202,7 +204,7 @@ class AuthController extends BaseController
             // 2. Get user info
             $ch = curl_init('https://www.googleapis.com/oauth2/v3/userinfo?access_token=' . $tokenData['access_token']);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false); // Fix for local XAMPP
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, !$isLocal); // Dùng lại biến $isLocal đã tính
             $userInfoResponse = curl_exec($ch);
             curl_close($ch);
             $googleUser = json_decode($userInfoResponse, true);
@@ -279,5 +281,23 @@ class AuthController extends BaseController
         }
 
         return $this->redirect()->toRoute('announcements');
+    }
+
+    private function getGoogleRedirectUri(): string
+    {
+        $request = $this->getRequest();
+        if (!method_exists($request, 'getUri')) {
+            return '';
+        }
+        $uri = $request->getUri();
+        $scheme = $uri->getScheme() ?: 'http';
+        $host = $uri->getHost() ?: ($_SERVER['HTTP_HOST'] ?? 'localhost');
+        $port = $uri->getPort();
+        $portStr = ($port && !in_array($port, [80, 443])) ? ':' . $port : '';
+
+        $scriptName = $_SERVER['SCRIPT_NAME'] ?? '';
+        $baseUrl = rtrim(dirname($scriptName), '/\\');
+
+        return $scheme . '://' . $host . $portStr . $baseUrl . '/auth/google-callback';
     }
 }

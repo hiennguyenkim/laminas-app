@@ -510,10 +510,11 @@ class TransactionController extends BaseController
                     );
                     if ($isAdmin) {
                         $this->flash()->addSuccessMessage('Lập phiếu mượn thành công.');
+                        return $this->redirect()->toRoute('library/transaction');
                     } else {
                         $this->flash()->addSuccessMessage('Gửi yêu cầu mượn sách thành công! Vui lòng chờ thủ thư phê duyệt.');
+                        return $this->redirect()->toRoute('student/transaction');
                     }
-                    return $this->redirect()->toRoute('library/transaction');
                 } catch (\Throwable $e) {
                     $this->flash()->addErrorMessage($e->getMessage());
                 }

@@ -119,6 +119,21 @@ class CirculationService
                 throw new DomainException('Không thể duyệt phiếu: Tài khoản sinh viên hiện đang bị khóa.');
             }
 
+            // BUG #4 Fix: Kiểm tra sinh viên có sách quá hạn không (race condition)
+            if ($this->borrowTable->hasOverdueLoans((int)$record->userId)) {
+                throw new DomainException('Không thể duyệt phiếu: Sinh viên đang có sách quá hạn chưa xử lý.');
+            }
+
+            // BUG #5 Fix: Kiểm tra giới hạn mượn (race condition — pending khác có thể đã được duyệt)
+            $activeLoans = $this->borrowTable->countActiveLoansForUser((int)$record->userId);
+            // Trừ đi 1 vì phiếu pending hiện tại đang được tính trong activeLoans
+            if (($activeLoans - 1) >= $borrower->borrowLimit) {
+                throw new DomainException(sprintf(
+                    'Không thể duyệt phiếu: Sinh viên đã đạt hạn mức mượn tối đa (%d cuốn).',
+                    $borrower->borrowLimit
+                ));
+            }
+
             if ($borrowDate === null || trim($borrowDate) === '') {
                 $borrowDate = date('Y-m-d');
             }
@@ -258,23 +273,27 @@ class CirculationService
             // Tính tổng số lần từng trả muộn trong lịch sử
             $lateCount = $this->borrowTable->countReturnedLateForUser((int)$record->userId);
             
-            if ($lateCount >= 5) {
+            if ($lateCount >= 3) {
                 $lockDays = 0;
                 $reasonPrefix = "";
+                $newBorrowLimit = 5;
 
-                if ($lateCount >= 5 && $lateCount <= 9) {
+                if ($lateCount >= 3 && $lateCount <= 4) {
                     $lockDays = 1;
-                    $reasonPrefix = "Mốc 1 (5-9 lần)";
-                } elseif ($lateCount >= 10 && $lateCount <= 14) {
+                    $reasonPrefix = "Mốc 1 (3-4 lần)";
+                    $newBorrowLimit = 4;
+                } elseif ($lateCount == 5) {
                     $lockDays = 3;
-                    $reasonPrefix = "Mốc 2 (10-14 lần)";
-                } elseif ($lateCount == 15) {
+                    $reasonPrefix = "Mốc 2 (5 lần)";
+                    $newBorrowLimit = 2;
+                } elseif ($lateCount == 6) {
                     $lockDays = 7;
-                    $reasonPrefix = "Mốc 3 (15 lần)";
+                    $reasonPrefix = "Mốc 3 (6 lần)";
+                    $newBorrowLimit = 1;
                 } else {
-                    // Trên 15 lần: Khóa vĩnh viễn
+                    // Từ 7 lần trở lên: Khóa vĩnh viễn
                     $lockUntil = '9999-12-31';
-                    $reason = "Vi phạm Mốc 4: Trả sách trễ hạn trên 15 lần ({$lateCount} lần). Tạm khóa tài khoản VĨNH VIỄN.";
+                    $reason = "Vi phạm Mốc 4: Trả sách trễ hạn từ 7 lần trở lên ({$lateCount} lần). Tạm khóa tài khoản VĨNH VIỄN.";
                     $this->userTable->lockUser((int)$record->userId, $reason, $lockUntil);
                     
                     // Notify student about lock
@@ -294,6 +313,13 @@ class CirculationService
                     $lockUntil = date('Y-m-d', strtotime("+$lockDays days"));
                     $reason = "Vi phạm {$reasonPrefix}: Trả sách trễ hạn {$lateCount} lần trong lịch sử. Tạm khóa quyền mượn sách {$lockDays} ngày (đến hết " . date('d/m/Y', strtotime($lockUntil)) . ").";
                     $this->userTable->lockUser((int)$record->userId, $reason, $lockUntil);
+
+                    // Cập nhật borrow_limit của user
+                    try {
+                        $user = $this->userTable->getUser((int)$record->userId);
+                        $user->borrowLimit = $newBorrowLimit;
+                        $this->userTable->saveUser($user);
+                    } catch (\Throwable $e) {}
 
                     // Notify student about temporary lock
                     try {

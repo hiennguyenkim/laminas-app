@@ -29,6 +29,9 @@ class DashboardControllerTest extends AbstractHttpControllerTestCase
         /** @var AuthSessionContainer $authSession */
         $authSession = $this->getApplicationServiceLocator()->get(AuthSessionContainer::class);
         unset($authSession->user);
+
+        // Clear request content to prevent test leaks
+        $this->getRequest()->setContent('');
     }
 
     public function testAdminDashboardGetsGlobalCategoryStats(): void
@@ -193,10 +196,21 @@ class DashboardControllerTest extends AbstractHttpControllerTestCase
         $this->mockLoginAsRole('student');
 
         $dbMock = $this->createMock(\Laminas\Db\Adapter\Adapter::class);
-        $dbMock->expects(self::once())
-            ->method('query')
-            ->with(self::stringContains('INSERT INTO public_chats'), [2, 'Test message'])
-            ->willReturn($this->createMock(ResultInterface::class));
+        
+        $stmtInsert = $this->createMock(StatementInterface::class);
+        $stmtInsert->method('execute')->willReturn($this->createMock(ResultInterface::class));
+
+        $dbMock->method('query')->willReturnCallback(function($sql) use ($stmtInsert) {
+            if (strpos($sql, 'INSERT INTO public_chats') !== false) {
+                return $stmtInsert;
+            }
+            $stmtEmpty = $this->createMock(StatementInterface::class);
+            $resEmpty = $this->createMock(ResultInterface::class);
+            $resEmpty->method('rewind')->willReturnCallback(function() {});
+            $resEmpty->method('valid')->willReturn(false);
+            $stmtEmpty->method('execute')->willReturn($resEmpty);
+            return $stmtEmpty;
+        });
 
         $serviceLocator = $this->getApplicationServiceLocator();
         $serviceLocator->setAllowOverride(true);

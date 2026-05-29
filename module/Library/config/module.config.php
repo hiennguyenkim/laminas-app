@@ -210,7 +210,7 @@ return [
                         'options' => [
                             'route'       => '/settings[/:action[/:id]]',
                             'constraints' => [
-                                'action' => 'index|logo|maintenance|google|smtp|addCategory|editCategory|deleteCategory',
+                                'action' => '[a-zA-Z][a-zA-Z0-9_-]*',
                                 'id'     => '[0-9]+',
                             ],
                             'defaults'    => ['controller' => SettingsController::class, 'action' => 'index'],
@@ -484,6 +484,7 @@ return [
             \Library\Service\GeminiService::class => \Library\Factory\Service\GeminiServiceFactory::class,
             CirculationService::class => CirculationServiceFactory::class,
             AuthSessionContainer::class => AuthSessionContainerFactory::class,
+            \Library\Service\MailService::class => \Library\Factory\Service\MailServiceFactory::class,
         ],
     ],
 

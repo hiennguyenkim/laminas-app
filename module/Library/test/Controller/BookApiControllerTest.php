@@ -48,23 +48,64 @@ class BookApiControllerTest extends AbstractHttpControllerTestCase
     public function testChatActionLiteratureCategory(): void
     {
         $bookTableMock = $this->createMock(BookTable::class);
-        $bookTableMock->expects(self::once())
+        $bookTableMock->expects(self::any())
             ->method('searchAvailable')
-            ->with('Văn học', true, 3)
-            ->willReturn([
-                ['id' => 10, 'title' => 'Chí Phèo', 'author' => 'Nam Cao'],
-                ['id' => 11, 'title' => 'Tắt Đèn', 'author' => 'Ngô Tất Tố']
-            ]);
+            ->willReturnCallback(function($title, $avail, $limit) {
+                if ($title === 'Chí Phèo') {
+                    return [['id' => 10, 'title' => 'Chí Phèo', 'author' => 'Nam Cao']];
+                }
+                if ($title === 'Tắt Đèn') {
+                    return [['id' => 11, 'title' => 'Tắt Đèn', 'author' => 'Ngô Tất Tố']];
+                }
+                return [];
+            });
 
         $dbMock = $this->createMock(\Laminas\Db\Adapter\Adapter::class);
-        $stmtMock = $this->createMock(StatementInterface::class);
-        $stmtMock->method('execute')->willReturn($this->createMock(ResultInterface::class));
-        $dbMock->method('query')->willReturn($stmtMock);
+        
+        // Mock categories query
+        $stmtCat = $this->createMock(StatementInterface::class);
+        $resCat = $this->createMock(ResultInterface::class);
+        $categories = [['name' => 'Văn học']];
+        $catIdx = 0;
+        $resCat->method('rewind')->willReturnCallback(function() use (&$catIdx) { $catIdx = 0; });
+        $resCat->method('valid')->willReturnCallback(function() use (&$catIdx, $categories) { return $catIdx < count($categories); });
+        $resCat->method('current')->willReturnCallback(function() use (&$catIdx, $categories) { return $categories[$catIdx]; });
+        $resCat->method('next')->willReturnCallback(function() use (&$catIdx) { $catIdx++; });
+        $stmtCat->method('execute')->willReturn($resCat);
+
+        // Mock books query
+        $stmtBooks = $this->createMock(StatementInterface::class);
+        $resBooks = $this->createMock(ResultInterface::class);
+        $books = [
+            ['title' => 'Chí Phèo', 'author' => 'Nam Cao', 'category' => 'Văn học'],
+            ['title' => 'Tắt Đèn', 'author' => 'Ngô Tất Tố', 'category' => 'Văn học']
+        ];
+        $bookIdx = 0;
+        $resBooks->method('rewind')->willReturnCallback(function() use (&$bookIdx) { $bookIdx = 0; });
+        $resBooks->method('valid')->willReturnCallback(function() use (&$bookIdx, $books) { return $bookIdx < count($books); });
+        $resBooks->method('current')->willReturnCallback(function() use (&$bookIdx, $books) { return $books[$bookIdx]; });
+        $resBooks->method('next')->willReturnCallback(function() use (&$bookIdx) { $bookIdx++; });
+        $stmtBooks->method('execute')->willReturn($resBooks);
+
+        $dbMock->method('query')->willReturnCallback(function($sql) use ($stmtCat, $stmtBooks) {
+            if (strpos($sql, 'book_categories') !== false) {
+                return $stmtCat;
+            }
+            return $stmtBooks;
+        });
+
+        $bookTableMock->method('getAdapter')->willReturn($dbMock);
+
+        $geminiMock = $this->createMock(\Library\Service\GeminiService::class);
+        $geminiMock->expects(self::once())
+            ->method('generateResponse')
+            ->willReturn('Chào bạn! Đây là gợi ý sách Chí Phèo và Tắt Đèn là các tiểu thuyết và sách văn học hay.');
 
         $serviceLocator = $this->getApplicationServiceLocator();
         $serviceLocator->setAllowOverride(true);
         $serviceLocator->setService(BookTable::class, $bookTableMock);
         $serviceLocator->setService(\Laminas\Db\Adapter\AdapterInterface::class, $dbMock);
+        $serviceLocator->setService(\Library\Service\GeminiService::class, $geminiMock);
 
         // Laminas Test uses post body as JSON when dispatching JSON payload. 
         // We set the raw request body in the request object directly.
@@ -82,22 +123,60 @@ class BookApiControllerTest extends AbstractHttpControllerTestCase
     public function testChatActionTechCategory(): void
     {
         $bookTableMock = $this->createMock(BookTable::class);
-        $bookTableMock->expects(self::once())
+        $bookTableMock->expects(self::any())
             ->method('searchAvailable')
-            ->with('Công nghệ', true, 3)
-            ->willReturn([
-                ['id' => 20, 'title' => 'Lập trình PHP', 'author' => 'Zend']
-            ]);
+            ->willReturnCallback(function($title, $avail, $limit) {
+                if ($title === 'Lập trình PHP') {
+                    return [['id' => 20, 'title' => 'Lập trình PHP', 'author' => 'Zend']];
+                }
+                return [];
+            });
 
         $dbMock = $this->createMock(\Laminas\Db\Adapter\Adapter::class);
-        $stmtMock = $this->createMock(StatementInterface::class);
-        $stmtMock->method('execute')->willReturn($this->createMock(ResultInterface::class));
-        $dbMock->method('query')->willReturn($stmtMock);
+        
+        // Mock categories query
+        $stmtCat = $this->createMock(StatementInterface::class);
+        $resCat = $this->createMock(ResultInterface::class);
+        $categories = [['name' => 'Công nghệ']];
+        $catIdx = 0;
+        $resCat->method('rewind')->willReturnCallback(function() use (&$catIdx) { $catIdx = 0; });
+        $resCat->method('valid')->willReturnCallback(function() use (&$catIdx, $categories) { return $catIdx < count($categories); });
+        $resCat->method('current')->willReturnCallback(function() use (&$catIdx, $categories) { return $categories[$catIdx]; });
+        $resCat->method('next')->willReturnCallback(function() use (&$catIdx) { $catIdx++; });
+        $stmtCat->method('execute')->willReturn($resCat);
+
+        // Mock books query
+        $stmtBooks = $this->createMock(StatementInterface::class);
+        $resBooks = $this->createMock(ResultInterface::class);
+        $books = [
+            ['title' => 'Lập trình PHP', 'author' => 'Zend', 'category' => 'Công nghệ']
+        ];
+        $bookIdx = 0;
+        $resBooks->method('rewind')->willReturnCallback(function() use (&$bookIdx) { $bookIdx = 0; });
+        $resBooks->method('valid')->willReturnCallback(function() use (&$bookIdx, $books) { return $bookIdx < count($books); });
+        $resBooks->method('current')->willReturnCallback(function() use (&$bookIdx, $books) { return $books[$bookIdx]; });
+        $resBooks->method('next')->willReturnCallback(function() use (&$bookIdx) { $bookIdx++; });
+        $stmtBooks->method('execute')->willReturn($resBooks);
+
+        $dbMock->method('query')->willReturnCallback(function($sql) use ($stmtCat, $stmtBooks) {
+            if (strpos($sql, 'book_categories') !== false) {
+                return $stmtCat;
+            }
+            return $stmtBooks;
+        });
+
+        $bookTableMock->method('getAdapter')->willReturn($dbMock);
+
+        $geminiMock = $this->createMock(\Library\Service\GeminiService::class);
+        $geminiMock->expects(self::once())
+            ->method('generateResponse')
+            ->willReturn('Chào bạn! Đây là gợi ý sách Lập trình PHP thuộc danh mục Công nghệ thông tin.');
 
         $serviceLocator = $this->getApplicationServiceLocator();
         $serviceLocator->setAllowOverride(true);
         $serviceLocator->setService(BookTable::class, $bookTableMock);
         $serviceLocator->setService(\Laminas\Db\Adapter\AdapterInterface::class, $dbMock);
+        $serviceLocator->setService(\Library\Service\GeminiService::class, $geminiMock);
 
         $this->getRequest()->setContent(json_encode(['message' => 'Lập trình']));
         

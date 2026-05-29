@@ -27,7 +27,8 @@ class UserController extends BaseController
         AuthSessionContainer $authSessionContainer,
         private BorrowTable $borrowTable,
         private UserTable $userTable,
-        private FormElementManager $formElementManager
+        private FormElementManager $formElementManager,
+        private \Library\Service\MailService $mailService
     ) {
         parent::__construct($authSessionContainer);
     }
@@ -368,11 +369,13 @@ class UserController extends BaseController
                     if (($this->currentUser()['id'] ?? 0) === $id) {
                         $session = $this->authSession();
                         $session->user = [
-                            'id'        => $updated->id,
-                            'username'  => $updated->username,
-                            'email'     => $updated->email,
-                            'full_name' => $updated->fullName,
-                            'role'      => $updated->role,
+                            'id'         => $updated->id,
+                            'username'   => $updated->username,
+                            'email'      => $updated->email,
+                            'full_name'  => $updated->fullName,
+                            'role'       => $updated->role,
+                            'avatar_url' => $updated->avatarUrl,
+                            'nickname'   => $updated->nickname,
                         ];
                     }
 
@@ -485,6 +488,19 @@ class UserController extends BaseController
                 ]);
             } catch (\Throwable $e) {}
 
+            // Gửi email thông báo phê duyệt
+            try {
+                $subject = "[Thư viện HDPE] Tài khoản của bạn đã được phê duyệt";
+                $body = "Chào " . $user->fullName . ",\n\n"
+                      . "Chúc mừng bạn! Tài khoản của bạn (tên đăng nhập: " . $user->username . ") đã được quản trị viên phê duyệt thành công.\n"
+                      . "Bây giờ bạn đã có thể đăng nhập vào hệ thống Thư viện HDPE và sử dụng các dịch vụ mượn/trả sách.\n\n"
+                      . "Trân trọng,\n"
+                      . "Thư viện HDPE";
+                $this->mailService->sendEmail($user->email, $user->fullName, $subject, $body);
+            } catch (\Throwable $e) {
+                $this->flash()->addWarningMessage("Đã phê duyệt tài khoản nhưng không thể gửi email thông báo: " . $e->getMessage());
+            }
+
             $this->flash()->addSuccessMessage("Đã phê duyệt tài khoản: " . $user->fullName);
         } catch (\Throwable $e) {
             $this->flash()->addErrorMessage($e->getMessage());
@@ -507,6 +523,20 @@ class UserController extends BaseController
         try {
             $user = $this->userTable->getUser($id);
             $this->userTable->deleteUser($id);
+
+            // Gửi email thông báo từ chối phê duyệt
+            try {
+                $subject = "[Thư viện HDPE] Kết quả đăng ký tài khoản";
+                $body = "Chào " . $user->fullName . ",\n\n"
+                      . "Rất tiếc, yêu cầu đăng ký tài khoản của bạn (tên đăng nhập: " . $user->username . ") đã bị từ chối bởi ban quản trị và tài khoản đã được xóa khỏi danh sách chờ.\n"
+                      . "Vui lòng liên hệ với thủ thư để biết thêm chi tiết hoặc thực hiện đăng ký lại.\n\n"
+                      . "Trân trọng,\n"
+                      . "Thư viện HDPE";
+                $this->mailService->sendEmail($user->email, $user->fullName, $subject, $body);
+            } catch (\Throwable $e) {
+                $this->flash()->addWarningMessage("Đã từ chối tài khoản nhưng không thể gửi email thông báo: " . $e->getMessage());
+            }
+
             $this->flash()->addSuccessMessage("Đã từ chối và xóa tài khoản: " . $user->fullName);
         } catch (\Throwable $e) {
             $this->flash()->addErrorMessage($e->getMessage());
@@ -549,6 +579,20 @@ class UserController extends BaseController
                 ]);
             } catch (\Throwable $e) {}
 
+            // Gửi email thông báo khóa tài khoản
+            try {
+                $subject = "[Thư viện HDPE] Thông báo khóa tài khoản";
+                $body = "Chào " . $user->fullName . ",\n\n"
+                      . "Tài khoản của bạn (tên đăng nhập: " . $user->username . ") đã bị tạm khóa bởi quản trị viên.\n"
+                      . "Lý do: " . ($reason ?: "Không có lý do cụ thể.") . "\n\n"
+                      . "Vui lòng liên hệ với thủ thư hoặc phản hồi lại email này để được giải đáp thắc mắc.\n\n"
+                      . "Trân trọng,\n"
+                      . "Thư viện HDPE";
+                $this->mailService->sendEmail($user->email, $user->fullName, $subject, $body);
+            } catch (\Throwable $e) {
+                $this->flash()->addWarningMessage("Đã khóa tài khoản nhưng không thể gửi email thông báo: " . $e->getMessage());
+            }
+
             $this->flash()->addSuccessMessage('Đã khóa tài khoản ' . $user->username . '.');
         } catch (\Exception $e) {
             $this->flash()->addErrorMessage($e->getMessage());
@@ -585,6 +629,19 @@ class UserController extends BaseController
                     $id
                 ]);
             } catch (\Throwable $e) {}
+
+            // Gửi email thông báo mở khóa tài khoản
+            try {
+                $subject = "[Thư viện HDPE] Thông báo mở khóa tài khoản";
+                $body = "Chào " . $user->fullName . ",\n\n"
+                      . "Chúc mừng bạn! Tài khoản của bạn (tên đăng nhập: " . $user->username . ") đã được quản trị viên mở khóa thành công.\n"
+                      . "Bây giờ bạn đã có thể đăng nhập lại vào hệ thống Thư viện HDPE và tiếp tục sử dụng các dịch vụ mượn/trả sách bình thường.\n\n"
+                      . "Trân trọng,\n"
+                      . "Thư viện HDPE";
+                $this->mailService->sendEmail($user->email, $user->fullName, $subject, $body);
+            } catch (\Throwable $e) {
+                $this->flash()->addWarningMessage("Đã mở khóa tài khoản nhưng không thể gửi email thông báo: " . $e->getMessage());
+            }
 
             $this->flash()->addSuccessMessage('Đã mở khóa tài khoản ' . $user->username . '.');
         } catch (\Exception $e) {

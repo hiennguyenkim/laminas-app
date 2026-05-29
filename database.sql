@@ -35,16 +35,20 @@ CREATE TABLE IF NOT EXISTS users (
     password       VARCHAR(255) NOT NULL,
     full_name      VARCHAR(100) NOT NULL,
     role           ENUM('admin','student') NOT NULL DEFAULT 'student',
+    google_id      VARCHAR(255) DEFAULT NULL UNIQUE COMMENT 'Google OAuth ID',
+    is_approved    TINYINT(1)   NOT NULL DEFAULT 0 COMMENT '0=chờ duyệt, 1=đã duyệt',
     nickname       VARCHAR(100) DEFAULT NULL,
     date_of_birth  DATE         DEFAULT NULL,
     avatar_url     VARCHAR(255) DEFAULT NULL,
     account_status ENUM('active','locked') NOT NULL DEFAULT 'active',
     lock_reason    VARCHAR(255) DEFAULT NULL,
     locked_at      DATETIME     DEFAULT NULL,
+    locked_until   DATE         DEFAULT NULL COMMENT 'NULL = khóa vĩnh viễn, DATE = khóa tạm thời',
     phone          VARCHAR(20)  DEFAULT NULL,
     borrow_limit   TINYINT UNSIGNED NOT NULL DEFAULT 5,
     created_at     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_account_status (account_status)
+    INDEX idx_account_status (account_status),
+    INDEX idx_google_id (google_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ───────────────────────────────────────────────
@@ -294,3 +298,20 @@ CREATE TABLE IF NOT EXISTS system_settings (
 INSERT INTO system_settings (setting_key, setting_value) VALUES
 ('maintenance_mode', '0'),
 ('maintenance_until', NULL);
+
+-- ───────────────────────────────────────────────
+-- 14. BẢNG penalty_logs (Lịch sử xử phạt sinh viên)
+-- ───────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS penalty_logs (
+    id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id     INT UNSIGNED NOT NULL COMMENT 'Sinh viên bị phạt',
+    admin_id    INT UNSIGNED DEFAULT NULL COMMENT 'Admin thực hiện (NULL = hệ thống tự động)',
+    reason      VARCHAR(500) NOT NULL,
+    locked_until DATE        DEFAULT NULL COMMENT 'NULL = khóa vĩnh viễn',
+    created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_penalty_user  FOREIGN KEY (user_id)  REFERENCES users(user_id) ON DELETE CASCADE,
+    CONSTRAINT fk_penalty_admin FOREIGN KEY (admin_id) REFERENCES users(user_id) ON DELETE SET NULL,
+    INDEX idx_penalty_user (user_id),
+    INDEX idx_penalty_created (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+

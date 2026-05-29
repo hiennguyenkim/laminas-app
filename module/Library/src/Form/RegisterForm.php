@@ -28,6 +28,13 @@ class RegisterForm extends Form
     private function buildElements(): void
     {
         $this->add([
+            'name'       => 'full_name',
+            'type'       => Element\Text::class,
+            'options'    => ['label' => 'Họ và tên'],
+            'attributes' => ['class' => 'form-control', 'required' => true, 'maxlength' => 100],
+        ]);
+
+        $this->add([
             'name'       => 'username',
             'type'       => Element\Text::class,
             'options'    => ['label' => 'Tên đăng nhập'],
@@ -64,6 +71,16 @@ class RegisterForm extends Form
     private function buildInputFilter(): InputFilter
     {
         $filter = new InputFilter();
+
+        $filter->add([
+            'name'       => 'full_name',
+            'required'   => true,
+            'filters'    => [['name' => \Laminas\Filter\StringTrim::class]],
+            'validators' => [[
+                'name'    => StringLength::class,
+                'options' => ['min' => 2, 'max' => 100],
+            ]],
+        ]);
 
         $filter->add([
             'name'       => 'username',
