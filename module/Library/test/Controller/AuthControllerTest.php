@@ -617,5 +617,76 @@ namespace LibraryTest\Controller {
                 $this->getResponse()->getContent()
             );
         }
+
+        public function testResetPasswordActionIncorrectOtpIncrementsAttempts(): void
+        {
+            $authSession = $this->getApplicationServiceLocator()->get(AuthSessionContainer::class);
+            $authSession->resetPasswordUserId = 99;
+            $authSession->otpAttempts = 2; // already 2 attempts
+
+            $user = new \Library\Model\Entity\User();
+            $user->exchangeArray([
+                'id' => 99,
+                'otp_code' => '123456',
+                'otp_expires_at' => date('Y-m-d H:i:s', time() + 300),
+            ]);
+            $this->userTableMock->method('getUser')->with(99)->willReturn($user);
+
+            $this->dispatch('/admin/auth/resetPassword', 'POST', [
+                'otp_code' => '999999', // wrong OTP
+                'password' => 'NewPass@123',
+                'password_confirm' => 'NewPass@123',
+            ]);
+
+            $this->assertResponseStatusCode(200);
+            $this->assertEquals(3, $authSession->otpAttempts); // incremented to 3
+            $this->assertStringContainsString(
+                'Mã OTP không chính xác. Bạn còn 2 lần thử.',
+                $this->getResponse()->getContent()
+            );
+        }
+
+        public function testResetPasswordActionIncorrectOtpExceedsLimitInvalidatesOtp(): void
+        {
+            $authSession = $this->getApplicationServiceLocator()->get(AuthSessionContainer::class);
+            $authSession->resetPasswordUserId = 99;
+            $authSession->otpAttempts = 4; // 4 incorrect attempts
+
+            $user = new \Library\Model\Entity\User();
+            $user->exchangeArray([
+                'id' => 99,
+                'otp_code' => '123456',
+                'otp_expires_at' => date('Y-m-d H:i:s', time() + 300),
+            ]);
+            $this->userTableMock->method('getUser')->with(99)->willReturn($user);
+
+            // Expect userTable->saveUser to clear OTP
+            $this->userTableMock->expects($this->once())
+                ->method('saveUser')
+                ->with($this->callback(function (\Library\Model\Entity\User $savedUser) {
+                    return $savedUser->id === 99
+                        && empty($savedUser->otpCode)
+                        && empty($savedUser->otpExpiresAt);
+                }));
+
+            $this->dispatch('/admin/auth/resetPassword', 'POST', [
+                'otp_code' => '999999', // 5th incorrect attempt
+                'password' => 'NewPass@123',
+                'password_confirm' => 'NewPass@123',
+            ]);
+
+            $this->assertResponseStatusCode(302);
+            $this->assertRedirectTo('/admin/auth/forgotPassword');
+
+            $this->assertNull($authSession->otpAttempts);
+            $this->assertNull($authSession->resetPasswordUserId);
+
+            $flashMessenger = $this->getApplicationServiceLocator()->get('ControllerPluginManager')->get('flashMessenger');
+            $this->assertTrue($flashMessenger->hasCurrentErrorMessages());
+            $this->assertContains(
+                'Bạn đã nhập sai mã OTP quá 5 lần. Mã OTP này đã bị hủy vì lý do bảo mật. Vui lòng gửi lại yêu cầu.',
+                $flashMessenger->getCurrentErrorMessages()
+            );
+        }
     }
 }
