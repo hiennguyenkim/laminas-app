@@ -521,14 +521,14 @@ namespace LibraryTest\Controller {
                             && empty($savedUser->otpExpiresAt);
                     }),
                     $this->callback(function ($hash) {
-                        return password_verify('newpassword123', $hash);
+                        return password_verify('NewPassword@123', $hash);
                     })
                 );
 
-            $this->dispatch('/admin/auth/reset-password', 'POST', [
+            $this->dispatch('/admin/auth/resetPassword', 'POST', [
                 'otp_code' => '123456',
-                'password' => 'newpassword123',
-                'password_confirm' => 'newpassword123',
+                'password' => 'NewPassword@123',
+                'password_confirm' => 'NewPassword@123',
             ]);
 
             $this->assertResponseStatusCode(302);
@@ -538,6 +538,84 @@ namespace LibraryTest\Controller {
 
             $flashMessenger = $this->getApplicationServiceLocator()->get('ControllerPluginManager')->get('flashMessenger');
             $this->assertTrue($flashMessenger->hasCurrentSuccessMessages());
+        }
+
+        public function testResetPasswordActionPostPasswordTooShort(): void
+        {
+            $authSession = $this->getApplicationServiceLocator()->get(AuthSessionContainer::class);
+            $authSession->resetPasswordUserId = 99;
+
+            $user = new \Library\Model\Entity\User();
+            $user->exchangeArray([
+                'id' => 99,
+                'otp_code' => '123456',
+                'otp_expires_at' => date('Y-m-d H:i:s', time() + 300),
+            ]);
+            $this->userTableMock->method('getUser')->with(99)->willReturn($user);
+
+            $this->dispatch('/admin/auth/resetPassword', 'POST', [
+                'otp_code' => '123456',
+                'password' => 'S@1',
+                'password_confirm' => 'S@1',
+            ]);
+
+            $this->assertResponseStatusCode(200); // Renders reset form on validation failure
+            $this->assertStringContainsString(
+                'Mật khẩu mới phải có độ dài từ 8 ký tự trở lên.',
+                $this->getResponse()->getContent()
+            );
+        }
+
+        public function testResetPasswordActionPostPasswordNoUppercase(): void
+        {
+            $authSession = $this->getApplicationServiceLocator()->get(AuthSessionContainer::class);
+            $authSession->resetPasswordUserId = 99;
+
+            $user = new \Library\Model\Entity\User();
+            $user->exchangeArray([
+                'id' => 99,
+                'otp_code' => '123456',
+                'otp_expires_at' => date('Y-m-d H:i:s', time() + 300),
+            ]);
+            $this->userTableMock->method('getUser')->with(99)->willReturn($user);
+
+            $this->dispatch('/admin/auth/resetPassword', 'POST', [
+                'otp_code' => '123456',
+                'password' => 'password@123',
+                'password_confirm' => 'password@123',
+            ]);
+
+            $this->assertResponseStatusCode(200);
+            $this->assertStringContainsString(
+                'Mật khẩu mới phải chứa ít nhất một ký tự in hoa.',
+                $this->getResponse()->getContent()
+            );
+        }
+
+        public function testResetPasswordActionPostPasswordNoSpecialChar(): void
+        {
+            $authSession = $this->getApplicationServiceLocator()->get(AuthSessionContainer::class);
+            $authSession->resetPasswordUserId = 99;
+
+            $user = new \Library\Model\Entity\User();
+            $user->exchangeArray([
+                'id' => 99,
+                'otp_code' => '123456',
+                'otp_expires_at' => date('Y-m-d H:i:s', time() + 300),
+            ]);
+            $this->userTableMock->method('getUser')->with(99)->willReturn($user);
+
+            $this->dispatch('/admin/auth/resetPassword', 'POST', [
+                'otp_code' => '123456',
+                'password' => 'Password123',
+                'password_confirm' => 'Password123',
+            ]);
+
+            $this->assertResponseStatusCode(200);
+            $this->assertStringContainsString(
+                'Mật khẩu mới phải chứa ít nhất một ký tự đặc biệt.',
+                $this->getResponse()->getContent()
+            );
         }
     }
 }

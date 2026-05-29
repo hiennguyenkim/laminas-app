@@ -461,14 +461,39 @@ class AuthController extends BaseController
             $newPassword = (string)($this->postData()['password'] ?? '');
             $confirmPassword = (string)($this->postData()['password_confirm'] ?? '');
 
+            // Initialize or increment OTP attempts count in session
+            if (!isset($this->authSession()->otpAttempts)) {
+                $this->authSession()->otpAttempts = 0;
+            }
+
             if ($otpInput === '') {
                 $this->flash()->addErrorMessage('Vui lòng nhập mã OTP.');
             } elseif ($user->otpCode !== $otpInput) {
-                $this->flash()->addErrorMessage('Mã OTP không chính xác.');
+                $this->authSession()->otpAttempts++;
+                
+                if ($this->authSession()->otpAttempts >= 5) {
+                    // Invalidate current OTP
+                    $user->otpCode = '';
+                    $user->otpExpiresAt = '';
+                    $this->userTable->saveUser($user);
+                    
+                    unset($this->authSession()->otpAttempts);
+                    unset($this->authSession()->resetPasswordUserId);
+                    
+                    $this->flash()->addErrorMessage('Bạn đã nhập sai mã OTP quá 5 lần. Mã OTP này đã bị hủy vì lý do bảo mật. Vui lòng gửi lại yêu cầu.');
+                    return $this->redirect()->toRoute('library/auth', ['action' => 'forgotPassword']);
+                }
+                
+                $remaining = 5 - $this->authSession()->otpAttempts;
+                $this->flash()->addErrorMessage('Mã OTP không chính xác. Bạn còn ' . $remaining . ' lần thử.');
             } elseif (strtotime($user->otpExpiresAt) < time()) {
                 $this->flash()->addErrorMessage('Mã OTP đã hết hạn. Vui lòng nhấn gửi lại mã.');
-            } elseif (strlen($newPassword) < 6) {
-                $this->flash()->addErrorMessage('Mật khẩu mới phải có ít nhất 6 ký tự.');
+            } elseif (strlen($newPassword) < 8) {
+                $this->flash()->addErrorMessage('Mật khẩu mới phải có độ dài từ 8 ký tự trở lên.');
+            } elseif (!preg_match('/[A-Z]/', $newPassword)) {
+                $this->flash()->addErrorMessage('Mật khẩu mới phải chứa ít nhất một ký tự in hoa.');
+            } elseif (!preg_match('/[^a-zA-Z0-9\s]/', $newPassword)) {
+                $this->flash()->addErrorMessage('Mật khẩu mới phải chứa ít nhất một ký tự đặc biệt.');
             } elseif ($newPassword !== $confirmPassword) {
                 $this->flash()->addErrorMessage('Mật khẩu mới và xác nhận mật khẩu không khớp.');
             } else {
@@ -478,7 +503,10 @@ class AuthController extends BaseController
                 $user->otpExpiresAt = '';
                 
                 $this->userTable->saveUser($user, password_hash($newPassword, PASSWORD_DEFAULT));
+                
+                // Clear session trackers
                 unset($this->authSession()->resetPasswordUserId);
+                unset($this->authSession()->otpAttempts);
 
                 $this->flash()->addSuccessMessage('Đặt lại mật khẩu thành công! Vui lòng đăng nhập bằng mật khẩu mới.');
                 return $this->redirect()->toRoute('library/auth', ['action' => 'login']);
