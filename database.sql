@@ -46,6 +46,8 @@ CREATE TABLE IF NOT EXISTS users (
     locked_until   DATE         DEFAULT NULL COMMENT 'NULL = khóa vĩnh viễn, DATE = khóa tạm thời',
     phone          VARCHAR(20)  DEFAULT NULL,
     borrow_limit   TINYINT UNSIGNED NOT NULL DEFAULT 5,
+    otp_code       VARCHAR(10)  DEFAULT NULL COMMENT 'Mã OTP xác thực hiện tại',
+    otp_expires_at DATETIME     DEFAULT NULL COMMENT 'Thời gian hết hạn OTP',
     created_at     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_account_status (account_status),
     INDEX idx_google_id (google_id)
