@@ -9,6 +9,7 @@ use DomainException;
 use Library\Model\Table\BookTable;
 use Library\Model\Table\BorrowTable;
 use Library\Model\Table\UserTable;
+use Library\Service\MailService;
 use Laminas\Db\Adapter\AdapterInterface;
 
 class CirculationService
@@ -19,7 +20,8 @@ class CirculationService
         private AdapterInterface $adapter,
         private BookTable $bookTable,
         private BorrowTable $borrowTable,
-        private UserTable $userTable
+        private UserTable $userTable,
+        private ?MailService $mailService = null
     ) {
     }
 
@@ -187,6 +189,20 @@ class CirculationService
                 ]);
             } catch (\Throwable $e) {}
 
+            // Gửi email cho sinh viên
+            if ($this->mailService !== null) {
+                try {
+                    $subject = "[Thư viện HDPE] Đăng ký mượn sách được phê duyệt";
+                    $body = "Chào " . $borrower->fullName . ",\n\n"
+                          . "Yêu cầu mượn cuốn sách '" . $record->bookTitle . "' của bạn đã được phê duyệt thành công.\n"
+                          . "Hạn trả: " . ($returnDate ?? $record->returnDate) . "\n\n"
+                          . "Vui lòng đến thư viện để nhận sách.\n\n"
+                          . "Trân trọng,\n"
+                          . "Thư viện HDPE";
+                    $this->mailService->sendEmail($borrower->email, $borrower->fullName, $subject, $body);
+                } catch (\Throwable $e) {}
+            }
+
             $connection->commit();
         } catch (\Throwable $throwable) {
             try {
@@ -225,6 +241,19 @@ class CirculationService
                     $recordId
                 ]);
             } catch (\Throwable $e) {}
+
+            // Gửi email cho sinh viên
+            if ($this->mailService !== null) {
+                try {
+                    $borrower = $this->userTable->getUser((int)$record->userId);
+                    $subject = "[Thư viện HDPE] Từ chối yêu cầu mượn sách";
+                    $body = "Chào " . $borrower->fullName . ",\n\n"
+                          . "Yêu cầu mượn cuốn sách '" . $record->bookTitle . "' của bạn đã bị từ chối.\n\n"
+                          . "Trân trọng,\n"
+                          . "Thư viện HDPE";
+                    $this->mailService->sendEmail($borrower->email, $borrower->fullName, $subject, $body);
+                } catch (\Throwable $e) {}
+            }
 
             $connection->commit();
         } catch (\Throwable $throwable) {

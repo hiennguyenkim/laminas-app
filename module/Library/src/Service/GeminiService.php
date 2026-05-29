@@ -41,15 +41,17 @@ class GeminiService
             if ($cacheRow) {
                 return $cacheRow['response_text'];
             }
-        } catch (\Throwable $e) {}
+        } catch (\Throwable $e) {
+        }
 
         // 2. Nếu không có cache, gọi API
         $client = new Client();
+        $client->setOptions(['timeout' => 2]);
         // Dùng query string cho chắc chắn nhất
         $client->setUri($this->apiUrl . '?key=' . $this->apiKey);
         $client->setMethod('POST');
         $client->setHeaders([
-            'Content-Type'   => 'application/json'
+            'Content-Type' => 'application/json'
         ]);
 
         // Gộp system instruction vào prompt
@@ -68,8 +70,8 @@ class GeminiService
             ]
         ];
 
-        $client->setRawBody((string)json_encode($data));
-        
+        $client->setRawBody((string) json_encode($data));
+
         try {
             $response = $client->send();
             if (!$response->isSuccess()) {
@@ -84,7 +86,8 @@ class GeminiService
                 try {
                     $sqlInsert = "INSERT IGNORE INTO ai_responses_cache (prompt_hash, prompt_text, response_text) VALUES (?, ?, ?)";
                     $this->adapter->query($sqlInsert)->execute([$promptHash, mb_substr($prompt, 0, 500), $responseText]);
-                } catch (\Throwable $e) {}
+                } catch (\Throwable $e) {
+                }
             }
 
             return $responseText;
@@ -100,11 +103,45 @@ class GeminiService
     public function checkContent(string $text): bool
     {
         $prompt = "Hãy phân tích tin nhắn sau đây có chứa ngôn từ thô tục, xúc phạm, thù ghét hoặc không phù hợp với môi trường thư viện trường học không? 
-        Chỉ trả về duy nhất từ 'SAFE' nếu an toàn, hoặc 'UNSAFE' nếu vi phạm.
+        Chỉ trả về duy nhất từ 'SAFE' nếu an toàn, hoặc 'UNSAFE' nếu vi phạm. Tuyệt đối không giải thích gì thêm.
         Tin nhắn: \"$text\"";
 
-        $response = $this->generateResponse($prompt, "Bạn là một chuyên gia kiểm duyệt nội dung cho thư viện đại học.");
-        return trim(strtoupper($response)) === 'SAFE';
+        $response = $this->generateResponse($prompt, "Bạn là một chuyên gia kiểm duyệt nội dung cho thư viện đại học. Bạn chỉ trả về duy nhất từ 'SAFE' hoặc 'UNSAFE'.");
+        $trimmedResponse = trim($response);
+
+        // Nếu có lỗi kết nối hoặc cấu hình, không chặn toàn bộ chat của người dùng.
+        // Thay vào đó, chạy bộ lọc từ cấm cục bộ đơn giản để dự phòng.
+        if (str_starts_with($trimmedResponse, 'Lỗi kết nối AI') 
+            || str_starts_with($trimmedResponse, 'Lỗi từ Gemini') 
+            || str_starts_with($trimmedResponse, 'Cấu hình Gemini')
+        ) {
+            $badWords = [
+                'đm', 'đéo', 'vcl', 'clm', 'chó', 'mẹ mày', 'bố mày', 'lìn', 'lồn', 'cặc', 'buồi', 
+                'đmm', 'dkm', 'đkm', 'vkl', 'đcm', 'súc vật', 'óc chó', 'ăn cứt', 'ăn phân', 
+                'đĩ', 'phò', 'điếm', 'chịch', 'xoạc', 'cút', 'ngu lờ'
+            ];
+            $cleanText = mb_strtolower($text, 'UTF-8');
+            foreach ($badWords as $word) {
+                $pattern = '/(?<![\p{L}\p{N}])' . preg_quote($word, '/') . '(?![\p{L}\p{N}])/u';
+                if (preg_match($pattern, $cleanText)) {
+                    return false; // Phát hiện từ cấm cục bộ
+                }
+            }
+            return true; // Cho phép đi qua nếu không chứa từ cấm cục bộ
+        }
+
+        // Loại bỏ mọi ký tự đặc biệt/markdown từ AI phản hồi
+        $cleanResponse = preg_replace('/[^A-Z]/', '', strtoupper($trimmedResponse));
+
+        // Kiểm tra xem phản hồi đã chuẩn hóa chứa từ khóa tương ứng
+        if (str_contains($cleanResponse, 'UNSAFE')) {
+            return false; // Chặn nếu phát hiện UNSAFE
+        }
+        if (str_contains($cleanResponse, 'SAFE')) {
+            return true; // Cho qua nếu phát hiện SAFE
+        }
+
+        return true; // Mặc định cho qua
     }
 
     public function cleanupOldCache(int $days = 30): void
@@ -112,6 +149,7 @@ class GeminiService
         try {
             $sql = "DELETE FROM ai_responses_cache WHERE created_at < DATE_SUB(NOW(), INTERVAL ? DAY)";
             $this->adapter->query($sql)->execute([$days]);
-        } catch (\Throwable $e) {}
+        } catch (\Throwable $e) {
+        }
     }
 }

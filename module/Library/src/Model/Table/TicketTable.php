@@ -70,7 +70,7 @@ class TicketTable
 
     public function getTicket(int $id): ?array
     {
-        $sql = "SELECT t.*, u.full_name as author_name FROM support_tickets t JOIN users u ON t.user_id = u.user_id WHERE t.id = ?";
+        $sql = "SELECT t.*, u.full_name as author_name, u.email as author_email FROM support_tickets t JOIN users u ON t.user_id = u.user_id WHERE t.id = ?";
         $row = $this->getAdapter()->query($sql)->execute([$id])->current();
         return $row ? (array) $row : null;
     }

@@ -97,6 +97,16 @@ $pageLabel = $authUser ? ($pageLabels[$activeKey] ?? '') : 'Đăng nhập';
             <i class="bi bi-exclamation-triangle"></i> <?= htmlspecialchars($msg) ?>
         </div>
     <?php endforeach; endif; ?>
+    <?php if ($flash->hasSuccessMessages()): foreach ($flash->getSuccessMessages() as $msg): ?>
+        <div class="alert alert-success layout-alert">
+            <i class="bi bi-check-circle"></i> <?= htmlspecialchars($msg) ?>
+        </div>
+    <?php endforeach; endif; ?>
+    <?php if ($flash->hasInfoMessages()): foreach ($flash->getInfoMessages() as $msg): ?>
+        <div class="alert alert-info layout-alert">
+            <i class="bi bi-info-circle"></i> <?= htmlspecialchars($msg) ?>
+        </div>
+    <?php endforeach; endif; ?>
     <?= $this->content ?>
 </div>
 
@@ -141,10 +151,14 @@ $pageLabel = $authUser ? ($pageLabels[$activeKey] ?? '') : 'Đăng nhập';
         </div>
 
         <div class="sidebar-footer">
-            <div class="sidebar-user">
+             <div class="sidebar-user">
                 <a href="<?= $this->url($routePrefix . '/profile') ?>" class="sidebar-user-avatar" style="<?= !empty($authUser['avatar_url']) ? 'background: none;' : '' ?>" title="Xem hồ sơ">
                     <?php if (!empty($authUser['avatar_url'])): ?>
-                        <img src="<?= $this->basePath() . $authUser['avatar_url'] ?>" alt="Avatar" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
+                        <?php 
+                        $avatarUrl = $authUser['avatar_url'];
+                        $avatarSrc = (str_starts_with($avatarUrl, 'http://') || str_starts_with($avatarUrl, 'https://')) ? $avatarUrl : $this->basePath($avatarUrl);
+                        ?>
+                        <img src="<?= $avatarSrc ?>" alt="Avatar" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
                     <?php else: ?>
                         <?= $initials(htmlspecialchars($authUser['full_name'] ?? 'QL')) ?>
                     <?php endif; ?>

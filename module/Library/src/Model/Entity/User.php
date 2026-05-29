@@ -31,6 +31,9 @@ class User
     public string $lockedUntil    = '';
     public string $phone          = '';
     public int    $borrowLimit    = 5;
+    
+    public string $otpCode        = '';
+    public string $otpExpiresAt   = '';
 
     public int    $borrowCount    = 0;
     public int    $overdueCount   = 0;
@@ -59,6 +62,8 @@ class User
         $this->lockedUntil   = (string) ($data['locked_until'] ?? '');
         $this->phone         = (string) ($data['phone'] ?? '');
         $this->borrowLimit   = (int)    ($data['borrow_limit'] ?? 5);
+        $this->otpCode       = (string) ($data['otp_code'] ?? '');
+        $this->otpExpiresAt  = (string) ($data['otp_expires_at'] ?? '');
 
         $this->borrowCount   = (int)    ($data['borrowCount'] ?? $data['borrow_count'] ?? 0);
         $this->overdueCount  = (int)    ($data['overdueCount'] ?? $data['overdue_count'] ?? 0);
@@ -101,6 +106,8 @@ class User
             'locked_until'   => $this->lockedUntil,
             'phone'          => $this->phone,
             'borrow_limit'   => $this->borrowLimit,
+            'otp_code'       => $this->otpCode,
+            'otp_expires_at' => $this->otpExpiresAt,
         ];
     }
 }

@@ -33,11 +33,15 @@ $routePrefix = 'student';
     <div class="profile-col-left">
         <div class="card">
             <div class="card-body">
-                <form id="avatar-form" method="POST" action="<?= $this->url($routePrefix . '/profile', ['action' => 'upload-avatar']) ?>" enctype="multipart/form-data">
+                <form id="profile-form" method="POST" action="<?= $this->url($routePrefix . '/profile', ['action' => 'update']) ?>" enctype="multipart/form-data">
                     <div class="profile-avatar-row">
                         <div class="avatar-preview profile-avatar-preview">
                             <?php if ($user->avatarUrl): ?>
-                                <img id="avatar-preview-img" src="<?= $this->basePath($user->avatarUrl) ?>" class="profile-avatar-img">
+                                <?php 
+                                $avatarUrl = $user->avatarUrl;
+                                $avatarSrc = (str_starts_with($avatarUrl, 'http://') || str_starts_with($avatarUrl, 'https://')) ? $avatarUrl : $this->basePath($avatarUrl);
+                                ?>
+                                <img id="avatar-preview-img" src="<?= $avatarSrc ?>" class="profile-avatar-img">
                             <?php else: ?>
                                 <div id="avatar-placeholder" class="profile-avatar-placeholder">
                                     <?= substr($user->fullName ?: $user->username, 0, 1) ?>
@@ -55,7 +59,6 @@ $routePrefix = 'student';
                             <input type="file" id="avatar-input" name="avatar" accept="image/*" class="d-none" onchange="previewAvatar(this)">
                         </div>
                     </div>
-                </form>
 
                 <div class="form-group mb-3">
                     <label class="form-label">Họ tên (Chỉ xem)</label>
@@ -168,7 +171,7 @@ function previewAvatar(input) {
             dz.style.borderColor = 'var(--primary-color)';
         }
         // Auto submit for student
-        document.getElementById('avatar-form').submit();
+        document.getElementById('profile-form').submit();
     };
     reader.readAsDataURL(file);
 }

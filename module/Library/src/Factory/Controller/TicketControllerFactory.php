@@ -19,7 +19,8 @@ class TicketControllerFactory
             $container->get(AuthSessionContainer::class),
             $container->get(TicketTable::class),
             $container->get(TicketMessageTable::class),
-            $container->get(NotificationTable::class)
+            $container->get(NotificationTable::class),
+            $container->get(\Library\Service\MailService::class)
         );
     }
 }

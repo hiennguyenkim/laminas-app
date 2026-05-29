@@ -448,10 +448,12 @@ class BookTable
             });
         }
 
-        // Chỉ lấy sách khả dụng: status != 'unavailable' VÀ quantity >= 1
+        // Chỉ lấy sách có số lượng >= 1
+        $select->where('quantity >= 1');
+
+        // Chỉ lấy sách khả dụng: status = 'available'
         if ($availableOnly) {
             $select->where(['status' => 'available']);
-            $select->where('quantity >= 1');
         }
 
         $select->order('title ASC');

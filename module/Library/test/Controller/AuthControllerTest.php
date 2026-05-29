@@ -77,10 +77,13 @@ namespace LibraryTest\Controller {
 
             $this->userTableMock = $this->createMock(UserTable::class);
 
+            $mailServiceMock = $this->createMock(\Library\Service\MailService::class);
+
             $serviceLocator = $this->getApplicationServiceLocator();
             $serviceLocator->setAllowOverride(true);
             $serviceLocator->setService(\Laminas\Session\SessionManager::class, $sessionManagerMock);
             $serviceLocator->setService(UserTable::class, $this->userTableMock);
+            $serviceLocator->setService(\Library\Service\MailService::class, $mailServiceMock);
 
             // Reset Curl Mock
             \Library\Controller\CurlMock::reset();
@@ -104,7 +107,7 @@ namespace LibraryTest\Controller {
             $flashMessenger = $this->getApplicationServiceLocator()->get('ControllerPluginManager')->get('flashMessenger');
             $this->assertTrue($flashMessenger->hasCurrentErrorMessages());
             $this->assertContains(
-                'Cấu hình Google Login chưa hoàn tất (Thiếu Client Secret). Vui lòng cập nhật trong Cài đặt hệ thống.',
+                'Cấu hình Google Login chưa hoàn tất. Vui lòng cập nhật trong Cài đặt hệ thống.',
                 $flashMessenger->getCurrentErrorMessages()
             );
         }
@@ -216,16 +219,19 @@ namespace LibraryTest\Controller {
             $this->userTableMock->method('getByGoogleId')->willReturn(null);
             $this->userTableMock->method('getByEmail')->willReturn(null);
 
-            // Expected new user save
-            $this->userTableMock->expects($this->once())
+            // Expected new user save (initially, then for OTP)
+            $this->userTableMock->expects($this->exactly(2))
                 ->method('saveUser')
-                ->with($this->callback(function (\Library\Model\Entity\User $user) {
-                    return $user->email === 'new_user@gmail.com'
-                        && $user->googleId === '1234567890'
-                        && $user->fullName === 'New Google User'
-                        && $user->role === 'student'
-                        && !$user->isApproved;
-                }), $this->stringContains(''));
+                ->with(
+                    $this->callback(function (\Library\Model\Entity\User $user) {
+                        return $user->email === 'new_user@gmail.com'
+                            && $user->googleId === '1234567890'
+                            && $user->fullName === 'New Google User'
+                            && $user->role === 'student'
+                            && !$user->isApproved;
+                    }),
+                    $this->anything()
+                );
 
             // Mock token exchange
             \Library\Controller\CurlMock::$responses[] = json_encode(['access_token' => 'mock-token']);
@@ -240,13 +246,13 @@ namespace LibraryTest\Controller {
             $this->dispatch('/auth/google-callback', 'GET', ['code' => 'mock-code']);
 
             $this->assertResponseStatusCode(302);
-            $this->assertRedirectTo('/admin/auth');
+            $this->assertRedirectTo('/admin/auth/verifyOtp');
 
             $flashMessenger = $this->getApplicationServiceLocator()->get('ControllerPluginManager')->get('flashMessenger');
-            $this->assertTrue($flashMessenger->hasCurrentErrorMessages());
+            $this->assertTrue($flashMessenger->hasCurrentInfoMessages());
             $this->assertContains(
-                'Tài khoản Google của bạn đang chờ thủ thư phê duyệt. Vui lòng quay lại sau.',
-                $flashMessenger->getCurrentErrorMessages()
+                'Mã xác thực OTP đã được gửi đến email của bạn. Vui lòng nhập mã để kích hoạt tài khoản.',
+                $flashMessenger->getCurrentInfoMessages()
             );
         }
 
@@ -369,13 +375,16 @@ namespace LibraryTest\Controller {
             $this->userTableMock->method('getByEmail')->willReturn($existingUser);
 
             // Verify saveUser is called to link googleId
-            $this->userTableMock->expects($this->once())
+            $this->userTableMock->expects($this->exactly(2))
                 ->method('saveUser')
-                ->with($this->callback(function (\Library\Model\Entity\User $user) {
-                    return $user->email === 'existing_email@gmail.com'
-                        && $user->googleId === '1234567890'
-                        && !$user->isApproved;
-                }));
+                ->with(
+                    $this->callback(function (\Library\Model\Entity\User $user) {
+                        return $user->email === 'existing_email@gmail.com'
+                            && $user->googleId === '1234567890'
+                            && !$user->isApproved;
+                    }),
+                    $this->anything()
+                );
 
             // Mock token exchange
             \Library\Controller\CurlMock::$responses[] = json_encode(['access_token' => 'mock-token']);
@@ -390,15 +399,145 @@ namespace LibraryTest\Controller {
             $this->dispatch('/auth/google-callback', 'GET', ['code' => 'mock-code']);
 
             $this->assertResponseStatusCode(302);
-            $this->assertRedirectTo('/admin/auth');
+            $this->assertRedirectTo('/admin/auth/verifyOtp');
 
-            // Check error message
+            // Check info message
+            $flashMessenger = $this->getApplicationServiceLocator()->get('ControllerPluginManager')->get('flashMessenger');
+            $this->assertTrue($flashMessenger->hasCurrentInfoMessages());
+            $this->assertContains(
+                'Mã xác thực OTP đã được gửi đến email của bạn. Vui lòng nhập mã để kích hoạt tài khoản.',
+                $flashMessenger->getCurrentInfoMessages()
+            );
+        }
+
+        public function testForgotPasswordActionGet(): void
+        {
+            $this->dispatch('/admin/auth/forgotPassword', 'GET');
+            $this->assertResponseStatusCode(200);
+            $this->assertModuleName('Library');
+            $this->assertControllerName(AuthController::class);
+            $this->assertControllerClass('AuthController');
+            $this->assertMatchedRouteName('library/auth');
+        }
+
+        public function testForgotPasswordActionPostIdentityEmpty(): void
+        {
+            $this->dispatch('/admin/auth/forgotPassword', 'POST', ['identity' => '']);
+            $this->assertResponseStatusCode(302);
+            $this->assertRedirectTo('/admin/auth/forgotPassword');
+
             $flashMessenger = $this->getApplicationServiceLocator()->get('ControllerPluginManager')->get('flashMessenger');
             $this->assertTrue($flashMessenger->hasCurrentErrorMessages());
             $this->assertContains(
-                'Tài khoản Google của bạn đang chờ thủ thư phê duyệt. Vui lòng quay lại sau.',
+                'Vui lòng nhập tên đăng nhập hoặc email.',
                 $flashMessenger->getCurrentErrorMessages()
             );
+        }
+
+        public function testForgotPasswordActionPostUserNotFound(): void
+        {
+            $this->userTableMock->method('getByEmail')->willReturn(null);
+            $this->userTableMock->method('getByUsername')->willReturn(null);
+
+            $this->dispatch('/admin/auth/forgotPassword', 'POST', ['identity' => 'nonexistent']);
+            $this->assertResponseStatusCode(302);
+            $this->assertRedirectTo('/admin/auth/forgotPassword');
+
+            $flashMessenger = $this->getApplicationServiceLocator()->get('ControllerPluginManager')->get('flashMessenger');
+            $this->assertTrue($flashMessenger->hasCurrentErrorMessages());
+            $this->assertContains(
+                'Tên đăng nhập hoặc email không tồn tại.',
+                $flashMessenger->getCurrentErrorMessages()
+            );
+        }
+
+        public function testForgotPasswordActionPostSuccess(): void
+        {
+            $user = new \Library\Model\Entity\User();
+            $user->exchangeArray([
+                'id' => 99,
+                'username' => 'test_user',
+                'email' => 'test@example.com',
+                'full_name' => 'Test User',
+                'role' => 'student',
+            ]);
+            $this->userTableMock->method('getByEmail')->willReturn($user);
+
+            $this->userTableMock->expects($this->once())
+                ->method('saveUser')
+                ->with($this->callback(function (\Library\Model\Entity\User $savedUser) {
+                    return $savedUser->id === 99 
+                        && !empty($savedUser->otpCode)
+                        && !empty($savedUser->otpExpiresAt);
+                }));
+
+            $this->dispatch('/admin/auth/forgotPassword', 'POST', ['identity' => 'test@example.com']);
+
+            $this->assertResponseStatusCode(302);
+            $this->assertRedirectTo('/admin/auth/resetPassword');
+
+            $authSession = $this->getApplicationServiceLocator()->get(AuthSessionContainer::class);
+            $this->assertEquals(99, $authSession->resetPasswordUserId);
+
+            $flashMessenger = $this->getApplicationServiceLocator()->get('ControllerPluginManager')->get('flashMessenger');
+            $this->assertTrue($flashMessenger->hasCurrentInfoMessages());
+        }
+
+        public function testResetPasswordActionGetWithoutSession(): void
+        {
+            $this->dispatch('/admin/auth/resetPassword', 'GET');
+            $this->assertResponseStatusCode(302);
+            $this->assertRedirectTo('/admin/auth/forgotPassword');
+
+            $flashMessenger = $this->getApplicationServiceLocator()->get('ControllerPluginManager')->get('flashMessenger');
+            $this->assertTrue($flashMessenger->hasCurrentErrorMessages());
+        }
+
+        public function testResetPasswordActionPostSuccess(): void
+        {
+            $authSession = $this->getApplicationServiceLocator()->get(AuthSessionContainer::class);
+            $authSession->resetPasswordUserId = 99;
+
+            $user = new \Library\Model\Entity\User();
+            $user->exchangeArray([
+                'id' => 99,
+                'username' => 'test_user',
+                'email' => 'test@example.com',
+                'full_name' => 'Test User',
+                'role' => 'student',
+                'otp_code' => '123456',
+                'otp_expires_at' => date('Y-m-d H:i:s', time() + 300),
+            ]);
+
+            $this->userTableMock->method('getUser')->with(99)->willReturn($user);
+
+            $this->userTableMock->expects($this->once())
+                ->method('saveUser')
+                ->with(
+                    $this->callback(function (\Library\Model\Entity\User $savedUser) {
+                        return $savedUser->id === 99
+                            && $savedUser->isApproved === true
+                            && empty($savedUser->otpCode)
+                            && empty($savedUser->otpExpiresAt);
+                    }),
+                    $this->callback(function ($hash) {
+                        return password_verify('newpassword123', $hash);
+                    })
+                );
+
+            $this->dispatch('/admin/auth/reset-password', 'POST', [
+                'otp_code' => '123456',
+                'password' => 'newpassword123',
+                'password_confirm' => 'newpassword123',
+            ]);
+
+            $this->assertResponseStatusCode(302);
+            $this->assertRedirectTo('/admin/auth'); // login action is default
+
+            $this->assertNull($authSession->resetPasswordUserId);
+
+            $flashMessenger = $this->getApplicationServiceLocator()->get('ControllerPluginManager')->get('flashMessenger');
+            $this->assertTrue($flashMessenger->hasCurrentSuccessMessages());
         }
     }
 }

@@ -155,7 +155,7 @@ $due14d   = date('Y-m-d', strtotime('+14 days'));
     'use strict';
 
     // ── Cấu hình ──────────────────────────────────────────
-    const SEARCH_API      = '<?= $this->url('api/books', ['action' => 'search']) ?>';
+    const SEARCH_API      = '<?= $this->url('api/books-search') ?>';
     const MIN_CHARS       = 1;          // Bắt đầu tìm từ 1 ký tự
     const DEBOUNCE_MS     = 280;        // Tránh spam request
     const BASE_PATH       = '<?= $this->basePath() ?>';
@@ -398,7 +398,7 @@ $due14d   = date('Y-m-d', strtotime('+14 days'));
             fetch(`${SEARCH_API.replace('/search','')}/${preId}`, { headers: { 'Accept': 'application/json' } })
                 .then(r => r.json())
                 .then(book => {
-                    if (book && book.id && book.status === 'available') {
+                    if (book && book.id && book.status === 'available' && book.quantity >= 1) {
                         selectBook(book);
                     }
                 })

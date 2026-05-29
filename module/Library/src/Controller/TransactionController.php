@@ -552,7 +552,7 @@ class TransactionController extends BaseController
         }
 
         if (! $this->httpRequest()->isPost()) {
-            return $this->redirect()->toRoute('library/transaction');
+            return $this->redirect()->toRoute($this->routeForRole('transaction'));
         }
 
         $isAdmin = $this->isAdmin();
@@ -573,7 +573,7 @@ class TransactionController extends BaseController
             $this->flash()->addErrorMessage($e->getMessage());
         }
 
-        return $this->redirect()->toRoute('library/transaction');
+        return $this->redirect()->toRoute($this->routeForRole('transaction'));
     }
 
     public function approveRenewAction(): Response
@@ -695,7 +695,7 @@ class TransactionController extends BaseController
         }
 
         if (!$this->httpRequest()->isPost()) {
-            return $this->redirect()->toRoute('library/transaction');
+            return $this->redirect()->toRoute($this->routeForRole('transaction'));
         }
 
         $id = $this->routeInt('id');
@@ -708,7 +708,7 @@ class TransactionController extends BaseController
             $this->flash()->addErrorMessage($e->getMessage());
         }
 
-        return $this->redirect()->toRoute('library/transaction');
+        return $this->redirect()->toRoute($this->routeForRole('transaction'));
     }
 
     public function lostAction(): Response

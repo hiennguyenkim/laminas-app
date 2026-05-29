@@ -20,6 +20,7 @@ class AuthControllerFactory
             $container->get(UserTable::class),
             $container->get(FormElementManager::class),
             $container->get(SessionManager::class),
+            $container->get(\Library\Service\MailService::class)
         );
     }
 }

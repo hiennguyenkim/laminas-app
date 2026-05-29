@@ -23,7 +23,11 @@ $routePrefix = 'library';
                     <div class="profile-avatar-row">
                         <div class="avatar-preview profile-avatar-preview">
                             <?php if ($user->avatarUrl): ?>
-                                <img id="avatar-preview-img" src="<?= $this->basePath($user->avatarUrl) ?>" class="profile-avatar-img">
+                                <?php 
+                                $avatarUrl = $user->avatarUrl;
+                                $avatarSrc = (str_starts_with($avatarUrl, 'http://') || str_starts_with($avatarUrl, 'https://')) ? $avatarUrl : $this->basePath($avatarUrl);
+                                ?>
+                                <img id="avatar-preview-img" src="<?= $avatarSrc ?>" class="profile-avatar-img">
                             <?php else: ?>
                                 <div id="avatar-placeholder" class="profile-avatar-placeholder">
                                     <?= substr($user->fullName ?: $user->username, 0, 1) ?>

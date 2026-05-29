@@ -17,7 +17,8 @@ class TicketController extends BaseController
         AuthSessionContainer $authSessionContainer,
         private TicketTable $ticketTable,
         private TicketMessageTable $ticketMessageTable,
-        private NotificationTable $notificationTable
+        private NotificationTable $notificationTable,
+        private ?\Library\Service\MailService $mailService = null
     ) {
         parent::__construct($authSessionContainer);
     }
@@ -138,7 +139,7 @@ class TicketController extends BaseController
                 } catch (\Throwable $e) {}
 
                 $this->flash()->addSuccessMessage('Đã gửi yêu cầu hỗ trợ thành công.');
-                return $this->redirect()->toRoute('library/ticket');
+                return $this->redirect()->toRoute($this->routeForRole('ticket'));
             }
             $this->flash()->addErrorMessage('Vui lòng nhập đầy đủ Tiêu đề và Nội dung.');
         }
@@ -160,12 +161,12 @@ class TicketController extends BaseController
 
         if (!$ticket) {
             $this->flash()->addErrorMessage('Không tìm thấy Ticket.');
-            return $this->redirect()->toRoute('library/ticket');
+            return $this->redirect()->toRoute($this->routeForRole('ticket'));
         }
 
         if (!$isAdmin && $ticket['user_id'] != $currentUser['id']) {
             $this->flash()->addErrorMessage('Bạn không có quyền xem Ticket này.');
-            return $this->redirect()->toRoute('library/ticket');
+            return $this->redirect()->toRoute($this->routeForRole('ticket'));
         }
 
         if ($this->httpRequest()->isPost()) {
@@ -188,9 +189,21 @@ class TicketController extends BaseController
                     );
                 } catch (\Throwable $e) {}
 
+                // Gửi email cho sinh viên
+                if ($this->mailService !== null) {
+                    try {
+                        $subject = "[Thư viện HDPE] Yêu cầu hỗ trợ đã đóng";
+                        $body = "Chào " . ($ticket['author_name'] ?? 'Độc giả') . ",\n\n"
+                              . "Yêu cầu hỗ trợ của bạn về chủ đề '" . $ticket['title'] . "' đã được thủ thư đóng.\n\n"
+                              . "Trân trọng,\n"
+                              . "Thư viện HDPE";
+                        $this->mailService->sendEmail((string)$ticket['author_email'], (string)($ticket['author_name'] ?? 'Độc giả'), $subject, $body);
+                    } catch (\Throwable $e) {}
+                }
+
                 $this->flash()->addSuccessMessage('Đã đóng yêu cầu hỗ trợ.');
             }
- elseif ($message) {
+            elseif ($message) {
                 // schema: ticket_messages(ticket_id, sender_id, sender_role, message, sent_at)
                 $senderRole = $isAdmin ? 'admin' : 'user';
                 $this->ticketMessageTable->insertMessage($id, (int)$currentUser['id'], $senderRole, $message);
@@ -227,9 +240,24 @@ class TicketController extends BaseController
                     }
                 } catch (\Throwable $e) {}
 
+                // Gửi email cho sinh viên
+                if ($isAdmin && $this->mailService !== null) {
+                    try {
+                        $subject = "[Thư viện HDPE] Có phản hồi hỗ trợ mới";
+                        $body = "Chào " . ($ticket['author_name'] ?? 'Độc giả') . ",\n\n"
+                              . "Thủ thư đã trả lời yêu cầu hỗ trợ của bạn: '" . $ticket['title'] . "'.\n"
+                              . "Nội dung phản hồi:\n\n"
+                              . $message . "\n\n"
+                              . "Vui lòng đăng nhập vào tài khoản để xem chi tiết và phản hồi.\n\n"
+                              . "Trân trọng,\n"
+                              . "Thư viện HDPE";
+                        $this->mailService->sendEmail((string)$ticket['author_email'], (string)($ticket['author_name'] ?? 'Độc giả'), $subject, $body);
+                    } catch (\Throwable $e) {}
+                }
+
                 $this->flash()->addSuccessMessage('Đã gửi phản hồi.');
             }
-            return $this->redirect()->toRoute('library/ticket', ['action' => 'view', 'id' => $id]);
+            return $this->redirect()->toRoute($this->routeForRole('ticket'), ['action' => 'view', 'id' => $id]);
         }
 
         // schema: ticket_messages.sender_id → users.user_id, sort by sent_at

@@ -389,7 +389,10 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const deleteBtn = (!isGuest && parseInt(msg.user_id) === currentUserId) ? `<span onclick="deleteCatalogMessage(${msg.id})" class="forum-msg-delete" title="Xóa"><i class="bi bi-trash"></i></span>` : '';
         const reactBtn = (!isGuest && currentUserId > 0) ? `<span class="forum-msg-react-btn" title="Thả cảm xúc" onclick="toggleReactionPicker(event, ${msg.id})"><i class="bi bi-emoji-smile"></i></span>` : '';
-        const avatarHtml = msg.avatar_url ? `<img src="${basePath + msg.avatar_url}" class="forum-msg-avatar" style="object-fit: cover;">` : `<div style="background:${avatarColor}" class="forum-msg-avatar">${initial}</div>`;
+        
+        const avatarUrl = msg.avatar_url || '';
+        const avatarSrc = (avatarUrl.startsWith('http://') || avatarUrl.startsWith('https://')) ? avatarUrl : (basePath + avatarUrl);
+        const avatarHtml = avatarUrl ? `<img src="${avatarSrc}" class="forum-msg-avatar" style="object-fit: cover;">` : `<div style="background:${avatarColor}" class="forum-msg-avatar">${initial}</div>`;
 
         let msgReactions = {};
         if (msg.reactions) {
@@ -409,7 +412,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="forum-msg-meta-actions">${reactBtn}${deleteBtn}</div>
                 </div>
                 <div class="forum-msg-text">${escapeHtml(msg.message)}</div>
-                ${renderReactionsHtml(msg.id, msgReactions)}
+                <div class="forum-msg-reactions-wrapper">
+                    ${renderReactionsHtml(msg.id, msgReactions)}
+                </div>
             </div>
         </div>`;
     }
@@ -541,6 +546,21 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             if (messages.length === 0) return;
+
+            // Sync reactions for existing messages in DOM
+            messages.forEach(msg => {
+                const row = container.querySelector(`.forum-msg-row[data-msg-id="${msg.id}"]`);
+                if (row) {
+                    let msgReactions = {};
+                    if (msg.reactions) {
+                        try { msgReactions = JSON.parse(msg.reactions); } catch (e) { msgReactions = {}; }
+                    }
+                    const wrapper = row.querySelector('.forum-msg-reactions-wrapper');
+                    if (wrapper) {
+                        wrapper.innerHTML = renderReactionsHtml(msg.id, msgReactions);
+                    }
+                }
+            });
 
             const newMsgs = messages.filter(msg => newestMessageId === null || msg.id > newestMessageId);
             

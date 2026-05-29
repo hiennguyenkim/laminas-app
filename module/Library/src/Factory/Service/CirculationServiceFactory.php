@@ -20,6 +20,7 @@ class CirculationServiceFactory
             $container->get(BookTable::class),
             $container->get(BorrowTable::class),
             $container->get(UserTable::class),
+            $container->get(\Library\Service\MailService::class)
         );
     }
 }

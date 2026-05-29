@@ -114,7 +114,7 @@ class NotificationTable
             
             // 2. Mark all current broadcast notifications as read for this user
             $sqlBroadcast = "INSERT IGNORE INTO user_notifications_read (user_id, notification_id) 
-                             SELECT ?, id FROM notifications WHERE user_id IS NULL";
+                             SELECT ?, id FROM notifications WHERE user_id IS NULL AND type NOT IN ('borrow', 'ticket')";
             $this->getAdapter()->query($sqlBroadcast)->execute([$userId]);
         }
     }
@@ -144,13 +144,14 @@ class NotificationTable
         } else {
             // Student: Fetch personal notifications OR broadcast notifications
             // Exclude hidden notifications for this user AND soft-deleted ones
+            // Exclude admin-only notifications of type 'borrow' or 'ticket'
             $sql = "SELECT n.*, 
                     CASE 
                         WHEN n.user_id IS NULL THEN (SELECT 1 FROM user_notifications_read unr WHERE unr.notification_id = n.id AND unr.user_id = ?)
                         ELSE n.is_read 
                     END as is_read_effective
                     FROM notifications n 
-                    WHERE (n.user_id = ? OR n.user_id IS NULL)
+                    WHERE (n.user_id = ? OR (n.user_id IS NULL AND n.type NOT IN ('borrow', 'ticket')))
                     AND n.is_deleted = 0
                     AND NOT EXISTS (SELECT 1 FROM user_notifications_hidden unh WHERE unh.notification_id = n.id AND unh.user_id = ?)
                     ORDER BY n.created_at DESC LIMIT ?";

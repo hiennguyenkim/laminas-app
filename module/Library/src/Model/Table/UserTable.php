@@ -378,6 +378,8 @@ class UserTable
             'lock_reason'    => $user->lockReason !== '' ? $user->lockReason : null,
             'phone'          => $user->phone !== '' ? $user->phone : null,
             'borrow_limit'   => $user->borrowLimit,
+            'otp_code'       => $user->otpCode !== '' ? $user->otpCode : null,
+            'otp_expires_at' => $user->otpExpiresAt !== '' ? $user->otpExpiresAt : null,
         ];
 
         if ($passwordHash !== null) {

@@ -48,7 +48,10 @@ class PublicChatTable
         $sql = "SELECT reactions FROM public_chats WHERE id = ?";
         $stmt = $this->getAdapter()->query($sql);
         $row = $stmt->execute([$messageId])->current();
-        return $row ? $row['reactions'] : null;
+        if (!$row) {
+            return null;
+        }
+        return $row['reactions'] !== null ? (string)$row['reactions'] : '';
     }
 
     public function updateReactions(int $messageId, string $reactions): void

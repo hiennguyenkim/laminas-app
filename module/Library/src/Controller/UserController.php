@@ -445,104 +445,22 @@ class UserController extends BaseController
         return $this->redirect()->toRoute('library/user');
     }
 
-    public function pendingAction(): Response|ViewModel
+    public function pendingAction(): Response
     {
-        if ($response = $this->requireAdmin()) {
-            return $response;
-        }
-
-        $filters = ['is_approved' => 0];
-        $users = $this->userTable->fetchAll($filters);
-
-        return new ViewModel([
-            'users' => $users,
-        ]);
+        $this->flash()->addInfoMessage('Chức năng duyệt thủ công đã bị gỡ bỏ.');
+        return $this->redirect()->toRoute('library/user');
     }
 
     public function approveAction(): Response
     {
-        if ($response = $this->requireAdmin()) {
-            return $response;
-        }
-
-        if (!$this->httpRequest()->isPost()) {
-            return $this->redirect()->toRoute('library/user', ['action' => 'pending']);
-        }
-
-        $id = $this->routeInt('id');
-        try {
-            $user = $this->userTable->getUser($id);
-            $user->isApproved = true;
-            $this->userTable->saveUser($user);
-
-            // Gửi thông báo chào mừng cho sinh viên
-            try {
-                $stmt = $this->userTable->getAdapter()->createStatement(
-                    "INSERT INTO notifications (user_id, sender_id, title, message, type, related_id) 
-                     VALUES (?, NULL, 'Tài khoản đã được phê duyệt', ?, 'borrow_approved', ?)"
-                );
-                $stmt->execute([
-                    $id,
-                    "Chúc mừng! Tài khoản của bạn đã được quản trị viên phê duyệt. Bạn có thể bắt đầu mượn sách ngay bây giờ.",
-                    $id
-                ]);
-            } catch (\Throwable $e) {}
-
-            // Gửi email thông báo phê duyệt
-            try {
-                $subject = "[Thư viện HDPE] Tài khoản của bạn đã được phê duyệt";
-                $body = "Chào " . $user->fullName . ",\n\n"
-                      . "Chúc mừng bạn! Tài khoản của bạn (tên đăng nhập: " . $user->username . ") đã được quản trị viên phê duyệt thành công.\n"
-                      . "Bây giờ bạn đã có thể đăng nhập vào hệ thống Thư viện HDPE và sử dụng các dịch vụ mượn/trả sách.\n\n"
-                      . "Trân trọng,\n"
-                      . "Thư viện HDPE";
-                $this->mailService->sendEmail($user->email, $user->fullName, $subject, $body);
-            } catch (\Throwable $e) {
-                $this->flash()->addWarningMessage("Đã phê duyệt tài khoản nhưng không thể gửi email thông báo: " . $e->getMessage());
-            }
-
-            $this->flash()->addSuccessMessage("Đã phê duyệt tài khoản: " . $user->fullName);
-        } catch (\Throwable $e) {
-            $this->flash()->addErrorMessage($e->getMessage());
-        }
-
-        return $this->redirect()->toRoute('library/user', ['action' => 'pending']);
+        $this->flash()->addInfoMessage('Chức năng duyệt thủ công đã bị gỡ bỏ.');
+        return $this->redirect()->toRoute('library/user');
     }
 
     public function rejectAction(): Response
     {
-        if ($response = $this->requireAdmin()) {
-            return $response;
-        }
-
-        if (!$this->httpRequest()->isPost()) {
-            return $this->redirect()->toRoute('library/user', ['action' => 'pending']);
-        }
-
-        $id = $this->routeInt('id');
-        try {
-            $user = $this->userTable->getUser($id);
-            $this->userTable->deleteUser($id);
-
-            // Gửi email thông báo từ chối phê duyệt
-            try {
-                $subject = "[Thư viện HDPE] Kết quả đăng ký tài khoản";
-                $body = "Chào " . $user->fullName . ",\n\n"
-                      . "Rất tiếc, yêu cầu đăng ký tài khoản của bạn (tên đăng nhập: " . $user->username . ") đã bị từ chối bởi ban quản trị và tài khoản đã được xóa khỏi danh sách chờ.\n"
-                      . "Vui lòng liên hệ với thủ thư để biết thêm chi tiết hoặc thực hiện đăng ký lại.\n\n"
-                      . "Trân trọng,\n"
-                      . "Thư viện HDPE";
-                $this->mailService->sendEmail($user->email, $user->fullName, $subject, $body);
-            } catch (\Throwable $e) {
-                $this->flash()->addWarningMessage("Đã từ chối tài khoản nhưng không thể gửi email thông báo: " . $e->getMessage());
-            }
-
-            $this->flash()->addSuccessMessage("Đã từ chối và xóa tài khoản: " . $user->fullName);
-        } catch (\Throwable $e) {
-            $this->flash()->addErrorMessage($e->getMessage());
-        }
-
-        return $this->redirect()->toRoute('library/user', ['action' => 'pending']);
+        $this->flash()->addInfoMessage('Chức năng duyệt thủ công đã bị gỡ bỏ.');
+        return $this->redirect()->toRoute('library/user');
     }
 
     public function lockAction(): Response

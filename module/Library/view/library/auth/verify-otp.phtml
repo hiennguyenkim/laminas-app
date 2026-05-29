@@ -1,0 +1,146 @@
+<?php $this->headTitle('Xác thực OTP');
+$this->layout('layout/library-layout'); 
+
+$publicDir = getcwd();
+if (basename($publicDir) !== 'public') {
+    $publicDir .= '/public';
+}
+$customLogoFile = null;
+foreach (['logo.png','logo.jpg','logo.jpeg','logo.svg','logo.webp'] as $_lf) {
+    if (file_exists($publicDir . '/img/uploads/' . $_lf)) {
+        $customLogoFile = 'img/uploads/' . $_lf; break;
+    }
+}
+?>
+<div class="login-card">
+    <a href="<?= $this->url('library/auth', ['action' => 'login']) ?>" class="btn btn-outline btn-icon" style="position: absolute; top: 20px; left: 20px;" title="Quay lại trang đăng nhập">
+        <i class="bi bi-arrow-left"></i>
+    </a>
+    <div class="login-logo">
+        <?php if ($customLogoFile): ?>
+            <img src="<?= $this->basePath($customLogoFile) ?>?t=<?= filemtime($publicDir . '/' . $customLogoFile) ?>" alt="Logo">
+        <?php else: ?>
+            <i class="bi bi-shield-lock-fill" style="color: var(--accent-purple, #7c6aff); font-size: 40px;"></i>
+        <?php endif; ?>
+    </div>
+    <div class="login-title">Xác thực OTP</div>
+    <div class="login-sub">Nhập mã xác thực được gửi tới email của bạn</div>
+
+    <p style="text-align: center; font-size: 14px; color: var(--text-muted); margin-bottom: 24px; line-height: 1.5;">
+        Mã xác thực OTP gồm 6 chữ số đã được gửi đến địa chỉ email:<br>
+        <strong style="color: var(--text-color);"><?= htmlspecialchars((string)($email ?? '')) ?></strong>.<br>
+        Vui lòng kiểm tra cả hộp thư rác (Spam) nếu không thấy thư.
+    </p>
+
+    <form method="POST" action="<?= $this->url('library/auth', ['action' => 'verifyOtp']) ?>" id="otp-form">
+        <!-- Hidden input to submit the full code -->
+        <input type="hidden" name="otp_code" id="hidden-otp-code" value="">
+
+        <!-- Spaced digit boxes -->
+        <div class="otp-inputs-row" style="display: flex; justify-content: center; gap: 8px; margin-bottom: 24px;">
+            <input type="text" maxlength="1" class="otp-digit" pattern="[0-9]" inputmode="numeric" required style="width: 44px; height: 50px; font-size: 24px; font-weight: bold; text-align: center; border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; background: rgba(255,255,255,0.05); color: var(--text-color); outline: none; transition: border 0.2s;" autofocus>
+            <input type="text" maxlength="1" class="otp-digit" pattern="[0-9]" inputmode="numeric" required style="width: 44px; height: 50px; font-size: 24px; font-weight: bold; text-align: center; border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; background: rgba(255,255,255,0.05); color: var(--text-color); outline: none; transition: border 0.2s;">
+            <input type="text" maxlength="1" class="otp-digit" pattern="[0-9]" inputmode="numeric" required style="width: 44px; height: 50px; font-size: 24px; font-weight: bold; text-align: center; border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; background: rgba(255,255,255,0.05); color: var(--text-color); outline: none; transition: border 0.2s;">
+            <input type="text" maxlength="1" class="otp-digit" pattern="[0-9]" inputmode="numeric" required style="width: 44px; height: 50px; font-size: 24px; font-weight: bold; text-align: center; border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; background: rgba(255,255,255,0.05); color: var(--text-color); outline: none; transition: border 0.2s;">
+            <input type="text" maxlength="1" class="otp-digit" pattern="[0-9]" inputmode="numeric" required style="width: 44px; height: 50px; font-size: 24px; font-weight: bold; text-align: center; border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; background: rgba(255,255,255,0.05); color: var(--text-color); outline: none; transition: border 0.2s;">
+            <input type="text" maxlength="1" class="otp-digit" pattern="[0-9]" inputmode="numeric" required style="width: 44px; height: 50px; font-size: 24px; font-weight: bold; text-align: center; border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; background: rgba(255,255,255,0.05); color: var(--text-color); outline: none; transition: border 0.2s;">
+        </div>
+
+        <button type="submit" class="btn btn-primary w-100 login-btn" style="height: 44px; font-weight: 600;">
+            <i class="bi bi-shield-check"></i>Xác thực và kích hoạt
+        </button>
+    </form>
+
+    <p class="login-footer-text" style="margin-top: 24px;">
+        Không nhận được mã? 
+        <span id="countdown-wrapper" style="color: var(--text-muted);">Gửi lại sau <strong id="timer">60</strong>s</span>
+        <a href="<?= $this->url('library/auth', ['action' => 'verifyOtp']) ?>?resend=1" id="resend-link" class="login-footer-link" style="display: none; font-weight: 600;">Gửi lại mã</a>
+    </p>
+
+    <div class="login-copyright" style="margin-top: 30px;">
+        © 2026 Bản quyền thuộc về <span class="login-footer-link">Thư Viện HDPE</span>
+    </div>
+</div>
+
+<style>
+.otp-digit:focus {
+    border-color: var(--accent-purple, #7c6aff) !important;
+    box-shadow: 0 0 8px rgba(124, 106, 255, 0.25);
+    background: rgba(255, 255, 255, 0.1) !important;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const digits = document.querySelectorAll('.otp-digit');
+    const hiddenCode = document.getElementById('hidden-otp-code');
+    const form = document.getElementById('otp-form');
+
+    // Auto focus traversal
+    digits.forEach((el, index) => {
+        el.addEventListener('input', (e) => {
+            const val = e.target.value;
+            // Clean non-numeric input
+            e.target.value = val.replace(/[^0-9]/g, '');
+
+            if (e.target.value !== '' && index < digits.length - 1) {
+                digits[index + 1].focus();
+            }
+            updateHiddenCode();
+        });
+
+        // Allow backspace to focus previous input
+        el.addEventListener('keydown', (e) => {
+            if (e.key === 'Backspace' && e.target.value === '' && index > 0) {
+                digits[index - 1].focus();
+            }
+        });
+
+        // Handle paste events
+        el.addEventListener('paste', (e) => {
+            e.preventDefault();
+            const text = (e.clipboardData || window.clipboardData).getData('text').trim();
+            if (/^\d{6}$/.test(text)) {
+                digits.forEach((digitEl, i) => {
+                    digitEl.value = text[i];
+                });
+                updateHiddenCode();
+                digits[digits.length - 1].focus();
+            }
+        });
+    });
+
+    function updateHiddenCode() {
+        let code = '';
+        digits.forEach(el => {
+            code += el.value;
+        });
+        hiddenCode.value = code;
+    }
+
+    form.addEventListener('submit', (e) => {
+        updateHiddenCode();
+        if (hiddenCode.value.length !== 6) {
+            e.preventDefault();
+            alert('Vui lòng nhập đầy đủ 6 chữ số của mã xác thực.');
+        }
+    });
+
+    // Resend countdown timer
+    let count = 60;
+    const timerEl = document.getElementById('timer');
+    const wrapperEl = document.getElementById('countdown-wrapper');
+    const linkEl = document.getElementById('resend-link');
+
+    const interval = setInterval(() => {
+        count--;
+        if (count <= 0) {
+            clearInterval(interval);
+            wrapperEl.style.display = 'none';
+            linkEl.style.display = 'inline';
+        } else {
+            timerEl.textContent = count;
+        }
+    }, 1000);
+});
+</script>

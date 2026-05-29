@@ -212,9 +212,13 @@ class DashboardControllerTest extends AbstractHttpControllerTestCase
             return $stmtEmpty;
         });
 
+        $geminiServiceMock = $this->createMock(\Library\Service\GeminiService::class);
+        $geminiServiceMock->method('checkContent')->willReturn(true);
+
         $serviceLocator = $this->getApplicationServiceLocator();
         $serviceLocator->setAllowOverride(true);
         $serviceLocator->setService(AdapterInterface::class, $dbMock);
+        $serviceLocator->setService(\Library\Service\GeminiService::class, $geminiServiceMock);
 
         $this->dispatch('/student/dashboard/chat', 'POST', ['message' => 'Test message']);
         $this->assertResponseStatusCode(200);

@@ -578,12 +578,12 @@ class DashboardController extends BaseController
 
     public function borrowedAction(): Response
     {
-        return $this->redirect()->toRoute('library/transaction', [], ['query' => ['status' => 'borrowed']]);
+        return $this->redirect()->toRoute($this->routeForRole('transaction'), [], ['query' => ['status' => 'borrowed']]);
     }
 
     public function overdueAction(): Response
     {
-        return $this->redirect()->toRoute('library/transaction', [], ['query' => ['status' => 'overdue']]);
+        return $this->redirect()->toRoute($this->routeForRole('transaction'), [], ['query' => ['status' => 'overdue']]);
     }
 
     private function buildXlsxResponse(string $filename, \PhpOffice\PhpSpreadsheet\Spreadsheet $spreadsheet): Response

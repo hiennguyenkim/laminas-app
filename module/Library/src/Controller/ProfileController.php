@@ -178,9 +178,13 @@ class ProfileController extends BaseController
             
             // Update session if needed
             $session = $this->authSession();
-            $session->user['full_name']  = $user->fullName;
-            $session->user['nickname']   = $user->nickname;
-            $session->user['avatar_url'] = $user->avatarUrl;
+            $sessionUser = $session->user;
+            if (is_array($sessionUser)) {
+                $sessionUser['full_name']  = $user->fullName;
+                $sessionUser['nickname']   = $user->nickname;
+                $sessionUser['avatar_url'] = $user->avatarUrl;
+                $session->user = $sessionUser;
+            }
 
             $this->flash()->addSuccessMessage('Đã cập nhật hồ sơ thành công.');
         }
