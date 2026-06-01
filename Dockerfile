@@ -43,7 +43,7 @@ RUN apt-get install --yes libicu-dev \
 ###
 
 ## MySQL PDO support
-# RUN docker-php-ext-install pdo_mysql
+RUN docker-php-ext-install pdo_mysql
 
 ## PostgreSQL PDO support
 # RUN apt-get install --yes libpq-dev \
@@ -76,3 +76,13 @@ RUN apt-get install --yes libicu-dev \
 
 
 WORKDIR /var/www
+
+# Copy source files to the container
+COPY . /var/www
+
+# Install composer dependencies
+RUN composer install --no-interaction --optimize-autoloader
+
+# Set correct ownership for Apache
+RUN chown -R www-data:www-data /var/www
+
