@@ -22,14 +22,17 @@ RUN curl -sS https://getcomposer.org/installer \
 ## PHP Extensisons
 ###
 
-## Install zip libraries and extension
-RUN apt-get install --yes git zlib1g-dev libzip-dev \
-    && docker-php-ext-install zip
+## Install system libraries for zip, intl, and gd
+RUN apt-get install --yes git zlib1g-dev libzip-dev libicu-dev libfreetype6-dev libjpeg62-turbo-dev libpng-dev
 
-## Install intl library and extension
-RUN apt-get install --yes libicu-dev \
+## Install zip & intl extensions
+RUN docker-php-ext-install zip \
     && docker-php-ext-configure intl \
     && docker-php-ext-install intl
+
+## Configure and install GD extension
+RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install gd
 
 ###
 ## Optional PHP extensions 
