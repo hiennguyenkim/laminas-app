@@ -6,6 +6,11 @@
 return [
     'db' => [
         'driver'     => 'Pdo_Mysql',
+        'hostname'   => getenv('DB_HOST') ?: 'localhost',
+        'database'   => getenv('DB_NAME') ?: 'library_db',
+        'username'   => getenv('DB_USER') ?: 'root',
+        'password'   => getenv('DB_PASS') !== false ? getenv('DB_PASS') : '',
+        'port'       => getenv('DB_PORT') ?: 3306,
         'charset'    => 'utf8mb4',
         'collation'  => 'utf8mb4_unicode_ci',
         'driver_options' => [
