@@ -16,13 +16,17 @@ class CirculationService
 {
     private const MAX_LOAN_DAYS = 30;
 
+    /** @var \Laminas\Db\Adapter\Adapter */
+    private AdapterInterface $adapter;
+
     public function __construct(
-        private AdapterInterface $adapter,
+        AdapterInterface $adapter,
         private BookTable $bookTable,
         private BorrowTable $borrowTable,
         private UserTable $userTable,
         private ?MailService $mailService = null
     ) {
+        $this->adapter = $adapter;
     }
 
     public function borrowBook(int $bookId, int $userId, string $borrowDate, string $returnDate, bool $isApproved = true): void
@@ -367,6 +371,52 @@ class CirculationService
                     } catch (\Throwable $e) {}
                 }
             }
+
+            // Xử lý thưởng: Tự động khôi phục hạn mức mượn nếu trả sách đúng hạn liên tiếp 3 lần
+            try {
+                $user = $this->userTable->getUser((int)$record->userId);
+                if ($user->borrowLimit > 0 && $user->borrowLimit < 5) {
+                    $isOnTime = (date('Y-m-d') <= $record->returnDate);
+                    if ($isOnTime) {
+                        $sqlRecent = "SELECT returned_at, return_date 
+                                      FROM borrow_records 
+                                      WHERE user_id = ? AND status = 'returned' AND returned_at IS NOT NULL
+                                      ORDER BY returned_at DESC 
+                                      LIMIT 3";
+                        $recentReturns = iterator_to_array($this->adapter->query($sqlRecent)->execute([$record->userId]));
+                        
+                        if (count($recentReturns) === 3) {
+                            $allOnTime = true;
+                            foreach ($recentReturns as $r) {
+                                $retDateStr = substr($r['returned_at'], 0, 10);
+                                if ($retDateStr > $r['return_date']) {
+                                    $allOnTime = false;
+                                    break;
+                                }
+                            }
+                            
+                            if ($allOnTime) {
+                                $oldLimit = $user->borrowLimit;
+                                $newLimit = $oldLimit + 1;
+                                $user->borrowLimit = $newLimit;
+                                $this->userTable->saveUser($user);
+                                
+                                // Gửi thông báo cho sinh viên
+                                $msgReward = sprintf(
+                                    "Chúc mừng! Nhờ việc hoàn trả sách đúng hạn 3 lần liên tiếp, hạn mức mượn của bạn đã được khôi phục thêm 1 cuốn (từ %d lên %d cuốn).",
+                                    $oldLimit,
+                                    $newLimit
+                                );
+                                $stmtReward = $this->adapter->createStatement(
+                                    "INSERT INTO notifications (user_id, sender_id, title, message, type, related_id) 
+                                     VALUES (?, NULL, 'Khôi phục hạn mức mượn', ?, 'system', ?)"
+                                );
+                                $stmtReward->execute([$record->userId, $msgReward, $recordId]);
+                            }
+                        }
+                    }
+                }
+            } catch (\Throwable $e) {}
 
             $connection->commit();
         } catch (\Throwable $throwable) {

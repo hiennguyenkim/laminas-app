@@ -193,4 +193,232 @@ class CirculationServiceTest extends TestCase
 
         return $user;
     }
+
+    public function testReturnBookRestoresBorrowLimitWhenThreeConsecutiveOnTimeReturns(): void
+    {
+        $connection = $this->createMock(ConnectionInterface::class);
+        $connection->expects(self::once())->method('beginTransaction');
+        $connection->expects(self::once())->method('commit');
+
+        $record = new BorrowRecord();
+        $record->id = 15;
+        $record->bookId = 6;
+        $record->userId = 3;
+        $record->status = 'borrowed';
+        $record->returnDate = '2099-12-31';
+
+        $bookTable = $this->createMock(BookTable::class);
+        $borrowTable = $this->createMock(BorrowTable::class);
+        $borrowTable->method('getRecord')->with(15)->willReturn($record);
+        
+        $user = $this->studentUser(3);
+        $user->borrowLimit = 4;
+        
+        $userTable = $this->createMock(UserTable::class);
+        $userTable->method('getUser')->with(3)->willReturn($user);
+        $userTable->expects(self::once())->method('saveUser')->with(self::callback(function($u) {
+            return $u->borrowLimit === 5;
+        }));
+
+        $stmt = $this->createMock(\Laminas\Db\Adapter\Driver\StatementInterface::class);
+        $result = $this->createMock(\Laminas\Db\Adapter\Driver\ResultInterface::class);
+        
+        $recentReturnsData = [
+            ['returned_at' => '2026-06-01 10:00:00', 'return_date' => '2026-06-05'],
+            ['returned_at' => '2026-06-02 10:00:00', 'return_date' => '2026-06-06'],
+            ['returned_at' => '2026-06-03 10:00:00', 'return_date' => '2026-06-07'],
+        ];
+        
+        $result->method('valid')->willReturnCallback(function() use (&$recentReturnsData) {
+            return key($recentReturnsData) !== null;
+        });
+        $result->method('current')->willReturnCallback(function() use (&$recentReturnsData) {
+            return current($recentReturnsData);
+        });
+        $result->method('next')->willReturnCallback(function() use (&$recentReturnsData) {
+            next($recentReturnsData);
+            return null;
+        });
+        $result->method('key')->willReturnCallback(function() use (&$recentReturnsData) {
+            return key($recentReturnsData);
+        });
+        $result->method('rewind')->willReturnCallback(function() use (&$recentReturnsData) {
+            reset($recentReturnsData);
+            return null;
+        });
+        
+        $stmt->method('execute')->willReturn($result);
+        
+        $notiStmt = $this->createMock(\Laminas\Db\Adapter\Driver\StatementInterface::class);
+        $notiStmt->method('execute')->willReturn($this->createMock(\Laminas\Db\Adapter\Driver\ResultInterface::class));
+
+        $adapter = $this->createMock(\Laminas\Db\Adapter\Adapter::class);
+        $driver = $this->createMock(DriverInterface::class);
+        $driver->method('getConnection')->willReturn($connection);
+        $adapter->method('getDriver')->willReturn($driver);
+        
+        $adapter->method('query')->willReturn($stmt);
+        $adapter->method('createStatement')->willReturn($notiStmt);
+
+        $service = new CirculationService(
+            $adapter,
+            $bookTable,
+            $borrowTable,
+            $userTable
+        );
+
+        $service->returnBook(15);
+    }
+
+    public function testReturnBookDoesNotRestoreBorrowLimitWhenOneReturnIsLate(): void
+    {
+        $connection = $this->createMock(ConnectionInterface::class);
+        $connection->expects(self::once())->method('beginTransaction');
+        $connection->expects(self::once())->method('commit');
+
+        $record = new BorrowRecord();
+        $record->id = 15;
+        $record->bookId = 6;
+        $record->userId = 3;
+        $record->status = 'borrowed';
+        $record->returnDate = '2099-12-31';
+
+        $bookTable = $this->createMock(BookTable::class);
+        $borrowTable = $this->createMock(BorrowTable::class);
+        $borrowTable->method('getRecord')->with(15)->willReturn($record);
+        
+        $user = $this->studentUser(3);
+        $user->borrowLimit = 4;
+        
+        $userTable = $this->createMock(UserTable::class);
+        $userTable->method('getUser')->with(3)->willReturn($user);
+        // saveUser should NOT be called since one book was returned late
+        $userTable->expects(self::never())->method('saveUser');
+
+        $stmt = $this->createMock(\Laminas\Db\Adapter\Driver\StatementInterface::class);
+        $result = $this->createMock(\Laminas\Db\Adapter\Driver\ResultInterface::class);
+        
+        $recentReturnsData = [
+            ['returned_at' => '2026-06-01 10:00:00', 'return_date' => '2026-06-05'],
+            ['returned_at' => '2026-06-10 10:00:00', 'return_date' => '2026-06-06'], // LATE!
+            ['returned_at' => '2026-06-03 10:00:00', 'return_date' => '2026-06-07'],
+        ];
+        
+        $result->method('valid')->willReturnCallback(function() use (&$recentReturnsData) {
+            return key($recentReturnsData) !== null;
+        });
+        $result->method('current')->willReturnCallback(function() use (&$recentReturnsData) {
+            return current($recentReturnsData);
+        });
+        $result->method('next')->willReturnCallback(function() use (&$recentReturnsData) {
+            next($recentReturnsData);
+            return null;
+        });
+        $result->method('key')->willReturnCallback(function() use (&$recentReturnsData) {
+            return key($recentReturnsData);
+        });
+        $result->method('rewind')->willReturnCallback(function() use (&$recentReturnsData) {
+            reset($recentReturnsData);
+            return null;
+        });
+        
+        $stmt->method('execute')->willReturn($result);
+        
+        $notiStmt = $this->createMock(\Laminas\Db\Adapter\Driver\StatementInterface::class);
+        $notiStmt->method('execute')->willReturn($this->createMock(\Laminas\Db\Adapter\Driver\ResultInterface::class));
+
+        $adapter = $this->createMock(\Laminas\Db\Adapter\Adapter::class);
+        $driver = $this->createMock(DriverInterface::class);
+        $driver->method('getConnection')->willReturn($connection);
+        $adapter->method('getDriver')->willReturn($driver);
+        
+        $adapter->method('query')->willReturn($stmt);
+        $adapter->method('createStatement')->willReturn($notiStmt);
+
+        $service = new CirculationService(
+            $adapter,
+            $bookTable,
+            $borrowTable,
+            $userTable
+        );
+
+        $service->returnBook(15);
+    }
+
+    public function testReturnBookDoesNotRestoreBorrowLimitWhenLimitIsAlreadyFive(): void
+    {
+        $connection = $this->createMock(ConnectionInterface::class);
+        $connection->expects(self::once())->method('beginTransaction');
+        $connection->expects(self::once())->method('commit');
+
+        $record = new BorrowRecord();
+        $record->id = 15;
+        $record->bookId = 6;
+        $record->userId = 3;
+        $record->status = 'borrowed';
+        $record->returnDate = '2099-12-31';
+
+        $bookTable = $this->createMock(BookTable::class);
+        $borrowTable = $this->createMock(BorrowTable::class);
+        $borrowTable->method('getRecord')->with(15)->willReturn($record);
+        
+        $user = $this->studentUser(3);
+        $user->borrowLimit = 5; // ALREADY AT STANDARD MAX 5
+        
+        $userTable = $this->createMock(UserTable::class);
+        $userTable->method('getUser')->with(3)->willReturn($user);
+        // saveUser should NOT be called since the limit is already 5
+        $userTable->expects(self::never())->method('saveUser');
+
+        $stmt = $this->createMock(\Laminas\Db\Adapter\Driver\StatementInterface::class);
+        $result = $this->createMock(\Laminas\Db\Adapter\Driver\ResultInterface::class);
+        
+        $recentReturnsData = [
+            ['returned_at' => '2026-06-01 10:00:00', 'return_date' => '2026-06-05'],
+            ['returned_at' => '2026-06-02 10:00:00', 'return_date' => '2026-06-06'],
+            ['returned_at' => '2026-06-03 10:00:00', 'return_date' => '2026-06-07'],
+        ];
+        
+        $result->method('valid')->willReturnCallback(function() use (&$recentReturnsData) {
+            return key($recentReturnsData) !== null;
+        });
+        $result->method('current')->willReturnCallback(function() use (&$recentReturnsData) {
+            return current($recentReturnsData);
+        });
+        $result->method('next')->willReturnCallback(function() use (&$recentReturnsData) {
+            next($recentReturnsData);
+            return null;
+        });
+        $result->method('key')->willReturnCallback(function() use (&$recentReturnsData) {
+            return key($recentReturnsData);
+        });
+        $result->method('rewind')->willReturnCallback(function() use (&$recentReturnsData) {
+            reset($recentReturnsData);
+            return null;
+        });
+        
+        $stmt->method('execute')->willReturn($result);
+        
+        $notiStmt = $this->createMock(\Laminas\Db\Adapter\Driver\StatementInterface::class);
+        $notiStmt->method('execute')->willReturn($this->createMock(\Laminas\Db\Adapter\Driver\ResultInterface::class));
+
+        $adapter = $this->createMock(\Laminas\Db\Adapter\Adapter::class);
+        $driver = $this->createMock(DriverInterface::class);
+        $driver->method('getConnection')->willReturn($connection);
+        $adapter->method('getDriver')->willReturn($driver);
+        
+        $adapter->method('query')->willReturn($stmt);
+        $adapter->method('createStatement')->willReturn($notiStmt);
+
+        $service = new CirculationService(
+            $adapter,
+            $bookTable,
+            $borrowTable,
+            $userTable
+        );
+
+        $service->returnBook(15);
+    }
 }
+
+

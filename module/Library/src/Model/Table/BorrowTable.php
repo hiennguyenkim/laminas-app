@@ -16,11 +16,15 @@ class BorrowTable
     private const RETURNED_HISTORY_RETENTION_DAYS = 3650;
 
     private TableGateway $tableGateway;
+    private \Laminas\Db\Adapter\Adapter $adapter;
     private bool $expiredReturnedHistoryCleaned = false;
 
     public function __construct(TableGateway $tableGateway)
     {
         $this->tableGateway = $tableGateway;
+        $adapter = $tableGateway->getAdapter();
+        assert($adapter instanceof \Laminas\Db\Adapter\Adapter);
+        $this->adapter = $adapter;
     }
 
     /**
@@ -225,7 +229,14 @@ class BorrowTable
     {
         $this->cleanupExpiredReturnedHistory();
 
-        $rowset = $this->tableGateway->select([self::PK => $id]);
+        $rowset = $this->tableGateway->select(function (Select $select) use ($id): void {
+            $select->where(['borrow_records.' . self::PK => $id]);
+            $select->join(
+                'books',
+                'borrow_records.book_id = books.book_id',
+                ['book_title' => 'title']
+            );
+        });
         $row = $this->firstRecordFromRowset($rowset);
 
         if (! $row instanceof BorrowRecord) {
@@ -293,7 +304,7 @@ class BorrowTable
     public function approveRenew(int $id, string $newReturnDate): void
     {
         $sql = "UPDATE borrow_records SET return_date = ?, renew_count = renew_count + 1, is_renew_pending = 0 WHERE borrow_id = ?";
-        $this->tableGateway->getAdapter()->query($sql)->execute([$newReturnDate, $id]);
+        $this->adapter->query($sql)->execute([$newReturnDate, $id]);
     }
 
     public function rejectRenew(int $id): void
@@ -304,7 +315,7 @@ class BorrowTable
     public function renewBook(int $id, string $newReturnDate): void
     {
         $sql = "UPDATE borrow_records SET return_date = ?, renew_count = renew_count + 1, is_renew_pending = 0 WHERE borrow_id = ?";
-        $this->tableGateway->getAdapter()->query($sql)->execute([$newReturnDate, $id]);
+        $this->adapter->query($sql)->execute([$newReturnDate, $id]);
     }
 
     public function returnBook(int $id): void
@@ -400,7 +411,7 @@ class BorrowTable
                 GROUP BY u.user_id, u.full_name, u.username, u.avatar_url 
                 ORDER BY borrow_count DESC 
                 LIMIT ?";
-        $result = $this->tableGateway->getAdapter()->query($sql)->execute([$limit]);
+        $result = $this->adapter->query($sql)->execute([$limit]);
         return iterator_to_array($result);
     }
 
@@ -767,7 +778,7 @@ class BorrowTable
                 'cnt'   => new Expression('COUNT(*)'),
             ])
             ->where(new \Laminas\Db\Sql\Predicate\Expression("YEAR(borrow_date) = ?", $year))
-            ->where(function (\Laminas\Db\Sql\Where $where) {
+            ->where(function (Where $where) {
                 $where->in('status', ['borrowed', 'returned', 'overdue']);
             })
             ->group(new Expression('MONTH(borrow_date)'));
@@ -829,7 +840,7 @@ class BorrowTable
                 ['category']
             )
             ->where(new \Laminas\Db\Sql\Predicate\Expression("YEAR(borrow_records.borrow_date) = ?", $year))
-            ->where(function (\Laminas\Db\Sql\Where $where) {
+            ->where(function (Where $where) {
                 $where->in('borrow_records.status', ['borrowed', 'returned', 'overdue']);
             })
             ->group([new Expression('MONTH(borrow_records.borrow_date)'), 'books.category'])
