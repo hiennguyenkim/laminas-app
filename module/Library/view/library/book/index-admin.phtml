@@ -183,7 +183,7 @@ th.sortable a { display: flex; align-items: center; text-decoration: none; color
                 </tr>
             </thead>
             <tbody>
-            <?php if ($books->count() === 0): ?>
+            <?php if (count($books) === 0): ?>
                 <tr>
                     <td colspan="8" class="text-center py-5">
                         <div class="empty-state">

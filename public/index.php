@@ -48,7 +48,7 @@ if (isset($_GET['migrate_db']) && $_GET['migrate_db'] === 'hdpe_upgrade_utf8mb4_
     header('Content-Type: text/plain; charset=utf-8');
     try {
         echo "Bắt đầu nâng cấp cơ sở dữ liệu..." . PHP_EOL;
-        /** @var \Laminas\Db\Adapter\AdapterInterface $db */
+        /** @var \Laminas\Db\Adapter\Adapter $db */
         $db = $container->get(\Laminas\Db\Adapter\AdapterInterface::class);
         $dbNameRes = $db->query("SELECT DATABASE() AS db_name")->execute()->current();
         $dbName = $dbNameRes['db_name'] ?? null;
@@ -83,7 +83,7 @@ if (isset($_GET['sync_db']) && $_GET['sync_db'] === 'hdpe_sync_data_2026') {
     header('Content-Type: text/plain; charset=utf-8');
     try {
         echo "Bắt đầu đồng bộ cơ sở dữ liệu từ local..." . PHP_EOL;
-        /** @var \Laminas\Db\Adapter\AdapterInterface $db */
+        /** @var \Laminas\Db\Adapter\Adapter $db */
         $db = $container->get(\Laminas\Db\Adapter\AdapterInterface::class);
         $connection = $db->getDriver()->getConnection();
         $connection->connect();
