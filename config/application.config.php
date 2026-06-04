@@ -41,7 +41,7 @@ return [
         'module_map_cache_key' => 'application.module.cache',
 
         // The path in which to cache merged configuration.
-        'cache_dir' => 'data/cache/',
+        'cache_dir' => is_writable('data/cache') ? 'data/cache/' : sys_get_temp_dir(),
 
         // Whether or not to enable modules dependency checking.
         // Enabled by default, prevents usage of modules that depend on other modules
