@@ -302,12 +302,13 @@ sequenceDiagram
     *   **Trễ hạn 3-4 lần**: Tạm khóa tài khoản **1 ngày**, giảm hạn mức mượn (`borrow_limit`) xuống còn **4 cuốn**.
     *   **Trễ hạn 5 lần**: Tạm khóa tài khoản **3 ngày**, giảm hạn mức mượn xuống còn **2 cuốn**.
     *   **Trễ hạn 6 lần**: Tạm khóa tài khoản **7 ngày**, giảm hạn mức mượn xuống còn **1 cuốn**.
-    *   **Trễ hạn từ 7 lần trở lên**: Khóa tài khoản **vĩnh viễn** (đến ngày 31/12/9999).
+    *   **Trễ hạn từ 7 lần trở lên**: Khóa tài khoản **vĩnh viễn** (đến ngày 31/12/9999) và cập nhật hạn mức mượn (`borrow_limit`) về **0**.
 4.  **Khóa do kỷ luật & Báo mất sách (Disciplinary Lock & Lost Book Workflow)**:
     *   Tài khoản bị khóa (`locked`) sẽ không thể mượn sách hay được phê duyệt phiếu mượn hiện tại.
-    *   **Quy trình báo mất sách**: Khi Sinh viên hoặc Admin báo mất sách, hệ thống chuyển trạng thái phiếu mượn sang `lost`. Nếu là bản sao cuối cùng của sách đó trên kệ, trạng thái đầu sách cập nhật thành `lost`. Hệ thống tự động **khóa tài khoản sinh viên vĩnh viễn** với lý do làm mất sách cho đến khi hoàn thành thủ tục đền bù.
+    *   **Quy trình báo mất sách**: Khi Sinh viên hoặc Admin báo mất sách, hệ thống chuyển trạng thái phiếu mượn sang `lost`. Nếu là bản sao cuối cùng của sách đó trên kệ, trạng thái đầu sách cập nhật thành `lost`. Hệ thống tự động **khóa tài khoản sinh viên vĩnh viễn** với lý do nêu rõ tên sách đã mất (ví dụ: *Làm mất sách: 'Tên sách'.*) cho đến khi hoàn tất thủ tục đền bù, và cập nhật hạn mức mượn (`borrow_limit`) về **0**.
 5.  **Cơ chế Giữ chỗ chắc chắn (Hard Reservation)**: Khi sinh viên tạo yêu cầu mượn sách ở trạng thái chờ duyệt (`pending`), hệ thống sẽ trừ ngay lập tức số lượng sách khả dụng trên kệ. Điều này đảm bảo khi Admin bấm duyệt, sách thực tế vẫn còn trên kệ cho sinh viên đó. Nếu Admin từ chối phê duyệt, hệ thống sẽ tự động cộng lại số lượng sách đó về kệ.
 6.  **Hủy yêu cầu mượn đang chờ duyệt (Cancel Pending Request)**: Sinh viên được phép tự hủy yêu cầu mượn sách ở trạng thái `pending`. Khi hủy, hệ thống cộng lại số lượng sách khả dụng về kệ ngay lập tức (giải phóng Hard Reservation), xóa bản ghi mượn và gửi thông báo cảnh báo cho Admin.
+7.  **Cơ chế thưởng/khích lệ khôi phục hạn mức (Borrow Limit Reward Logic)**: Nếu sinh viên đã bị giảm hạn mức mượn do trả muộn nhưng sau đó trả đúng hạn 3 cuốn liên tiếp, hệ thống sẽ tự động khôi phục hạn mức mượn của họ thêm **+1** cuốn (tối đa không quá hạn mức tiêu chuẩn là **5 cuốn**). Hệ thống cũng tự động gửi một thông báo hệ thống để chúc mừng và cập nhật thông tin hạn mức mới cho sinh viên.
 
 ```mermaid
 sequenceDiagram
@@ -325,7 +326,16 @@ sequenceDiagram
     alt Trả đúng hạn hoặc sớm hơn
         Server->>DB: UPDATE borrow_records SET status = 'returned', returned_at = NOW()
         Server->>DB: UPDATE books SET quantity = quantity + 1
-        Server-->>Admin: Phản hồi trả sách thành công (Không phạt)
+        
+        Note over Server: Kiểm tra chuỗi trả đúng hạn liên tiếp (Reward Logic)
+        Server->>DB: Truy vấn 3 lượt trả sách gần nhất
+        DB-->>Server: Trả về trạng thái trả của 3 lượt
+        alt Đủ 3 lượt đúng hạn liên tiếp & Hạn mức < 5
+            Server->>DB: UPDATE users SET borrow_limit = borrow_limit + 1
+            Server->>DB: INSERT INTO notifications (Chúc mừng khôi phục hạn mức)
+        end
+        
+        Server-->>Admin: Phản hồi trả sách thành công (Không phạt, khôi phục hạn mức nếu đủ điều kiện)
     else Trả trễ hạn (Overdue)
         Server->>DB: UPDATE borrow_records SET status = 'returned', returned_at = NOW()
         Server->>DB: UPDATE books SET quantity = quantity + 1
@@ -344,8 +354,8 @@ sequenceDiagram
             Server->>Server: Phạt: Khóa 7 ngày, giảm hạn mức mượn còn 1
             Server->>DB: UPDATE users SET account_status = 'locked', locked_until = NOW() + 7 days, borrow_limit = 1, lock_reason = 'Trễ hạn N lần'
         else N >= 7
-            Server->>Server: Phạt: Khóa vĩnh viễn
-            Server->>DB: UPDATE users SET account_status = 'locked', locked_until = '9999-12-31', lock_reason = 'Trễ hạn quá 7 lần'
+            Server->>Server: Phạt: Khóa vĩnh viễn & Hạn mức về 0
+            Server->>DB: UPDATE users SET account_status = 'locked', locked_until = '9999-12-31', borrow_limit = 0, lock_reason = 'Trễ hạn quá 7 lần'
         end
         
         Server->>DB: INSERT INTO penalty_logs (user_id, admin_id, reason, locked_until)
