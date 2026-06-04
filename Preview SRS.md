@@ -65,6 +65,40 @@ Thư viện HDPE được triển khai trên máy chủ Apache (XAMPP địa ph�
     *   Chứa ít nhất **1 ký tự đặc biệt** (không phải chữ và số).
 *   **Kích hoạt tài khoản (Registration OTP)**: Sau khi đăng ký thành công, tài khoản ở trạng thái chưa phê duyệt (`is_approved = 0`). Hệ thống tự động tạo mã OTP 6 chữ số và gửi qua Email. Người dùng nhập đúng mã OTP để kích hoạt tài khoản sử dụng.
 
+```mermaid
+sequenceDiagram
+    actor ND as "Sinh viên (Chưa kích hoạt)"
+    participant Client as "Trình duyệt"
+    participant Server as "Hệ thống (Backend)"
+    participant DB as "Cơ sở dữ liệu"
+    participant Mail as "Hệ thống Email (SMTP)"
+
+    ND->>Client: Nhập Họ tên, Email, Username, Mật khẩu
+    Client->>Server: Gửi yêu cầu đăng ký (POST /auth/register)
+    Server->>Server: Kiểm tra định dạng email & chính sách mật khẩu
+    alt Mật khẩu không hợp lệ hoặc Email trùng lặp
+        Server-->>Client: Trả về thông báo lỗi
+    else Thông tin hợp lệ
+        Server->>Server: Băm mật khẩu (password_hash)
+        Server->>Server: Sinh mã OTP 6 chữ số ngẫu nhiên & đặt hạn 5 phút
+        Server->>DB: INSERT INTO users (username, password, email, role='student', is_approved=0, otp_code, otp_expires_at)
+        Server->>Mail: Gửi Email chứa mã OTP kích hoạt
+        Server-->>Client: Chuyển hướng đến trang Xác thực OTP
+    end
+
+    ND->>Client: Nhập mã OTP nhận được từ Email
+    Client->>Server: Gửi mã OTP xác thực (POST /auth/verify-otp)
+    Server->>DB: Truy vấn OTP của user trong bảng `users`
+    alt OTP sai hoặc đã hết hạn
+        DB-->>Server: Trả về không hợp lệ
+        Server-->>Client: Báo lỗi xác thực OTP thất bại
+    else OTP đúng & Còn hiệu lực
+        DB-->>Server: Trả về hợp lệ
+        Server->>DB: UPDATE users SET is_approved = 1, otp_code = NULL, otp_expires_at = NULL WHERE user_id = ID
+        Server-->>Client: Báo kích hoạt thành công, chuyển hướng đến trang Đăng nhập
+    end
+```
+
 #### 3.1.2. Đăng nhập bằng Google (Google OAuth2 Login)
 *   Cho phép người dùng nhấn "Tiếp tục với Google" để ủy quyền đăng nhập.
 *   Hệ thống kiểm tra thông tin Google ID nhận về:
@@ -329,6 +363,31 @@ sequenceDiagram
     *   Admin cũng có thể **gia hạn trực tiếp** (bypass quy trình duyệt) cho bất kỳ phiếu mượn nào.
 *   **Theo dõi trạng thái**: Trường `renew_count` trong bảng `borrow_records` ghi lại tổng số lần đã gia hạn của cuốn sách đó.
 
+```mermaid
+sequenceDiagram
+    actor SV as "Sinh viên"
+    actor Admin as "Quản trị viên"
+    participant Server as "Hệ thống (Backend)"
+    participant DB as "Cơ sở dữ liệu"
+
+    SV->>Server: Gửi yêu cầu gia hạn cuốn sách đang mượn
+    Server->>DB: UPDATE borrow_records SET is_renew_pending = 1 WHERE borrow_id = ID
+    DB-->>Server: Xác nhận
+    Server-->>SV: Phản hồi yêu cầu đang chờ phê duyệt
+
+    alt Admin Phê duyệt gia hạn
+        Admin->>Server: Bấm duyệt gia hạn (approveRenewAction)
+        Server->>DB: UPDATE borrow_records SET return_date = return_date + 30 days, renew_count = renew_count + 1, is_renew_pending = 0
+        Server->>DB: INSERT INTO notifications (user_id, message="Yêu cầu gia hạn được chấp nhận")
+        Server-->>Admin: Phản hồi phê duyệt thành công
+    else Admin Từ chối gia hạn
+        Admin->>Server: Bấm từ chối gia hạn (rejectRenewAction)
+        Server->>DB: UPDATE borrow_records SET is_renew_pending = 0
+        Server->>DB: INSERT INTO notifications (user_id, message="Yêu cầu gia hạn bị từ chối")
+        Server-->>Admin: Phản hồi từ chối thành công
+    end
+```
+
 ---
 
 ### 3.4. Bảng tin & Kênh thảo luận (Announcement & Public Chat)
@@ -356,6 +415,37 @@ sequenceDiagram
 *   Admin nhận được ticket hỗ trợ của sinh viên và tham gia trả lời. Sinh viên có thể phản hồi lại câu trả lời của Admin.
 *   Tất cả các hành động điều hướng sau khi tạo hoặc phản hồi ticket đều được xử lý bằng cơ chế định tuyến theo vai trò (`routeForRole()`), ngăn chặn triệt để lỗi phân quyền ("Chỉ quản trị viên mới có quyền truy cập").
 
+```mermaid
+sequenceDiagram
+    actor SV as "Sinh viên"
+    actor Admin as "Quản trị viên"
+    participant Server as "Hệ thống (Backend)"
+    participant Auth as "Middleware Phân quyền"
+    participant DB as "Cơ sở dữ liệu"
+
+    SV->>Server: Tạo ticket hỗ trợ mới (Tiêu đề, Nội dung)
+    Server->>DB: INSERT INTO support_tickets (user_id, title, status='open')
+    Server->>Server: Điều hướng bằng routeForRole() -> /ticket (dành cho sinh viên)
+    Server-->>SV: Hiển thị danh sách ticket của sinh viên
+
+    Admin->>Server: Truy cập quản lý ticket (GET /ticket)
+    Server->>Auth: Kiểm tra vai trò Admin
+    Auth-->>Server: Hợp lệ
+    Server->>DB: SELECT * FROM support_tickets WHERE status = 'open'
+    DB-->>Server: Trả về danh sách ticket toàn hệ thống
+    Server-->>Admin: Hiển thị danh sách ticket cần xử lý
+
+    Admin->>Server: Gửi phản hồi cho Ticket (POST /ticket/reply)
+    Server->>DB: INSERT INTO ticket_messages (ticket_id, sender_id, message, sender_role='admin')
+    Server->>Server: Điều hướng bằng routeForRole() -> /admin/ticket/view/:id
+    Server-->>Admin: Hiển thị chi tiết ticket đã phản hồi
+
+    SV->>Server: Truy cập chi tiết ticket (GET /ticket/view/:id)
+    Server->>DB: SELECT * FROM ticket_messages WHERE ticket_id = :id
+    DB-->>Server: Trả về lịch sử tin nhắn của ticket
+    Server-->>SV: Hiển thị phản hồi từ Admin
+```
+
 ---
 
 ### 3.6. Hệ thống Thông báo đa kênh (Notification Engine)
@@ -379,6 +469,36 @@ sequenceDiagram
     *   Nếu tìm thấy bản ghi trùng khớp, trợ lý AI trả về kết quả lưu trữ ngay lập tức mà không cần gọi API ngoài. Việc này giúp giảm thiểu độ trễ phản hồi và tiết kiệm tối đa hạn ngạch (quota) gọi API.
     *   Nếu không tìm thấy, hệ thống gọi Gemini API, trả kết quả cho người dùng đồng thời ghi kết quả mới vào bảng `ai_responses_cache`.
 *   **Lịch sử hội thoại:** Mọi cuộc hội thoại giữa độc giả và chatbot AI đều được ghi lại chi tiết vào bảng `chat_logs` để hỗ trợ cải tiến chất lượng và phân tích xu hướng quan tâm của độc giả.
+
+```mermaid
+sequenceDiagram
+    actor SV as "Sinh viên"
+    participant Client as "Trình duyệt (Giao diện Chat AI)"
+    participant Server as "Hệ thống (Backend)"
+    participant DB as "Cơ sở dữ liệu (Cache)"
+    participant Gemini as "Gemini API (gemini-flash-latest)"
+
+    SV->>Client: Nhập câu hỏi tư vấn sách (prompt)
+    Client->>Server: Gửi yêu cầu (POST /api/books/chat)
+    Server->>Server: Băm câu hỏi bằng SHA-256: prompt_hash = hash(prompt)
+    
+    Server->>DB: Truy vấn prompt_hash trong bảng `ai_responses_cache`
+    alt Tồn tại trong Cache (Cache Hit)
+        DB-->>Server: Trả về response_text đã lưu
+        Server->>DB: INSERT INTO chat_logs (user_id, message, response, source='cache')
+        Server-->>Client: Trả về câu trả lời ngay lập tức (Không gọi API ngoài)
+    else Không tồn tại trong Cache (Cache Miss)
+        DB-->>Server: Không tìm thấy kết quả
+        Server->>DB: Truy vấn danh mục & danh sách sách mới nhất để làm ngữ cảnh (context)
+        DB-->>Server: Trả về danh sách sách/thể loại
+        Server->>Server: Nạp ngữ cảnh vào System Prompt
+        Server->>Gemini: Gọi API gửi prompt + context
+        Gemini-->>Server: Trả về kết quả tư vấn (response_text)
+        Server->>DB: INSERT INTO ai_responses_cache (prompt_hash, prompt_text, response_text)
+        Server->>DB: INSERT INTO chat_logs (user_id, message, response, source='gemini')
+        Server-->>Client: Trả về câu trả lời cho Sinh viên
+    end
+```
 
 #### 3.7.2. Kiểm duyệt nội dung tự động bằng AI (AI Content Moderation)
 *   **Chức năng:** Tự động lọc và ngăn chặn các nội dung không phù hợp (nhạy cảm, bạo lực, xúc phạm,...) được đăng tải trên Kênh thảo luận công khai (`public_chats`).
