@@ -589,9 +589,21 @@ class AuthController extends BaseController
             return '';
         }
         $uri = $request->getUri();
+        
+        // Nhận diện HTTPS đằng sau reverse proxy/load balancer (như Render)
         $scheme = $uri->getScheme() ?: 'http';
+        if (isset($_SERVER['HTTP_X_FORWARDED_PROTO'])) {
+            $scheme = strtolower($_SERVER['HTTP_X_FORWARDED_PROTO']);
+        } elseif (isset($_SERVER['HTTPS']) && ($_SERVER['HTTPS'] === 'on' || $_SERVER['HTTPS'] == 1)) {
+            $scheme = 'https';
+        }
+        
         $host = $uri->getHost() ?: ($_SERVER['HTTP_HOST'] ?? 'localhost');
+        
         $port = $uri->getPort();
+        if (isset($_SERVER['HTTP_X_FORWARDED_PORT'])) {
+            $port = (int)$_SERVER['HTTP_X_FORWARDED_PORT'];
+        }
         $portStr = ($port && !in_array($port, [80, 443])) ? ':' . $port : '';
 
         $scriptName = $_SERVER['SCRIPT_NAME'] ?? '';

@@ -42,7 +42,42 @@ if (isset($_SERVER['SCRIPT_FILENAME'])) {
 **/
 
 $container = require __DIR__ . '/../config/container.php';
-/** @var Application $app */
 
+// Hỗ trợ nâng cấp Database bằng trình duyệt (Chỉ kích hoạt khi truyền đúng token bảo mật)
+if (isset($_GET['migrate_db']) && $_GET['migrate_db'] === 'hdpe_upgrade_utf8mb4_2026') {
+    header('Content-Type: text/plain; charset=utf-8');
+    try {
+        echo "Bắt đầu nâng cấp cơ sở dữ liệu..." . PHP_EOL;
+        /** @var \Laminas\Db\Adapter\AdapterInterface $db */
+        $db = $container->get(\Laminas\Db\Adapter\AdapterInterface::class);
+        $dbNameRes = $db->query("SELECT DATABASE() AS db_name")->execute()->current();
+        $dbName = $dbNameRes['db_name'] ?? null;
+        if (!$dbName) {
+            throw new \Exception("Không thể kết nối hoặc xác định tên Database.");
+        }
+        echo "Database: " . $dbName . PHP_EOL;
+        $db->query("ALTER DATABASE `$dbName` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci")->execute();
+        echo "Đã nâng cấp charset Database thành utf8mb4." . PHP_EOL;
+
+        $tables = [
+            'public_chats', 'users', 'book_reviews', 'ticket_messages', 'support_tickets',
+            'notifications', 'announcements', 'chat_logs', 'books', 'user_notifications_read',
+            'user_notifications_hidden', 'ai_responses_cache', 'book_categories', 'system_settings', 'penalty_logs'
+        ];
+        foreach ($tables as $table) {
+            $tableCheck = $db->query("SHOW TABLES LIKE ?")->execute([$table])->current();
+            if ($tableCheck) {
+                echo "Đang nâng cấp bảng `$table`..." . PHP_EOL;
+                $db->query("ALTER TABLE `$table` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci")->execute();
+            }
+        }
+        echo "Chúc mừng! Nâng cấp cơ sở dữ liệu hoàn tất thành công!" . PHP_EOL;
+    } catch (\Throwable $e) {
+        echo "LỖI: " . $e->getMessage() . PHP_EOL;
+    }
+    exit;
+}
+
+/** @var Application $app */
 $app = $container->get('Application');
 $app->run();
