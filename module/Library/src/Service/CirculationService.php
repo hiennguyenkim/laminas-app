@@ -325,6 +325,13 @@ class CirculationService
                     $reason = "Vi phạm Mốc 4: Trả sách trễ hạn từ 7 lần trở lên ({$lateCount} lần). Tạm khóa tài khoản VĨNH VIỄN.";
                     $this->userTable->lockUser((int)$record->userId, $reason, $lockUntil);
                     
+                    // Cập nhật borrow_limit của user thành 0
+                    try {
+                        $user = $this->userTable->getUser((int)$record->userId);
+                        $user->borrowLimit = 0;
+                        $this->userTable->saveUser($user);
+                    } catch (\Throwable $e) {}
+                    
                     // Notify student about lock
                     try {
                         $stmt = $this->adapter->createStatement(
@@ -591,6 +598,13 @@ class CirculationService
                 $record->bookTitle
             );
             $this->userTable->lockUser($record->userId, $reason, '9999-12-31');
+            
+            // Cập nhật borrow_limit của user thành 0
+            try {
+                $user = $this->userTable->getUser((int)$record->userId);
+                $user->borrowLimit = 0;
+                $this->userTable->saveUser($user);
+            } catch (\Throwable $e) {}
 
             // 4. Notify student
             try {
