@@ -11,12 +11,15 @@ class GeminiService
 {
     private string $apiKey;
     private \Laminas\Db\Adapter\AdapterInterface $adapter;
+    private \Laminas\Db\Adapter\Adapter $db;
     private string $apiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent';
 
     public function __construct(string $apiKey, \Laminas\Db\Adapter\AdapterInterface $adapter)
     {
         $this->apiKey = $apiKey;
         $this->adapter = $adapter;
+        assert($adapter instanceof \Laminas\Db\Adapter\Adapter);
+        $this->db = $adapter;
     }
 
     /**
@@ -37,7 +40,7 @@ class GeminiService
         $promptHash = hash('sha256', $systemInstruction . '|' . $prompt);
         try {
             $sqlCache = "SELECT response_text FROM ai_responses_cache WHERE prompt_hash = ? LIMIT 1";
-            $cacheRow = $this->adapter->query($sqlCache)->execute([$promptHash])->current();
+            $cacheRow = $this->db->query($sqlCache)->execute([$promptHash])->current();
             if ($cacheRow) {
                 return $cacheRow['response_text'];
             }
@@ -46,7 +49,7 @@ class GeminiService
 
         // 2. Nếu không có cache, gọi API
         $client = new Client();
-        $client->setOptions(['timeout' => 2]);
+        $client->setOptions(['timeout' => 15]);
         // Dùng query string cho chắc chắn nhất
         $client->setUri($this->apiUrl . '?key=' . $this->apiKey);
         $client->setMethod('POST');
@@ -85,7 +88,7 @@ class GeminiService
             if ($responseText !== "Xin lỗi, tôi không thể trả lời lúc này.") {
                 try {
                     $sqlInsert = "INSERT IGNORE INTO ai_responses_cache (prompt_hash, prompt_text, response_text) VALUES (?, ?, ?)";
-                    $this->adapter->query($sqlInsert)->execute([$promptHash, mb_substr($prompt, 0, 500), $responseText]);
+                    $this->db->query($sqlInsert)->execute([$promptHash, mb_substr($prompt, 0, 500), $responseText]);
                 } catch (\Throwable $e) {
                 }
             }
@@ -148,7 +151,7 @@ class GeminiService
     {
         try {
             $sql = "DELETE FROM ai_responses_cache WHERE created_at < DATE_SUB(NOW(), INTERVAL ? DAY)";
-            $this->adapter->query($sql)->execute([$days]);
+            $this->db->query($sql)->execute([$days]);
         } catch (\Throwable $e) {
         }
     }

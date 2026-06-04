@@ -478,6 +478,7 @@ sequenceDiagram
     *   Trước khi gọi API ngoài, hệ thống truy vấn bảng `ai_responses_cache` tìm kiếm `prompt_hash` tương ứng.
     *   Nếu tìm thấy bản ghi trùng khớp, trợ lý AI trả về kết quả lưu trữ ngay lập tức mà không cần gọi API ngoài. Việc này giúp giảm thiểu độ trễ phản hồi và tiết kiệm tối đa hạn ngạch (quota) gọi API.
     *   Nếu không tìm thấy, hệ thống gọi Gemini API, trả kết quả cho người dùng đồng thời ghi kết quả mới vào bảng `ai_responses_cache`.
+*   **Cấu hình kết nối & Thời gian chờ (Timeout):** Để tránh việc API phản hồi chậm gây lỗi trên giao diện, thời gian chờ tối đa (HTTP client request timeout) khi gửi yêu cầu đến Gemini API được thiết lập là **15 giây**.
 *   **Lịch sử hội thoại:** Mọi cuộc hội thoại giữa độc giả và chatbot AI đều được ghi lại chi tiết vào bảng `chat_logs` để hỗ trợ cải tiến chất lượng và phân tích xu hướng quan tâm của độc giả.
 
 ```mermaid
@@ -515,6 +516,7 @@ sequenceDiagram
 *   **Cơ chế hoạt động:**
     *   Khi người dùng gửi tin nhắn chat, hệ thống gửi nội dung đó qua cổng kiểm duyệt nội dung của Gemini AI trước khi lưu vào CSDL.
     *   Nếu Gemini AI đánh giá nội dung vi phạm tiêu chuẩn cộng đồng, hệ thống chặn gửi tin nhắn, hiển thị cảnh báo vi phạm cho người dùng và từ chối lưu vào bảng `public_chats`.
+    *   **Cơ chế dự phòng (Fallback):** Trong trường hợp lỗi kết nối API (hoặc quá thời gian chờ 15 giây), hệ thống tự động chuyển sang chế độ đối khớp từ cấm (local blacklist) với danh sách các từ thô tục được định nghĩa cục bộ. Điều này đảm bảo tính năng trò chuyện không bị gián đoạn hoàn toàn khi API mất kết nối.
 
 ---
 

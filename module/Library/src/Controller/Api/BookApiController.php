@@ -140,6 +140,7 @@ class BookApiController extends AbstractRestfulController
     public function chatAction(): Response
     {
         $request = $this->getRequest();
+        assert($request instanceof \Laminas\Http\Request);
         if (!$request->isPost()) {
             return $this->jsonResponse(['error' => 'Method not allowed'], 405);
         }
@@ -152,23 +153,73 @@ class BookApiController extends AbstractRestfulController
             return $this->jsonResponse(['error' => 'Tin nhắn trống'], 400);
         }
 
+        $adapter = $this->table->getAdapter();
+        assert($adapter instanceof \Laminas\Db\Adapter\Adapter);
+
         // Lấy danh sách thể loại và một số sách mới nhất để AI có dữ liệu gợi ý
         $categories = [];
         try {
-            $catResults = $this->table->getAdapter()->query("SELECT name FROM book_categories LIMIT 20")->execute();
-            foreach ($catResults as $cat) $categories[] = $cat['name'];
+            $catResults = $adapter->query("SELECT name FROM book_categories LIMIT 20")->execute();
+            foreach ($catResults as $cat) {
+                $categories[] = $cat['name'];
+            }
         } catch (\Throwable $e) {}
 
         $recentBooks = [];
         try {
-            $bookResults = $this->table->getAdapter()->query("SELECT title, author, category FROM books WHERE status = 'available' ORDER BY created_at DESC LIMIT 10")->execute();
-            foreach ($bookResults as $b) $recentBooks[] = "{$b['title']} (Tác giả: {$b['author']}, Thể loại: {$b['category']})";
+            $bookResults = $adapter->query("SELECT title, author, category FROM books WHERE status = 'available' ORDER BY created_at DESC LIMIT 10")->execute();
+            foreach ($bookResults as $b) {
+                $recentBooks[] = "{$b['title']} (Tác giả: {$b['author']}, Thể loại: {$b['category']})";
+            }
         } catch (\Throwable $e) {}
+
+        // Tìm kiếm sách khớp trong cơ sở dữ liệu bằng FTS (Full-Text Search) hoặc LIKE
+        $matchedBooks = [];
+        try {
+            $sql = "SELECT title, author, category, quantity, status 
+                    FROM books 
+                    WHERE MATCH(title, author) AGAINST(? IN NATURAL LANGUAGE MODE) > 0 
+                    ORDER BY MATCH(title, author) AGAINST(? IN NATURAL LANGUAGE MODE) DESC 
+                    LIMIT 10";
+            $results = $adapter->query($sql)->execute([$message, $message]);
+            foreach ($results as $row) {
+                $statusVal = $row['status'] ?? 'available';
+                $qtyVal = $row['quantity'] ?? 1;
+                $statusDesc = ($statusVal === 'available') ? "Sẵn sàng" : "Không khả dụng";
+                $matchedBooks[] = "- {$row['title']} (Tác giả: {$row['author']}, Thể loại: {$row['category']}, Số lượng: {$qtyVal} cuốn, Trạng thái: {$statusDesc})";
+            }
+        } catch (\Throwable $e) {}
+
+        if (count($matchedBooks) < 5 && mb_strlen($message) >= 2) {
+            try {
+                $likeQuery = '%' . $message . '%';
+                $sqlLike = "SELECT title, author, category, quantity, status 
+                            FROM books 
+                            WHERE title LIKE ? OR author LIKE ? OR category LIKE ?
+                            LIMIT 10";
+                $resultsLike = $adapter->query($sqlLike)->execute([$likeQuery, $likeQuery, $likeQuery]);
+                foreach ($resultsLike as $row) {
+                    $statusVal = $row['status'] ?? 'available';
+                    $qtyVal = $row['quantity'] ?? 1;
+                    $statusDesc = ($statusVal === 'available') ? "Sẵn sàng" : "Không khả dụng";
+                    $str = "- {$row['title']} (Tác giả: {$row['author']}, Thể loại: {$row['category']}, Số lượng: {$qtyVal} cuốn, Trạng thái: {$statusDesc})";
+                    if (!in_array($str, $matchedBooks, true)) {
+                        $matchedBooks[] = $str;
+                    }
+                }
+            } catch (\Throwable $e) {}
+        }
+
+        $matchedContext = "";
+        if (!empty($matchedBooks)) {
+            $matchedContext = "\nSách khớp với câu hỏi của người dùng:\n" . implode("\n", array_slice($matchedBooks, 0, 10)) . "\n";
+        }
 
         $systemPrompt = "Bạn là thủ thư ảo của Thư viện HDPE. Bạn có nhiệm vụ tư vấn sách và trả lời các thắc mắc về thư viện một cách chuyên nghiệp, thân thiện.
         Các thể loại sách hiện có: " . implode(', ', $categories) . ".
         Một số sách mới và đang có sẵn: " . implode('; ', $recentBooks) . ".
-        Nếu người dùng hỏi về sách, hãy dựa trên dữ liệu này để gợi ý. Nếu không có, hãy khuyên họ tìm theo các thể loại trên.
+        {$matchedContext}
+        Hãy ƯU TIÊN sử dụng thông tin từ 'Sách khớp với câu hỏi của người dùng' ở trên để trả lời chính xác thông tin sách (bao gồm tên sách, tác giả, thể loại, số lượng, trạng thái) nếu người dùng có hỏi hoặc tìm kiếm. Nếu không có sách khớp hoặc sách đó không tồn tại, hãy gợi ý các cuốn sách mới và đang có sẵn hoặc khuyên họ tìm theo các thể loại trên.
         Câu trả lời nên ngắn gọn, súc tích và bằng tiếng Việt.";
 
         $responseMsg = $this->geminiService->generateResponse($message, $systemPrompt);
@@ -177,14 +228,29 @@ class BookApiController extends AbstractRestfulController
         $suggestions = [];
         $lowerResponse = mb_strtolower($responseMsg, 'UTF-8');
         
-        // Tìm kiếm nhanh trong DB các sách mà AI gợi ý (để hiển thị link/nút)
+        $candidateTitles = [];
         foreach ($recentBooks as $bStr) {
             $parts = explode(' (', $bStr);
-            $title = $parts[0];
+            $candidateTitles[] = $parts[0];
+        }
+        foreach ($matchedBooks as $bStr) {
+            $cleanLine = ltrim($bStr, '- ');
+            $parts = explode(' (Tác giả:', $cleanLine);
+            if (!empty($parts[0])) {
+                $candidateTitles[] = trim($parts[0]);
+            }
+        }
+        $candidateTitles = array_unique($candidateTitles);
+
+        foreach ($candidateTitles as $title) {
             if (mb_strpos($lowerResponse, mb_strtolower($title, 'UTF-8')) !== false) {
                 $bookData = $this->table->searchAvailable($title, true, 1);
                 if ($bookData) {
-                    $suggestions[] = ['title' => $bookData[0]['title'], 'author' => $bookData[0]['author'], 'id' => $bookData[0]['id']];
+                    $suggestions[] = [
+                        'title' => $bookData[0]['title'],
+                        'author' => $bookData[0]['author'],
+                        'id' => $bookData[0]['id']
+                    ];
                 }
             }
         }
