@@ -9,6 +9,7 @@ chdir(dirname(__DIR__));
 require 'vendor/autoload.php';
 
 use Laminas\Db\Adapter\Adapter;
+use Laminas\Db\Adapter\AdapterInterface;
 
 try {
     // Load Laminas application container first before any output to prevent headers already sent warning
