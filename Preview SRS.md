@@ -148,9 +148,16 @@ sequenceDiagram
 #### Quy tắc kiểm duyệt mượn trả tự động:
 1.  **Hạn mức mượn (Borrow Limit)**: Mặc định mỗi Sinh viên chỉ được phép đăng ký tối đa **5 cuốn sách** ở trạng thái đang mượn (bao gồm cả phiếu `pending` đã gửi). Vượt quá hạn mức hệ thống sẽ báo lỗi và chặn tạo phiếu mượn.
 2.  **Thời hạn mượn sách tối đa**: Không quá **30 ngày** kể từ ngày mượn.
-3.  **Khóa do quá hạn**: Sinh viên có bất kỳ một cuốn sách nào đang mượn quá hạn (đã qua ngày hạn trả nhưng chưa trả) sẽ **bị hệ thống khóa hoàn toàn chức năng mượn mới**. Họ bắt buộc phải trả sách quá hạn trước khi đăng ký cuốn tiếp theo.
-4.  **Khóa do kỷ luật**: Admin có thể khóa tài khoản của sinh viên (`locked`) do vi phạm nội quy thư viện. Tài khoản bị khóa sẽ không thể gửi yêu cầu mượn hoặc được Admin phê duyệt phiếu mượn hiện tại.
+3.  **Khóa do quá hạn & Xử phạt lũy tiến (Late Return Penalties)**: Sinh viên có bất kỳ một cuốn sách nào đang mượn quá hạn sẽ bị hệ thống khóa hoàn toàn chức năng mượn mới. Đồng thời, khi sinh viên trả sách trễ hạn, hệ thống tính tổng số lần trễ hạn trong lịch sử của sinh viên và áp dụng các mốc phạt tự động:
+    *   **Trễ hạn 3-4 lần**: Tạm khóa tài khoản **1 ngày**, giảm hạn mức mượn (`borrow_limit`) xuống còn **4 cuốn**.
+    *   **Trễ hạn 5 lần**: Tạm khóa tài khoản **3 ngày**, giảm hạn mức mượn xuống còn **2 cuốn**.
+    *   **Trễ hạn 6 lần**: Tạm khóa tài khoản **7 ngày**, giảm hạn mức mượn xuống còn **1 cuốn**.
+    *   **Trễ hạn từ 7 lần trở lên**: Khóa tài khoản **vĩnh viễn** (đến ngày 31/12/9999).
+4.  **Khóa do kỷ luật & Báo mất sách (Disciplinary Lock & Lost Book Workflow)**:
+    *   Tài khoản bị khóa (`locked`) sẽ không thể mượn sách hay được phê duyệt phiếu mượn hiện tại.
+    *   **Quy trình báo mất sách**: Khi Sinh viên hoặc Admin báo mất sách, hệ thống chuyển trạng thái phiếu mượn sang `lost`. Nếu là bản sao cuối cùng của sách đó trên kệ, trạng thái đầu sách cập nhật thành `lost`. Hệ thống tự động **khóa tài khoản sinh viên vĩnh viễn** với lý do làm mất sách cho đến khi hoàn thành thủ tục đền bù.
 5.  **Cơ chế Giữ chỗ chắc chắn (Hard Reservation)**: Khi sinh viên tạo yêu cầu mượn sách ở trạng thái chờ duyệt (`pending`), hệ thống sẽ trừ ngay lập tức số lượng sách khả dụng trên kệ. Điều này đảm bảo khi Admin bấm duyệt, sách thực tế vẫn còn trên kệ cho sinh viên đó. Nếu Admin từ chối phê duyệt, hệ thống sẽ tự động cộng lại số lượng sách đó về kệ.
+6.  **Hủy yêu cầu mượn đang chờ duyệt (Cancel Pending Request)**: Sinh viên được phép tự hủy yêu cầu mượn sách ở trạng thái `pending`. Khi hủy, hệ thống cộng lại số lượng sách khả dụng về kệ ngay lập tức (giải phóng Hard Reservation), xóa bản ghi mượn và gửi thông báo cảnh báo cho Admin.
 
 #### 3.3.1. Quy trình Gia hạn sách (Renewal Workflow)
 *   **Luồng nghiệp vụ**: Sinh viên muốn gia hạn sách đang mượn phải gửi **yêu cầu gia hạn** (không tự động gia hạn). Quản trị viên sẽ xem xét và phê duyệt hoặc từ chối yêu cầu.
@@ -279,6 +286,13 @@ sequenceDiagram
 #### 3.10.4. Cấu hình SMTP & Google OAuth
 *   Cấu hình máy chủ gửi thư (SMTP): Email gửi, mật khẩu ứng dụng. Mật khẩu chỉ cập nhật khi có nhập mới (tránh ghi đè rỗng).
 *   Cấu hình Google OAuth2: Client ID, Client Secret, Redirect URI — lưu trong bảng `system_settings`.
+
+#### 3.10.5. Quản trị Thành viên & Ràng buộc an toàn khi xóa (User Management & Deletion Constraints)
+*   Admin có quyền xem danh sách thành viên, cập nhật thông tin và phê duyệt/khóa/mở khóa tài khoản.
+*   **Các ràng buộc an toàn khi xóa tài khoản**:
+    *   Chỉ được phép xóa tài khoản của sinh viên (`student`), không được xóa tài khoản quản trị viên (`admin`).
+    *   Chặn không cho phép tự xóa tài khoản của chính mình (tài khoản đang đăng nhập).
+    *   Chặn không cho phép xóa tài khoản sinh viên đang mượn sách hoặc đang có yêu cầu mượn sách ở trạng thái chờ duyệt (`pending`).
 
 ---
 

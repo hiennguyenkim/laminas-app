@@ -20,6 +20,7 @@ Báo cáo chi tiết kết quả chạy kiểm thử toàn diện (QA testing) c
 | E2E Yêu cầu Khôi phục Mật khẩu | Student | Gửi yêu cầu khôi phục mật khẩu cho `student_3` thành công, sinh mã OTP trong DB. | ✅ PASS |
 | E2E Đặt lại Mật khẩu với OTP | Student | Nhập đúng mã OTP và mật khẩu mới (`Student@123!`), mật khẩu băm trong DB thay đổi và OTP được xóa sạch. | ✅ PASS |
 | E2E Đăng nhập bằng Mật khẩu Mới & CSRF | Student | Sử dụng mật khẩu mới và trích xuất đúng token CSRF để đăng nhập thành công vào `/student/dashboard`. | ✅ PASS |
+| Đăng nhập bằng Google OAuth2 | Guest / Student | Tự động đối khớp tài khoản qua Email trùng khớp; tự động đăng ký tài khoản mới ở trạng thái chờ kích hoạt OTP nếu chưa có tài khoản. | ✅ PASS |
 
 ---
 
@@ -32,6 +33,8 @@ Báo cáo chi tiết kết quả chạy kiểm thử toàn diện (QA testing) c
 | Tra cứu & Tìm kiếm sách | Student / Guest | Tìm kiếm sách theo từ khóa thành công qua catalog và API `/api/books/search`. | ✅ PASS |
 | Ẩn sách hết hàng (quantity = 0) | Student | Các sách có `quantity = 0` không hiển thị trên danh sách đăng ký mượn sách. | ✅ PASS |
 | Đánh giá & Bình luận sách (Book Review) | Student | Độc giả chỉ được đánh giá sách đã/đang mượn một lần duy nhất, admin có quyền xóa bình luận vi phạm. | ✅ PASS |
+| Tải xuống file Excel mẫu (.xlsx) | Admin | Tải xuống file mẫu đúng định dạng `.xlsx` với đầy đủ cột tiêu chuẩn phục vụ nhập dữ liệu hàng loạt. | ✅ PASS |
+| Nhập kho hàng loạt qua file Excel | Admin | Đọc file bằng PhpSpreadsheet thành công; đối khớp tự động cộng dồn số lượng theo ISBN có sẵn hoặc thêm mới nếu chưa tồn tại. | ✅ PASS |
 
 ---
 
@@ -46,6 +49,9 @@ Báo cáo chi tiết kết quả chạy kiểm thử toàn diện (QA testing) c
 | Chặn mượn sách khi có sách quá hạn | Student | Sinh viên có sách quá hạn sẽ bị chặn hoàn toàn chức năng đăng ký mượn sách mới. | ✅ PASS |
 | Yêu cầu gia hạn sách (Renewal) | Student / Admin | Sinh viên gửi yêu cầu gia hạn, cờ `is_renew_pending = 1`. Admin phê duyệt thì hạn trả tăng thêm 30 ngày. | ✅ PASS |
 | E2E Quy trình gia hạn phiếu mượn | Student / Admin | Student gửi yêu cầu gia hạn (`is_renew_pending=1`), Admin phê duyệt (`approve-renew`), cập nhật thành công hạn trả mới và tăng `renew_count` lên 1. | ✅ PASS |
+| Xử phạt lũy tiến khi trả sách muộn | Student / System | Tự động tính số lần trễ hạn trong lịch sử và phạt khóa thẻ tương ứng (3-4 lần: khóa 1 ngày + giảm limit xuống 4; 5 lần: khóa 3 ngày + limit 2; 6 lần: khóa 7 ngày + limit 1; >=7 lần: khóa vĩnh viễn). | ✅ PASS |
+| Báo mất sách & Khóa vĩnh viễn | Student / Admin | Chuyển trạng thái phiếu sang `lost`, cập nhật sách thành `lost` nếu hết hàng, tự động khóa tài khoản sinh viên vĩnh viễn chờ đền bù. | ✅ PASS |
+| Hủy yêu cầu mượn đang chờ duyệt | Student | Hủy thành công yêu cầu ở trạng thái `pending`, hoàn trả số lượng khả dụng về kệ ngay lập tức (giải phóng giữ chỗ) và thông báo cho admin. | ✅ PASS |
 
 ---
 
@@ -58,6 +64,7 @@ Báo cáo chi tiết kết quả chạy kiểm thử toàn diện (QA testing) c
 | Kiểm duyệt nội dung tự động bằng AI | Student | Gửi tin nhắn chứa từ ngữ nhạy cảm bị AI chặn và từ chối lưu vào CSDL. | ✅ PASS |
 | E2E Gửi tin nhắn lên Public Chat | Student | Gửi tin nhắn sạch thành công, tin nhắn hiển thị tức thì trên bảng tin và lưu thành công vào bảng `public_chats`. | ✅ PASS |
 | E2E Kiểm duyệt & Fallback lọc từ cấm | Student | Tin nhắn chứa từ thô tục bị chặn ngay từ API, trả về mã lỗi 400 và không ghi nhận vào DB. | ✅ PASS |
+| Bảng xếp hạng độc giả tích cực | Guest / Student | Hiển thị chính xác Top 5 độc giả mượn nhiều nhất trên bảng tin theo bộ lọc thời gian Tuần/Tháng/Quý/Năm. | ✅ PASS |
 
 ---
 
@@ -76,6 +83,9 @@ Báo cáo chi tiết kết quả chạy kiểm thử toàn diện (QA testing) c
 |-----------|------|---------|------------|
 | Chế độ bảo trì (Maintenance Mode) | Admin / Guest / Student | Kích hoạt bảo trì chuyển hướng tất cả người dùng không phải admin sang trang bảo trì, tự động tắt khi hết hạn. | ✅ PASS |
 | Quản lý danh mục thể loại | Admin | Đổi tên thể loại cập nhật cascading sang sách; Xóa thể loại bị chặn nếu vẫn còn sách thuộc thể loại đó. | ✅ PASS |
+| Quản lý logo thư viện | Admin | Tải lên logo mới tối đa 2MB thành công, tự động xóa file logo cũ trên máy chủ và cập nhật ảnh hiển thị. | ✅ PASS |
+| Cấu hình tham số hệ thống | Admin | Quản lý và lưu trữ thành công cấu hình SMTP gửi thư, Client ID/Secret của Google OAuth vào bảng `system_settings`. | ✅ PASS |
+| Ràng buộc an toàn khi xóa tài khoản | Admin | Chặn xóa tài khoản admin, chặn tự xóa chính mình, chặn xóa sinh viên có sách đang mượn hoặc yêu cầu pending. | ✅ PASS |
 
 ---
 
