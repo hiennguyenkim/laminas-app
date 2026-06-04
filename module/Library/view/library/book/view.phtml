@@ -222,7 +222,7 @@ $statusMap = [
             <?php elseif ($currentUser === null): ?>
             <div class="book-reviews-login-prompt">
                 <i class="bi bi-chat-square-heart"></i>
-                <span>Bạn muốn chia sẻ ý kiến? <a href="<?= $this->url('library/auth', ['action' => 'login']) ?>">Vui lòng Đăng nhập</a> để Đánh giá & Nhận xét.</span>
+                <span>Bạn muốn chia sẻ ý kiến? <a href="<?= $this->url('auth', ['action' => 'login']) ?>">Vui lòng Đăng nhập</a> để Đánh giá & Nhận xét.</span>
             </div>
             <?php endif; ?>
 

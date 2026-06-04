@@ -25,7 +25,7 @@ foreach (['logo.png','logo.jpg','logo.jpeg','logo.svg','logo.webp'] as $_lf) {
     </div>
     <div class="login-title">Thư Viện HDPE</div>
     <div class="login-sub">Hệ thống Quản lý Thư viện</div>
-    <form method="POST" action="<?= $this->url('library/auth', ['action' => 'login']) ?>">
+    <form method="POST" action="<?= $this->url('auth', ['action' => 'login']) ?>">
         <div class="form-group">
             <label class="form-label">Tên đăng nhập</label>
             <input type="text" name="username" class="form-control" placeholder="username"
@@ -38,7 +38,7 @@ foreach (['logo.png','logo.jpg','logo.jpeg','logo.svg','logo.webp'] as $_lf) {
         <div class="form-group">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                 <label class="form-label" style="margin-bottom: 0;">Mật khẩu</label>
-                <a href="<?= $this->url('library/auth', ['action' => 'forgotPassword']) ?>" class="login-footer-link" style="font-size: 13px; font-weight: 500; text-decoration: none;">Quên mật khẩu?</a>
+                <a href="<?= $this->url('auth', ['action' => 'forgotPassword']) ?>" class="login-footer-link" style="font-size: 13px; font-weight: 500; text-decoration: none;">Quên mật khẩu?</a>
             </div>
             <div style="position: relative;">
                 <input type="password" name="password" id="login-password" class="form-control" placeholder="••••••" required style="padding-right: 40px;">
@@ -69,7 +69,7 @@ foreach (['logo.png','logo.jpg','logo.jpeg','logo.svg','logo.webp'] as $_lf) {
     </form>
     <p class="login-footer-text">
         Chưa có tài khoản?
-        <a href="<?= $this->url('library/auth', ['action' => 'register']) ?>" class="login-footer-link">Đăng ký</a>
+        <a href="<?= $this->url('auth', ['action' => 'register']) ?>" class="login-footer-link">Đăng ký</a>
     </p>
     <div class="login-copyright">
         © 2026 Bản quyền thuộc về <span class="login-footer-link">Thư Viện HDPE</span>

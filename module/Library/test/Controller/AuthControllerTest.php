@@ -102,7 +102,7 @@ namespace LibraryTest\Controller {
             $this->dispatch('/auth/google', 'GET');
 
             $this->assertResponseStatusCode(302);
-            $this->assertRedirectTo('/admin/auth');
+            $this->assertRedirectTo('/auth');
 
             $flashMessenger = $this->getApplicationServiceLocator()->get('ControllerPluginManager')->get('flashMessenger');
             $this->assertTrue($flashMessenger->hasCurrentErrorMessages());
@@ -145,7 +145,7 @@ namespace LibraryTest\Controller {
             $this->dispatch('/auth/google-callback', 'GET');
 
             $this->assertResponseStatusCode(302);
-            $this->assertRedirectTo('/admin/auth');
+            $this->assertRedirectTo('/auth');
 
             $flashMessenger = $this->getApplicationServiceLocator()->get('ControllerPluginManager')->get('flashMessenger');
             $this->assertTrue($flashMessenger->hasCurrentErrorMessages());
@@ -165,7 +165,7 @@ namespace LibraryTest\Controller {
             $this->dispatch('/auth/google-callback', 'GET', ['code' => 'mock-code']);
 
             $this->assertResponseStatusCode(302);
-            $this->assertRedirectTo('/admin/auth');
+            $this->assertRedirectTo('/auth');
 
             $flashMessenger = $this->getApplicationServiceLocator()->get('ControllerPluginManager')->get('flashMessenger');
             $this->assertTrue($flashMessenger->hasCurrentErrorMessages());
@@ -185,7 +185,7 @@ namespace LibraryTest\Controller {
             $this->dispatch('/auth/google-callback', 'GET', ['code' => 'mock-code']);
 
             $this->assertResponseStatusCode(302);
-            $this->assertRedirectTo('/admin/auth');
+            $this->assertRedirectTo('/auth');
 
             $flashMessenger = $this->getApplicationServiceLocator()->get('ControllerPluginManager')->get('flashMessenger');
             $this->assertTrue($flashMessenger->hasCurrentErrorMessages());
@@ -205,7 +205,7 @@ namespace LibraryTest\Controller {
             $this->dispatch('/auth/google-callback', 'GET', ['code' => 'mock-code']);
 
             $this->assertResponseStatusCode(302);
-            $this->assertRedirectTo('/admin/auth');
+            $this->assertRedirectTo('/auth');
 
             $flashMessenger = $this->getApplicationServiceLocator()->get('ControllerPluginManager')->get('flashMessenger');
             $this->assertTrue($flashMessenger->hasCurrentErrorMessages());
@@ -246,7 +246,7 @@ namespace LibraryTest\Controller {
             $this->dispatch('/auth/google-callback', 'GET', ['code' => 'mock-code']);
 
             $this->assertResponseStatusCode(302);
-            $this->assertRedirectTo('/admin/auth/verifyOtp');
+            $this->assertRedirectTo('/auth/verifyOtp');
 
             $flashMessenger = $this->getApplicationServiceLocator()->get('ControllerPluginManager')->get('flashMessenger');
             $this->assertTrue($flashMessenger->hasCurrentInfoMessages());
@@ -399,7 +399,7 @@ namespace LibraryTest\Controller {
             $this->dispatch('/auth/google-callback', 'GET', ['code' => 'mock-code']);
 
             $this->assertResponseStatusCode(302);
-            $this->assertRedirectTo('/admin/auth/verifyOtp');
+            $this->assertRedirectTo('/auth/verifyOtp');
 
             // Check info message
             $flashMessenger = $this->getApplicationServiceLocator()->get('ControllerPluginManager')->get('flashMessenger');
@@ -412,19 +412,19 @@ namespace LibraryTest\Controller {
 
         public function testForgotPasswordActionGet(): void
         {
-            $this->dispatch('/admin/auth/forgotPassword', 'GET');
+            $this->dispatch('/auth/forgotPassword', 'GET');
             $this->assertResponseStatusCode(200);
             $this->assertModuleName('Library');
             $this->assertControllerName(AuthController::class);
             $this->assertControllerClass('AuthController');
-            $this->assertMatchedRouteName('library/auth');
+            $this->assertMatchedRouteName('auth');
         }
 
         public function testForgotPasswordActionPostIdentityEmpty(): void
         {
-            $this->dispatch('/admin/auth/forgotPassword', 'POST', ['identity' => '']);
+            $this->dispatch('/auth/forgotPassword', 'POST', ['identity' => '']);
             $this->assertResponseStatusCode(302);
-            $this->assertRedirectTo('/admin/auth/forgotPassword');
+            $this->assertRedirectTo('/auth/forgotPassword');
 
             $flashMessenger = $this->getApplicationServiceLocator()->get('ControllerPluginManager')->get('flashMessenger');
             $this->assertTrue($flashMessenger->hasCurrentErrorMessages());
@@ -439,9 +439,9 @@ namespace LibraryTest\Controller {
             $this->userTableMock->method('getByEmail')->willReturn(null);
             $this->userTableMock->method('getByUsername')->willReturn(null);
 
-            $this->dispatch('/admin/auth/forgotPassword', 'POST', ['identity' => 'nonexistent']);
+            $this->dispatch('/auth/forgotPassword', 'POST', ['identity' => 'nonexistent']);
             $this->assertResponseStatusCode(302);
-            $this->assertRedirectTo('/admin/auth/forgotPassword');
+            $this->assertRedirectTo('/auth/forgotPassword');
 
             $flashMessenger = $this->getApplicationServiceLocator()->get('ControllerPluginManager')->get('flashMessenger');
             $this->assertTrue($flashMessenger->hasCurrentErrorMessages());
@@ -471,10 +471,10 @@ namespace LibraryTest\Controller {
                         && !empty($savedUser->otpExpiresAt);
                 }));
 
-            $this->dispatch('/admin/auth/forgotPassword', 'POST', ['identity' => 'test@example.com']);
+            $this->dispatch('/auth/forgotPassword', 'POST', ['identity' => 'test@example.com']);
 
             $this->assertResponseStatusCode(302);
-            $this->assertRedirectTo('/admin/auth/resetPassword');
+            $this->assertRedirectTo('/auth/resetPassword');
 
             $authSession = $this->getApplicationServiceLocator()->get(AuthSessionContainer::class);
             $this->assertEquals(99, $authSession->resetPasswordUserId);
@@ -485,9 +485,9 @@ namespace LibraryTest\Controller {
 
         public function testResetPasswordActionGetWithoutSession(): void
         {
-            $this->dispatch('/admin/auth/resetPassword', 'GET');
+            $this->dispatch('/auth/resetPassword', 'GET');
             $this->assertResponseStatusCode(302);
-            $this->assertRedirectTo('/admin/auth/forgotPassword');
+            $this->assertRedirectTo('/auth/forgotPassword');
 
             $flashMessenger = $this->getApplicationServiceLocator()->get('ControllerPluginManager')->get('flashMessenger');
             $this->assertTrue($flashMessenger->hasCurrentErrorMessages());
@@ -525,14 +525,14 @@ namespace LibraryTest\Controller {
                     })
                 );
 
-            $this->dispatch('/admin/auth/resetPassword', 'POST', [
+            $this->dispatch('/auth/resetPassword', 'POST', [
                 'otp_code' => '123456',
                 'password' => 'NewPassword@123',
                 'password_confirm' => 'NewPassword@123',
             ]);
 
             $this->assertResponseStatusCode(302);
-            $this->assertRedirectTo('/admin/auth'); // login action is default
+            $this->assertRedirectTo('/auth'); // login action is default
 
             $this->assertNull($authSession->resetPasswordUserId);
 
@@ -553,7 +553,7 @@ namespace LibraryTest\Controller {
             ]);
             $this->userTableMock->method('getUser')->with(99)->willReturn($user);
 
-            $this->dispatch('/admin/auth/resetPassword', 'POST', [
+            $this->dispatch('/auth/resetPassword', 'POST', [
                 'otp_code' => '123456',
                 'password' => 'S@1',
                 'password_confirm' => 'S@1',
@@ -579,7 +579,7 @@ namespace LibraryTest\Controller {
             ]);
             $this->userTableMock->method('getUser')->with(99)->willReturn($user);
 
-            $this->dispatch('/admin/auth/resetPassword', 'POST', [
+            $this->dispatch('/auth/resetPassword', 'POST', [
                 'otp_code' => '123456',
                 'password' => 'password@123',
                 'password_confirm' => 'password@123',
@@ -605,7 +605,7 @@ namespace LibraryTest\Controller {
             ]);
             $this->userTableMock->method('getUser')->with(99)->willReturn($user);
 
-            $this->dispatch('/admin/auth/resetPassword', 'POST', [
+            $this->dispatch('/auth/resetPassword', 'POST', [
                 'otp_code' => '123456',
                 'password' => 'Password123',
                 'password_confirm' => 'Password123',
@@ -632,7 +632,7 @@ namespace LibraryTest\Controller {
             ]);
             $this->userTableMock->method('getUser')->with(99)->willReturn($user);
 
-            $this->dispatch('/admin/auth/resetPassword', 'POST', [
+            $this->dispatch('/auth/resetPassword', 'POST', [
                 'otp_code' => '999999', // wrong OTP
                 'password' => 'NewPass@123',
                 'password_confirm' => 'NewPass@123',
@@ -669,14 +669,14 @@ namespace LibraryTest\Controller {
                         && empty($savedUser->otpExpiresAt);
                 }));
 
-            $this->dispatch('/admin/auth/resetPassword', 'POST', [
+            $this->dispatch('/auth/resetPassword', 'POST', [
                 'otp_code' => '999999', // 5th incorrect attempt
                 'password' => 'NewPass@123',
                 'password_confirm' => 'NewPass@123',
             ]);
 
             $this->assertResponseStatusCode(302);
-            $this->assertRedirectTo('/admin/auth/forgotPassword');
+            $this->assertRedirectTo('/auth/forgotPassword');
 
             $this->assertNull($authSession->otpAttempts);
             $this->assertNull($authSession->resetPasswordUserId);
@@ -687,6 +687,72 @@ namespace LibraryTest\Controller {
                 'Bạn đã nhập sai mã OTP quá 5 lần. Mã OTP này đã bị hủy vì lý do bảo mật. Vui lòng gửi lại yêu cầu.',
                 $flashMessenger->getCurrentErrorMessages()
             );
+        }
+
+        public function testVerifyOtpActionGetMasksEmail(): void
+        {
+            $authSession = $this->getApplicationServiceLocator()->get(AuthSessionContainer::class);
+            $authSession->otpUserId = 99;
+
+            // Scenario 1: short email name (1-2 chars)
+            $user = new \Library\Model\Entity\User();
+            $user->exchangeArray([
+                'id' => 99,
+                'email' => 'a@gmail.com',
+                'otp_code' => '123456',
+                'otp_expires_at' => date('Y-m-d H:i:s', time() + 300),
+            ]);
+            $this->userTableMock->method('getUser')->with(99)->willReturn($user);
+
+            $this->dispatch('/auth/verifyOtp', 'GET');
+            $this->assertResponseStatusCode(200);
+            
+            // Check that the response contains masked email
+            $this->assertStringContainsString('a***@gmail.com', $this->getResponse()->getContent());
+        }
+
+        public function testResetPasswordActionGetMasksEmail(): void
+        {
+            $authSession = $this->getApplicationServiceLocator()->get(AuthSessionContainer::class);
+            $authSession->resetPasswordUserId = 99;
+
+            // Scenario 2: medium email name (3-5 chars)
+            $user = new \Library\Model\Entity\User();
+            $user->exchangeArray([
+                'id' => 99,
+                'email' => 'huy@abc.com',
+                'otp_code' => '123456',
+                'otp_expires_at' => date('Y-m-d H:i:s', time() + 300),
+            ]);
+            $this->userTableMock->method('getUser')->with(99)->willReturn($user);
+
+            $this->dispatch('/auth/resetPassword', 'GET');
+            $this->assertResponseStatusCode(200);
+
+            // Check that the response contains masked email
+            $this->assertStringContainsString('hu***@abc.com', $this->getResponse()->getContent());
+        }
+
+        public function testResetPasswordActionGetMasksLongEmail(): void
+        {
+            $authSession = $this->getApplicationServiceLocator()->get(AuthSessionContainer::class);
+            $authSession->resetPasswordUserId = 99;
+
+            // Scenario 3: long email name (6+ chars)
+            $user = new \Library\Model\Entity\User();
+            $user->exchangeArray([
+                'id' => 99,
+                'email' => 'nguyenvana@gmail.com',
+                'otp_code' => '123456',
+                'otp_expires_at' => date('Y-m-d H:i:s', time() + 300),
+            ]);
+            $this->userTableMock->method('getUser')->with(99)->willReturn($user);
+
+            $this->dispatch('/auth/resetPassword', 'GET');
+            $this->assertResponseStatusCode(200);
+
+            // Check that the response contains masked email
+            $this->assertStringContainsString('ngu***@gmail.com', $this->getResponse()->getContent());
         }
     }
 }

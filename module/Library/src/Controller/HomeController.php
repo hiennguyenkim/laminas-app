@@ -36,7 +36,7 @@ class HomeController extends BaseController
 
         $path = $this->httpRequest()->getUri()->getPath();
         if ($path === '/admin' || $path === '/admin/' || $path === '/student' || $path === '/student/') {
-            return $this->redirect()->toRoute('library/auth', ['action' => 'login']);
+            return $this->redirect()->toRoute('auth', ['action' => 'login']);
         }
 
         return $this->redirect()->toRoute('announcements');

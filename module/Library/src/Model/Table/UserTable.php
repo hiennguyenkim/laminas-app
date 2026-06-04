@@ -21,6 +21,11 @@ class UserTable
         $this->tableGateway = $tableGateway;
     }
 
+    public function getAdapter(): \Laminas\Db\Adapter\AdapterInterface
+    {
+        return $this->tableGateway->getAdapter();
+    }
+
     public function getByUsername(string $username): ?User
     {
         $rowset = $this->tableGateway->select(['username' => $username]);
@@ -331,7 +336,10 @@ class UserTable
         // Ghi nhật ký xử phạt (Hạng mục 4)
         try {
             $sql = "INSERT INTO penalty_logs (user_id, admin_id, reason, locked_until, created_at) VALUES (?, ?, ?, ?, NOW())";
-            $this->tableGateway->getAdapter()->query($sql)->execute([$id, $adminId, $reason, $until]);
+            /** @var \Laminas\Db\Adapter\Adapter $adapter */
+            $adapter = $this->tableGateway->getAdapter();
+            $stmt = $adapter->createStatement($sql);
+            $stmt->execute([$id, $adminId, $reason, $until]);
         } catch (\Throwable $e) {}
     }
 
@@ -358,8 +366,13 @@ class UserTable
     public function getSystemSetting(string $key): string
     {
         $sql = "SELECT setting_value FROM system_settings WHERE setting_key = ? LIMIT 1";
-        $row = $this->tableGateway->getAdapter()->query($sql)->execute([$key])->current();
-        return (string)($row['setting_value'] ?? '');
+        /** @var \Laminas\Db\Adapter\Adapter $adapter */
+        $adapter = $this->tableGateway->getAdapter();
+        $stmt = $adapter->createStatement($sql);
+        $result = $stmt->execute([$key]);
+        /** @var array{setting_value?: mixed}|false $row */
+        $row = $result->current();
+        return is_array($row) ? (string)($row['setting_value'] ?? '') : '';
     }
 
     public function saveUser(User $user, ?string $passwordHash = null): void

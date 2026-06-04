@@ -32,7 +32,7 @@ class TicketControllerTest extends AbstractHttpControllerTestCase
     {
         $this->dispatch('/admin/ticket', 'GET');
         $this->assertResponseStatusCode(302);
-        $this->assertRedirectTo('/admin/auth');
+        $this->assertRedirectTo('/auth');
     }
 
     public function testIndexActionAsAdminWithSorting(): void

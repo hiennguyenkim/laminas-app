@@ -107,6 +107,7 @@ return [
             // Google Login Routes
             'google-login' => [
                 'type' => Literal::class,
+                'priority' => 100,
                 'options' => [
                     'route' => '/auth/google',
                     'defaults' => ['controller' => AuthController::class, 'action' => 'googleRedirect'],
@@ -114,9 +115,18 @@ return [
             ],
             'google-callback' => [
                 'type' => Literal::class,
+                'priority' => 100,
                 'options' => [
                     'route' => '/auth/google-callback',
                     'defaults' => ['controller' => AuthController::class, 'action' => 'googleCallback'],
+                ],
+            ],
+            'auth' => [
+                'type'    => Segment::class,
+                'options' => [
+                    'route'       => '/auth[/:action]',
+                    'constraints' => ['action' => '[a-zA-Z][a-zA-Z0-9_-]*'],
+                    'defaults'    => ['controller' => AuthController::class, 'action' => 'login'],
                 ],
             ],
             'library' => [
@@ -137,14 +147,7 @@ return [
                             'defaults' => ['controller' => DashboardController::class, 'action' => 'index'],
                         ],
                     ],
-                    'auth' => [
-                        'type'    => Segment::class,
-                        'options' => [
-                            'route'       => '/auth[/:action]',
-                            'constraints' => ['action' => '[a-zA-Z][a-zA-Z0-9_-]*'],
-                            'defaults'    => ['controller' => AuthController::class, 'action' => 'login'],
-                        ],
-                    ],
+
                     'books-import' => [
                         'type'    => Segment::class,
                         'options' => [

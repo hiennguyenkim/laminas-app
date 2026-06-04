@@ -7,6 +7,15 @@ namespace Library\Model\Table;
 use Laminas\Db\TableGateway\TableGateway;
 use Laminas\Db\Adapter\AdapterInterface;
 
+/**
+ * @psalm-suppress UndefinedInterfaceMethod
+ * @psalm-suppress PossiblyUndefinedMethod
+ * @psalm-suppress MixedMethodCall
+ * @psalm-suppress MixedAssignment
+ * @psalm-suppress MixedArrayAccess
+ * @psalm-suppress MixedOperand
+ * @psalm-suppress MixedArgument
+ */
 class TicketTable
 {
     private TableGateway $tableGateway;

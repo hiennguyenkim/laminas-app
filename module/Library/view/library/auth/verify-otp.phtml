@@ -13,7 +13,7 @@ foreach (['logo.png','logo.jpg','logo.jpeg','logo.svg','logo.webp'] as $_lf) {
 }
 ?>
 <div class="login-card">
-    <a href="<?= $this->url('library/auth', ['action' => 'login']) ?>" class="btn btn-outline btn-icon" style="position: absolute; top: 20px; left: 20px;" title="Quay lại trang đăng nhập">
+    <a href="<?= $this->url('auth', ['action' => 'login']) ?>" class="btn btn-outline btn-icon" style="position: absolute; top: 20px; left: 20px;" title="Quay lại trang đăng nhập">
         <i class="bi bi-arrow-left"></i>
     </a>
     <div class="login-logo">
@@ -32,7 +32,7 @@ foreach (['logo.png','logo.jpg','logo.jpeg','logo.svg','logo.webp'] as $_lf) {
         Vui lòng kiểm tra cả hộp thư rác (Spam) nếu không thấy thư.
     </p>
 
-    <form method="POST" action="<?= $this->url('library/auth', ['action' => 'verifyOtp']) ?>" id="otp-form">
+    <form method="POST" action="<?= $this->url('auth', ['action' => 'verifyOtp']) ?>" id="otp-form">
         <!-- Hidden input to submit the full code -->
         <input type="hidden" name="otp_code" id="hidden-otp-code" value="">
 
@@ -54,7 +54,7 @@ foreach (['logo.png','logo.jpg','logo.jpeg','logo.svg','logo.webp'] as $_lf) {
     <p class="login-footer-text" style="margin-top: 24px;">
         Không nhận được mã? 
         <span id="countdown-wrapper" style="color: var(--text-muted);">Gửi lại sau <strong id="timer">60</strong>s</span>
-        <a href="<?= $this->url('library/auth', ['action' => 'verifyOtp']) ?>?resend=1" id="resend-link" class="login-footer-link" style="display: none; font-weight: 600;">Gửi lại mã</a>
+        <a href="<?= $this->url('auth', ['action' => 'verifyOtp']) ?>?resend=1" id="resend-link" class="login-footer-link" style="display: none; font-weight: 600;">Gửi lại mã</a>
     </p>
 
     <div class="login-copyright" style="margin-top: 30px;">

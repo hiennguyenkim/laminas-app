@@ -119,7 +119,7 @@ abstract class BaseController extends AbstractActionController
 
         $this->flash()->addInfoMessage('Vui lòng đăng nhập để tiếp tục.');
 
-        return $this->redirect()->toRoute('library/auth', ['action' => 'login']);
+        return $this->redirect()->toRoute('auth', ['action' => 'login']);
     }
 
     public function onDispatch(\Laminas\Mvc\MvcEvent $e)
@@ -131,7 +131,7 @@ abstract class BaseController extends AbstractActionController
 
         // If matched route is under admin / library
         if (str_starts_with($routeName, 'library')) {
-            if (str_starts_with($routeName, 'library/auth')) {
+            if (str_starts_with($routeName, 'auth')) {
                 $action = $routeMatch->getParam('action', 'login');
                 if ($role === 'student' && $action !== 'logout') {
                     return $this->redirect()->toRoute('student/dashboard');
@@ -140,7 +140,7 @@ abstract class BaseController extends AbstractActionController
                 // Guest (chưa đăng nhập) không được truy cập khu vực admin
                 if ($currentUser === null) {
                     $this->flash()->addInfoMessage('Vui lòng đăng nhập để tiếp tục.');
-                    return $this->redirect()->toRoute('library/auth', ['action' => 'login']);
+                    return $this->redirect()->toRoute('auth', ['action' => 'login']);
                 }
                 if ($role === 'student') {
                     $this->flash()->addErrorMessage('Chỉ quản trị viên mới có quyền truy cập.');
@@ -172,7 +172,7 @@ abstract class BaseController extends AbstractActionController
         if ($user === null) {
             $this->flash()->addInfoMessage('Vui lòng đăng nhập để tiếp tục.');
 
-            return $this->redirect()->toRoute('library/auth', ['action' => 'login']);
+            return $this->redirect()->toRoute('auth', ['action' => 'login']);
         }
 
         if (($user['role'] ?? '') === 'admin') {

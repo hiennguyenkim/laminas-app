@@ -169,7 +169,7 @@ $pageLabel = $authUser ? ($pageLabels[$activeKey] ?? '') : 'Đăng nhập';
                         <div class="uemail"><?= htmlspecialchars($authUser['email'] ?? 'admin@library.vn') ?></div>
                     </a>
                 </div>
-                <a href="<?= $this->url('library/auth', ['action' => 'logout']) ?>"
+                <a href="<?= $this->url('auth', ['action' => 'logout']) ?>"
                    title="Đăng xuất" class="sidebar-logout-link">
                     <i class="bi bi-box-arrow-right"></i>
                 </a>
@@ -222,7 +222,7 @@ $pageLabel = $authUser ? ($pageLabels[$activeKey] ?? '') : 'Đăng nhập';
         <?php else: ?>
         <!-- PREMIUM TOPBAR FOR GUEST READERS -->
         <header class="topbar topbar--guest">
-            <a href="<?= $this->url('library/auth', ['action' => 'login']) ?>" class="topbar-guest-left">
+            <a href="<?= $this->url('auth', ['action' => 'login']) ?>" class="topbar-guest-left">
                 <?php if ($customLogoFile): ?>
                     <img src="<?= $this->basePath($customLogoFile) ?>?t=<?= filemtime($publicDir . '/' . $customLogoFile) ?>"
                          alt="Logo thư viện"
@@ -243,10 +243,10 @@ $pageLabel = $authUser ? ($pageLabels[$activeKey] ?? '') : 'Đăng nhập';
                     <i class="bi bi-book"></i>Mượn sách
                 </a>
                 <?php endif; ?>
-                <a href="<?= $this->url('library/auth', ['action' => 'login']) ?>" class="btn btn-primary btn-sm topbar-guest-btn-login">
+                <a href="<?= $this->url('auth', ['action' => 'login']) ?>" class="btn btn-primary btn-sm topbar-guest-btn-login">
                     <i class="bi bi-box-arrow-in-right"></i>Đăng nhập
                 </a>
-                <a href="<?= $this->url('library/auth', ['action' => 'register']) ?>" class="btn btn-outline btn-sm topbar-guest-btn-register">
+                <a href="<?= $this->url('auth', ['action' => 'register']) ?>" class="btn btn-outline btn-sm topbar-guest-btn-register">
                     Đăng ký
                 </a>
             </div>

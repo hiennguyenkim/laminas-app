@@ -62,7 +62,7 @@ class HomeControllerTest extends AbstractHttpControllerTestCase
         $this->assertResponseStatusCode(302);
         $this->assertControllerName(HomeController::class);
         $this->assertMatchedRouteName('library');
-        $this->assertRedirectTo('/admin/auth');
+        $this->assertRedirectTo('/auth');
     }
 
     public function testAdminDashboardRequiresLogin(): void
@@ -70,7 +70,7 @@ class HomeControllerTest extends AbstractHttpControllerTestCase
         $this->dispatch('/admin/dashboard', 'GET');
 
         $this->assertResponseStatusCode(302);
-        $this->assertRedirectTo('/admin/auth');
+        $this->assertRedirectTo('/auth');
     }
 
     public function testInvalidRouteDoesNotCrash(): void

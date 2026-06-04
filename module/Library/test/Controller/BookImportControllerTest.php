@@ -33,7 +33,7 @@ class BookImportControllerTest extends AbstractHttpControllerTestCase
     {
         $this->dispatch('/admin/books/import', 'GET');
         $this->assertResponseStatusCode(302);
-        $this->assertRedirectTo('/admin/auth');
+        $this->assertRedirectTo('/auth');
     }
 
     public function testIndexActionStudentForbidden(): void

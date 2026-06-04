@@ -128,9 +128,17 @@ class UserApiController extends AbstractRestfulController
         }
 
         // Lấy tham số
-        $query = trim((string) $request->getQuery('q', ''));
-        $role  = trim((string) $request->getQuery('role', ''));
-        $limit = max(1, min(50, (int) $request->getQuery('limit', '20')));
+        /** @var mixed */
+        $queryParam = $request->getQuery('q', '');
+        $query = is_string($queryParam) ? trim($queryParam) : '';
+
+        /** @var mixed */
+        $roleParam = $request->getQuery('role', '');
+        $role = is_string($roleParam) ? trim($roleParam) : '';
+
+        /** @var mixed */
+        $limitParam = $request->getQuery('limit', '20');
+        $limit = max(1, min(50, is_numeric($limitParam) ? (int)$limitParam : 20));
 
         // Query users using fetchAll
         $filters = [];

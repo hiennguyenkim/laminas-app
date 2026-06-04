@@ -32,7 +32,7 @@ class UserControllerTest extends AbstractHttpControllerTestCase
     {
         $this->dispatch('/admin/users', 'GET');
         $this->assertResponseStatusCode(302);
-        $this->assertRedirectTo('/admin/auth');
+        $this->assertRedirectTo('/auth');
     }
  
     public function testIndexActionWithDefaultPagination(): void

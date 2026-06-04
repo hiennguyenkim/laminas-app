@@ -56,7 +56,7 @@ class AuthController extends BaseController
 
             if ($sessionToken === '' || !hash_equals($sessionToken, $postedToken)) {
                 $this->flash()->addErrorMessage('Yêu cầu không hợp lệ. Vui lòng thử lại.');
-                return $this->redirect()->toRoute('library/auth', ['action' => 'login']);
+                return $this->redirect()->toRoute('auth', ['action' => 'login']);
             }
             // ── End CSRF validation ────────────────────────────────────────────
 
@@ -72,10 +72,10 @@ class AuthController extends BaseController
                             $this->sendOtpToUser($user);
                             $this->authSession()->otpUserId = $user->id;
                             $this->flash()->addInfoMessage('Mã xác thực OTP đã được gửi đến email của bạn. Vui lòng nhập mã để kích hoạt tài khoản.');
-                            return $this->redirect()->toRoute('library/auth', ['action' => 'verifyOtp']);
+                            return $this->redirect()->toRoute('auth', ['action' => 'verifyOtp']);
                         } catch (\Throwable $e) {
                             $this->flash()->addErrorMessage('Không thể gửi mã OTP: ' . $e->getMessage());
-                            return $this->redirect()->toRoute('library/auth', ['action' => 'login']);
+                            return $this->redirect()->toRoute('auth', ['action' => 'login']);
                         }
                     }
 
@@ -147,10 +147,10 @@ class AuthController extends BaseController
                         $this->sendOtpToUser($user);
                         $this->authSession()->otpUserId = $user->id;
                         $this->flash()->addSuccessMessage('Đăng ký thành công! Mã xác thực OTP đã được gửi đến email của bạn. Vui lòng nhập mã để kích hoạt tài khoản.');
-                        return $this->redirect()->toRoute('library/auth', ['action' => 'verifyOtp']);
+                        return $this->redirect()->toRoute('auth', ['action' => 'verifyOtp']);
                     } catch (\Throwable $e) {
                         $this->flash()->addWarningMessage('Đăng ký thành công, nhưng không thể gửi mã OTP: ' . $e->getMessage() . '. Vui lòng đăng nhập để gửi lại mã.');
-                        return $this->redirect()->toRoute('library/auth', ['action' => 'login']);
+                        return $this->redirect()->toRoute('auth', ['action' => 'login']);
                     }
                 }
             }
@@ -178,7 +178,7 @@ class AuthController extends BaseController
             
             if (empty($clientId) || empty($clientSecret)) {
                 $this->flash()->addErrorMessage('Cấu hình Google Login chưa hoàn tất. Vui lòng cập nhật trong Cài đặt hệ thống.');
-                return $this->redirect()->toRoute('library/auth', ['action' => 'login']);
+                return $this->redirect()->toRoute('auth', ['action' => 'login']);
             }
 
             $url = "https://accounts.google.com/o/oauth2/v2/auth?" . http_build_query([
@@ -192,7 +192,7 @@ class AuthController extends BaseController
             return $this->redirect()->toUrl($url);
         } catch (\Throwable $e) {
             $this->flash()->addErrorMessage('Lỗi khởi tạo Google Login.');
-            return $this->redirect()->toRoute('library/auth', ['action' => 'login']);
+            return $this->redirect()->toRoute('auth', ['action' => 'login']);
         }
     }
 
@@ -206,7 +206,7 @@ class AuthController extends BaseController
             } else {
                 $this->flash()->addErrorMessage('Không nhận được mã xác thực từ Google.');
             }
-            return $this->redirect()->toRoute('library/auth', ['action' => 'login']);
+            return $this->redirect()->toRoute('auth', ['action' => 'login']);
         }
 
         try {
@@ -290,10 +290,10 @@ class AuthController extends BaseController
                     $this->sendOtpToUser($user);
                     $this->authSession()->otpUserId = $user->id;
                     $this->flash()->addInfoMessage('Mã xác thực OTP đã được gửi đến email của bạn. Vui lòng nhập mã để kích hoạt tài khoản.');
-                    return $this->redirect()->toRoute('library/auth', ['action' => 'verifyOtp']);
+                    return $this->redirect()->toRoute('auth', ['action' => 'verifyOtp']);
                 } catch (\Throwable $e) {
                     $this->flash()->addErrorMessage('Không thể gửi mã OTP: ' . $e->getMessage());
-                    return $this->redirect()->toRoute('library/auth', ['action' => 'login']);
+                    return $this->redirect()->toRoute('auth', ['action' => 'login']);
                 }
             }
 
@@ -313,7 +313,7 @@ class AuthController extends BaseController
 
         } catch (\Throwable $e) {
             $this->flash()->addErrorMessage('Lỗi xử lý Google Login: ' . $e->getMessage());
-            return $this->redirect()->toRoute('library/auth', ['action' => 'login']);
+            return $this->redirect()->toRoute('auth', ['action' => 'login']);
         }
     }
 
@@ -334,14 +334,14 @@ class AuthController extends BaseController
         $otpUserId = $this->authSession()->otpUserId ?? null;
         if (!$otpUserId) {
             $this->flash()->addErrorMessage('Phiên xác thực không hợp lệ hoặc đã hết hạn.');
-            return $this->redirect()->toRoute('library/auth', ['action' => 'login']);
+            return $this->redirect()->toRoute('auth', ['action' => 'login']);
         }
 
         try {
             $user = $this->userTable->getUser((int)$otpUserId);
         } catch (\Throwable $e) {
             $this->flash()->addErrorMessage('Không tìm thấy thông tin tài khoản.');
-            return $this->redirect()->toRoute('library/auth', ['action' => 'login']);
+            return $this->redirect()->toRoute('auth', ['action' => 'login']);
         }
 
         // Resend OTP logic
@@ -352,7 +352,7 @@ class AuthController extends BaseController
             } catch (\Throwable $e) {
                 $this->flash()->addErrorMessage('Không thể gửi lại mã OTP: ' . $e->getMessage());
             }
-            return $this->redirect()->toRoute('library/auth', ['action' => 'verifyOtp']);
+            return $this->redirect()->toRoute('auth', ['action' => 'verifyOtp']);
         }
 
         $request = $this->httpRequest();
@@ -374,7 +374,9 @@ class AuthController extends BaseController
 
                 // Add system notification for user approval
                 try {
-                    $stmt = $this->userTable->getAdapter()->createStatement(
+                    /** @var \Laminas\Db\Adapter\Adapter $adapter */
+                    $adapter = $this->userTable->getAdapter();
+                    $stmt = $adapter->createStatement(
                         "INSERT INTO notifications (user_id, sender_id, title, message, type, related_id) 
                          VALUES (?, NULL, 'Tài khoản đã được phê duyệt', ?, 'borrow_approved', ?)"
                     );
@@ -403,7 +405,7 @@ class AuthController extends BaseController
         }
 
         return new ViewModel([
-            'email' => $user->email,
+            'email' => $this->maskEmail($user->email),
         ]);
     }
 
@@ -419,7 +421,7 @@ class AuthController extends BaseController
             $identity = trim((string)($this->postData()['identity'] ?? ''));
             if ($identity === '') {
                 $this->flash()->addErrorMessage('Vui lòng nhập tên đăng nhập hoặc email.');
-                return $this->redirect()->toRoute('library/auth', ['action' => 'forgotPassword']);
+                return $this->redirect()->toRoute('auth', ['action' => 'forgotPassword']);
             }
 
             $user = null;
@@ -432,17 +434,17 @@ class AuthController extends BaseController
 
             if (!$user) {
                 $this->flash()->addErrorMessage('Tên đăng nhập hoặc email không tồn tại.');
-                return $this->redirect()->toRoute('library/auth', ['action' => 'forgotPassword']);
+                return $this->redirect()->toRoute('auth', ['action' => 'forgotPassword']);
             }
 
             try {
                 $this->sendPasswordResetOtpToUser($user);
                 $this->authSession()->resetPasswordUserId = $user->id;
                 $this->flash()->addInfoMessage('Mã OTP khôi phục mật khẩu đã được gửi đến email của bạn.');
-                return $this->redirect()->toRoute('library/auth', ['action' => 'resetPassword']);
+                return $this->redirect()->toRoute('auth', ['action' => 'resetPassword']);
             } catch (\Throwable $e) {
                 $this->flash()->addErrorMessage('Không thể gửi mã OTP: ' . $e->getMessage());
-                return $this->redirect()->toRoute('library/auth', ['action' => 'forgotPassword']);
+                return $this->redirect()->toRoute('auth', ['action' => 'forgotPassword']);
             }
         }
 
@@ -459,14 +461,14 @@ class AuthController extends BaseController
         $resetPasswordUserId = $this->authSession()->resetPasswordUserId ?? null;
         if (!$resetPasswordUserId) {
             $this->flash()->addErrorMessage('Phiên khôi phục mật khẩu không hợp lệ hoặc đã hết hạn.');
-            return $this->redirect()->toRoute('library/auth', ['action' => 'forgotPassword']);
+            return $this->redirect()->toRoute('auth', ['action' => 'forgotPassword']);
         }
 
         try {
             $user = $this->userTable->getUser((int)$resetPasswordUserId);
         } catch (\Throwable $e) {
             $this->flash()->addErrorMessage('Không tìm thấy thông tin tài khoản.');
-            return $this->redirect()->toRoute('library/auth', ['action' => 'forgotPassword']);
+            return $this->redirect()->toRoute('auth', ['action' => 'forgotPassword']);
         }
 
         // Resend OTP logic
@@ -477,7 +479,7 @@ class AuthController extends BaseController
             } catch (\Throwable $e) {
                 $this->flash()->addErrorMessage('Không thể gửi lại mã OTP: ' . $e->getMessage());
             }
-            return $this->redirect()->toRoute('library/auth', ['action' => 'resetPassword']);
+            return $this->redirect()->toRoute('auth', ['action' => 'resetPassword']);
         }
 
         $request = $this->httpRequest();
@@ -506,7 +508,7 @@ class AuthController extends BaseController
                     unset($this->authSession()->resetPasswordUserId);
                     
                     $this->flash()->addErrorMessage('Bạn đã nhập sai mã OTP quá 5 lần. Mã OTP này đã bị hủy vì lý do bảo mật. Vui lòng gửi lại yêu cầu.');
-                    return $this->redirect()->toRoute('library/auth', ['action' => 'forgotPassword']);
+                    return $this->redirect()->toRoute('auth', ['action' => 'forgotPassword']);
                 }
                 
                 $remaining = 5 - $this->authSession()->otpAttempts;
@@ -534,16 +536,16 @@ class AuthController extends BaseController
                 unset($this->authSession()->otpAttempts);
 
                 $this->flash()->addSuccessMessage('Đặt lại mật khẩu thành công! Vui lòng đăng nhập bằng mật khẩu mới.');
-                return $this->redirect()->toRoute('library/auth', ['action' => 'login']);
+                return $this->redirect()->toRoute('auth', ['action' => 'login']);
             }
         }
 
         return new ViewModel([
-            'email' => $user->email,
+            'email' => $this->maskEmail($user->email),
         ]);
     }
 
-    private function sendPasswordResetOtpToUser(\Library\Model\Entity\User $user): void
+    private function sendPasswordResetOtpToUser(User $user): void
     {
         $otp = sprintf('%06d', random_int(0, 999999));
         $expiresAt = date('Y-m-d H:i:s', time() + 300); // 5 minutes
@@ -565,7 +567,7 @@ class AuthController extends BaseController
         $this->mailService->sendEmail($user->email, $user->fullName, $subject, $body);
     }
 
-    private function sendOtpToUser(\Library\Model\Entity\User $user): void
+    private function sendOtpToUser(User $user): void
     {
         $otp = sprintf('%06d', random_int(0, 999999));
         $expiresAt = date('Y-m-d H:i:s', time() + 300); // 5 minutes
@@ -585,6 +587,32 @@ class AuthController extends BaseController
               . "Thư viện HDPE";
               
         $this->mailService->sendEmail($user->email, $user->fullName, $subject, $body);
+    }
+
+    private function maskEmail(string $email): string
+    {
+        if (!str_contains($email, '@')) {
+            return $email;
+        }
+
+        $parts = explode('@', $email, 2);
+        if (count($parts) !== 2) {
+            return $email;
+        }
+        $name = $parts[0];
+        $domain = $parts[1];
+
+        $length = mb_strlen($name);
+
+        if ($length <= 2) {
+            $visible = mb_substr($name, 0, 1);
+        } elseif ($length <= 5) {
+            $visible = mb_substr($name, 0, 2);
+        } else {
+            $visible = mb_substr($name, 0, 3);
+        }
+
+        return $visible . '***@' . $domain;
     }
 
     private function getGoogleRedirectUri(): string

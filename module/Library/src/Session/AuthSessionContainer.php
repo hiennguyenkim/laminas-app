@@ -10,6 +10,11 @@ use Laminas\Session\SessionManager;
 /**
  * @psalm-suppress MissingTemplateParam
  * @psalm-suppress PropertyNotSetInConstructor
+ * @property int|null $otpUserId
+ * @property array|null $user
+ * @property string|null $loginCsrfToken
+ * @property int|null $resetPasswordUserId
+ * @property int|null $otpAttempts
  */
 class AuthSessionContainer extends Container
 {

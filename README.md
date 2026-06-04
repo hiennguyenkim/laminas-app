@@ -194,9 +194,9 @@ Ngoài Controller/Table/Service, project hiện cũng đăng ký Form qua `form_
 | `/` | GET | HomeController | Điều hướng đến `/books` (catalog công khai) |
 | `/books` | GET | BookController | Danh mục sách công khai (guest xem được, góc phải có nút đăng nhập) |
 | `/admin` | GET | HomeController | Entry nội bộ khu quản trị (guest sẽ chuyển sang đăng nhập) |
-| `/admin/auth/login` | GET/POST | AuthController | Đăng nhập |
-| `/admin/auth/register` | GET/POST | AuthController | Đăng ký |
-| `/admin/auth/logout` | GET | AuthController | Đăng xuất |
+| `/auth/login` | GET/POST | AuthController | Đăng nhập |
+| `/auth/register` | GET/POST | AuthController | Đăng ký |
+| `/auth/logout` | GET | AuthController | Đăng xuất |
 | `/admin/dashboard` | GET | DashboardController | Tổng quan |
 | `/admin/books` | GET | BookController | Danh mục/Quản lý sách trong khu đăng nhập |
 | `/admin/books/add` | GET/POST | BookController | Thêm sách (admin) |
