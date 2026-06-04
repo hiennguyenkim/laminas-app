@@ -72,6 +72,37 @@ Thư viện HDPE được triển khai trên máy chủ Apache (XAMPP địa ph�
     *   Nếu email Google khớp với tài khoản thường có sẵn, tự động cập nhật liên kết Google ID và đăng nhập.
     *   Nếu chưa tồn tại, tự động tạo tài khoản Sinh viên mới ở trạng thái chờ kích hoạt OTP qua Email để đảm bảo xác minh danh tính.
 
+```mermaid
+sequenceDiagram
+    actor ND as "Người dùng"
+    participant Client as "Trình duyệt (Giao diện)"
+    participant Server as "Hệ thống (Backend)"
+    participant Google as "Google OAuth API"
+    participant DB as "Cơ sở dữ liệu"
+
+    ND->>Client: Nhấp chọn "Tiếp tục với Google"
+    Client->>Server: Gửi yêu cầu đăng nhập bằng Google
+    Server-->>Client: Chuyển hướng đến URL ủy quyền Google
+    Client->>Google: Yêu cầu ủy quyền tài khoản
+    Google-->>ND: Hiển thị màn hình chọn tài khoản Google
+    ND->>Google: Chọn tài khoản và đồng ý chia sẻ thông tin
+    Google-->>Client: Trả về mã Authorization Code (qua redirect URI)
+    Client->>Server: Chuyển tiếp Authorization Code
+    Server->>Google: Gửi Authorization Code để lấy Access Token + Profile
+    Google-->>Server: Trả về Access Token & thông tin hồ sơ (Google ID, Email, Họ tên)
+    Server->>DB: Kiểm tra Google ID hoặc Email trong bảng `users`
+    alt Google ID hoặc Email đã tồn tại
+        DB-->>Server: Trả về thông tin User
+        Server->>DB: Cập nhật Google ID (nếu chưa liên kết) + Đăng nhập phiên
+        Server-->>Client: Chuyển hướng đến Dashboard (Đã đăng nhập)
+    else Chưa tồn tại tài khoản
+        Server->>DB: Tạo mới User (role='student', is_approved=0)
+        Server->>DB: Sinh mã OTP và lưu vào bảng `users`
+        Server->>ND: Gửi email OTP kích hoạt tài khoản
+        Server-->>Client: Chuyển hướng đến trang nhập OTP kích hoạt
+    end
+```
+
 #### 3.1.3. Quên và đặt lại mật khẩu (Forgot/Reset Password)
 *   **Quên mật khẩu**:
     *   Người dùng nhập Username hoặc Email. Hệ thống kiểm tra trong CSDL.
@@ -83,6 +114,59 @@ Thư viện HDPE được triển khai trên máy chủ Apache (XAMPP địa ph�
     *   Người dùng cung cấp mã OTP hợp lệ, Mật khẩu mới và Xác nhận mật khẩu mới.
     *   Mật khẩu mới phải tuân thủ đúng chính sách mật khẩu (dài >= 8 ký tự, 1 chữ hoa, 1 ký tự đặc biệt).
     *   **Trải nghiệm người dùng**: Cung cấp bộ chỉ thị độ mạnh mật khẩu động trực quan theo thời gian thực (Real-time dynamic strength checklist) trên giao diện đặt lại mật khẩu. Khi người dùng gõ, các điều kiện đạt chuẩn sẽ tự động đổi màu xanh lá và tích dấu hoàn thành.
+
+```mermaid
+sequenceDiagram
+    actor ND as "Người dùng"
+    participant Client as "Trình duyệt"
+    participant Server as "Hệ thống (Backend)"
+    participant DB as "Cơ sở dữ liệu"
+    participant Mail as "Hệ thống Email (SMTP)"
+
+    ND->>Client: Nhập Username hoặc Email và yêu cầu reset mật khẩu
+    Client->>Server: POST /auth/forgot-password
+    Server->>DB: Kiểm tra tài khoản trong bảng `users`
+    alt Tài khoản không tồn tại
+        DB-->>Server: Không tìm thấy
+        Server-->>Client: Hiển thị lỗi tài khoản không tồn tại
+    else Tài khoản hợp lệ
+        DB-->>Server: Tìm thấy thông tin User
+        Server->>Server: Sinh OTP 6 chữ số ngẫu nhiên & thiết lập hạn 5 phút
+        Server->>DB: Lưu OTP, thời gian hết hạn & reset số lần nhập sai (otp_attempts = 0)
+        Server->>Mail: Gửi email chứa mã OTP đến người dùng
+        Server-->>Client: Chuyển hướng đến trang nhập OTP
+    end
+
+    loop Xác thực OTP & Đặt lại mật khẩu (tối đa 5 lần)
+        ND->>Client: Nhập mã OTP + Mật khẩu mới
+        Client->>Server: POST /auth/reset-password
+        Server->>DB: Truy vấn OTP và thời gian hết hạn của User
+        alt OTP hết hạn (> 5 phút)
+            DB-->>Server: Trả về trạng thái hết hạn
+            Server-->>Client: Báo lỗi OTP hết hạn, yêu cầu gửi lại mã
+        else OTP không khớp
+            DB-->>Server: OTP không khớp
+            Server->>Server: Tăng số lần nhập sai: attempts = attempts + 1
+            alt Số lần nhập sai >= 5
+                Server->>DB: Xóa sạch `otp_code`, hủy phiên khôi phục
+                Server-->>Client: Báo lỗi: Đã nhập sai quá 5 lần, phiên khôi phục bị hủy
+            else Số lần nhập sai < 5
+                Server->>DB: Cập nhật số lần nhập sai
+                Server-->>Client: Báo lỗi OTP sai (còn lại X lượt thử)
+            end
+        else OTP khớp & Hợp lệ
+            DB-->>Server: Trả về trạng thái hợp lệ
+            Server->>Server: Kiểm tra độ mạnh của Mật khẩu mới (Regex)
+            alt Mật khẩu không đạt độ mạnh
+                Server-->>Client: Báo lỗi mật khẩu không đủ độ mạnh
+            else Mật khẩu đạt độ mạnh
+                Server->>Server: Mã hóa mật khẩu (password_hash)
+                Server->>DB: Cập nhật password mới, xóa `otp_code` & `otp_attempts`
+                Server-->>Client: Hiển thị thông báo thành công & Chuyển hướng đến trang Đăng nhập
+            end
+        end
+    end
+```
 
 ---
 
@@ -99,6 +183,38 @@ Hệ thống hỗ trợ Thủ thư (Admin) thực hiện nhập kho sách qua ha
         2.  Nếu `ISBN` không trống và khớp với một cuốn sách đã tồn tại trong bảng `books`, hệ thống **cộng dồn số lượng nhập** vào trường `quantity` của cuốn sách đó và tự động cập nhật lại trạng thái sách thành `'available'`.
         3.  Nếu `ISBN` trống hoặc chưa tồn tại trong hệ thống, hệ thống tiến hành **tạo mới** một cuốn sách trong bảng `books` với số lượng tương ứng.
         4.  Đối với mỗi dòng sách nhập thành công, hệ thống ghi nhận một bản ghi hóa đơn chi tiết vào bảng `book_imports` ở trạng thái `approved` (Đã nhập kho), đồng thời lưu vết tài khoản Admin thực hiện.
+
+```mermaid
+sequenceDiagram
+    actor Admin as "Quản trị viên (Thủ thư)"
+    participant Client as "Giao diện Admin"
+    participant Server as "Hệ thống (Backend)"
+    participant ExcelLib as "Thư viện PhpSpreadsheet"
+    participant DB as "Cơ sở dữ liệu"
+
+    Admin->>Client: Tải lên tệp Excel chứa dữ liệu nhập kho (.xlsx)
+    Client->>Server: POST /admin/book/import-excel (Upload file)
+    Server->>ExcelLib: Đọc file Excel và phân tích cú pháp dữ liệu theo dòng
+    ExcelLib-->>Server: Trả về danh sách sách từ file Excel
+    
+    loop Duyệt qua từng dòng sách trong Excel
+        Server->>Server: Trích xuất thông tin: Tên sách, Tác giả, ISBN, Số lượng, Đơn giá...
+        Server->>DB: Truy vấn tìm sách theo ISBN trong bảng `books`
+        alt ISBN đã tồn tại trong CSDL
+            DB-->>Server: Trả về bản ghi sách (book_id, quantity cũ)
+            Server->>Server: Cộng dồn số lượng: quantity = quantity_cũ + quantity_mới
+            Server->>DB: UPDATE books SET quantity = quantity_mới, status = 'available' WHERE book_id = ID
+        else ISBN chưa tồn tại hoặc trống
+            DB-->>Server: Không tìm thấy sách
+            Server->>DB: INSERT INTO books (title, author, isbn, quantity, status, ...)
+            DB-->>Server: Trả về book_id mới tạo
+        end
+        Server->>DB: INSERT INTO book_imports (book_id, invoice_code, quantity, price, imported_by, status = 'approved')
+    end
+
+    Server-->>Client: Phản hồi kết quả nhập kho thành công (Số lượng dòng đã xử lý)
+    Client-->>Admin: Hiển thị thông báo thành công và danh sách sách đã nhập
+```
 
 #### 3.2.2. Tra cứu & Hiển thị sách của Sinh viên
 *   **Tìm kiếm & Lọc:** Sinh viên có thể tra cứu nhanh sách theo các tiêu chí: Tên sách, Tác giả, hoặc mã số `ISBN`.
@@ -158,6 +274,51 @@ sequenceDiagram
     *   **Quy trình báo mất sách**: Khi Sinh viên hoặc Admin báo mất sách, hệ thống chuyển trạng thái phiếu mượn sang `lost`. Nếu là bản sao cuối cùng của sách đó trên kệ, trạng thái đầu sách cập nhật thành `lost`. Hệ thống tự động **khóa tài khoản sinh viên vĩnh viễn** với lý do làm mất sách cho đến khi hoàn thành thủ tục đền bù.
 5.  **Cơ chế Giữ chỗ chắc chắn (Hard Reservation)**: Khi sinh viên tạo yêu cầu mượn sách ở trạng thái chờ duyệt (`pending`), hệ thống sẽ trừ ngay lập tức số lượng sách khả dụng trên kệ. Điều này đảm bảo khi Admin bấm duyệt, sách thực tế vẫn còn trên kệ cho sinh viên đó. Nếu Admin từ chối phê duyệt, hệ thống sẽ tự động cộng lại số lượng sách đó về kệ.
 6.  **Hủy yêu cầu mượn đang chờ duyệt (Cancel Pending Request)**: Sinh viên được phép tự hủy yêu cầu mượn sách ở trạng thái `pending`. Khi hủy, hệ thống cộng lại số lượng sách khả dụng về kệ ngay lập tức (giải phóng Hard Reservation), xóa bản ghi mượn và gửi thông báo cảnh báo cho Admin.
+
+```mermaid
+sequenceDiagram
+    actor Admin as "Quản trị viên"
+    participant Server as "Hệ thống (Backend)"
+    participant DB as "Cơ sở dữ liệu"
+    participant Mail as "Hệ thống Email"
+
+    Admin->>Server: Thực hiện trả sách (Chọn phiếu mượn & xác nhận trả)
+    Server->>DB: Truy vấn phiếu mượn (borrow_records) & thông tin User (users)
+    DB-->>Server: Trả về chi tiết phiếu mượn (return_date, book_id, user_id)
+    
+    Server->>Server: Kiểm tra ngày trả thực tế so với hạn trả (return_date)
+    
+    alt Trả đúng hạn hoặc sớm hơn
+        Server->>DB: UPDATE borrow_records SET status = 'returned', returned_at = NOW()
+        Server->>DB: UPDATE books SET quantity = quantity + 1
+        Server-->>Admin: Phản hồi trả sách thành công (Không phạt)
+    else Trả trễ hạn (Overdue)
+        Server->>DB: UPDATE borrow_records SET status = 'returned', returned_at = NOW()
+        Server->>DB: UPDATE books SET quantity = quantity + 1
+        
+        Server->>DB: Truy vấn số lần trễ hạn trong lịch sử của Sinh viên
+        DB-->>Server: Trả về số lần trễ hạn (N lần)
+        
+        Server->>Server: Xác định hình phạt dựa trên số lần trễ hạn (N)
+        alt N = 3 hoặc 4
+            Server->>Server: Phạt: Khóa 1 ngày, giảm hạn mức mượn còn 4
+            Server->>DB: UPDATE users SET account_status = 'locked', locked_until = NOW() + 1 day, borrow_limit = 4, lock_reason = 'Trễ hạn N lần'
+        else N = 5
+            Server->>Server: Phạt: Khóa 3 ngày, giảm hạn mức mượn còn 2
+            Server->>DB: UPDATE users SET account_status = 'locked', locked_until = NOW() + 3 days, borrow_limit = 2, lock_reason = 'Trễ hạn N lần'
+        else N = 6
+            Server->>Server: Phạt: Khóa 7 ngày, giảm hạn mức mượn còn 1
+            Server->>DB: UPDATE users SET account_status = 'locked', locked_until = NOW() + 7 days, borrow_limit = 1, lock_reason = 'Trễ hạn N lần'
+        else N >= 7
+            Server->>Server: Phạt: Khóa vĩnh viễn
+            Server->>DB: UPDATE users SET account_status = 'locked', locked_until = '9999-12-31', lock_reason = 'Trễ hạn quá 7 lần'
+        end
+        
+        Server->>DB: INSERT INTO penalty_logs (user_id, admin_id, reason, locked_until)
+        Server->>Mail: Gửi Email thông báo trả sách trễ hạn & hình phạt
+        Server-->>Admin: Phản hồi trả sách thành công + Thông báo tài khoản đã bị phạt/khóa
+    end
+```
 
 #### 3.3.1. Quy trình Gia hạn sách (Renewal Workflow)
 *   **Luồng nghiệp vụ**: Sinh viên muốn gia hạn sách đang mượn phải gửi **yêu cầu gia hạn** (không tự động gia hạn). Quản trị viên sẽ xem xét và phê duyệt hoặc từ chối yêu cầu.
