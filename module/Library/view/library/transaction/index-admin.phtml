@@ -86,7 +86,7 @@ $renderSortIcon = function(string $col) use ($queryBase): string {
         <div class="d-flex align-center gap-3">
             <div class="stat-icon orange tx-stat-icon"><i class="bi bi-lightning-charge"></i></div>
             <div>
-                <div class="stat-value tx-stat-value"><?= (int)($summary['borrowed']??0)+(int)($summary['returned']??0)+(int)($summary['overdue']??0)+(int)($summary['pending']??0)+(int)($summary['renew_pending']??0) ?></div>
+                <div class="stat-value tx-stat-value"><?= (int)($summary['total']??0) ?></div>
                 <div class="stat-label">Tổng</div>
             </div>
         </div>

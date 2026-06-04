@@ -108,7 +108,7 @@ $renderSortIcon = function(string $col) use ($sort, $direction) {
 </style>
 
 <!-- FILTER TABS AND SEARCH -->
-<div class="book-import-filters-row" style="display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 24px; width: 100%; flex-wrap: nowrap;">
+<div class="book-import-filters-row" style="display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 24px; width: 100%; flex-wrap: wrap;">
     <div class="filter-tabs book-import-filter-tabs" style="margin-bottom: 0; flex-shrink: 0;">
         <a href="<?= $buildUrlWithFilter(['type' => '']) ?>" class="filter-tab <?= $type === '' ? 'active' : '' ?>">
             Tất cả hình thức <span class="count"><?= $typeCounts['all'] ?></span>
@@ -125,7 +125,7 @@ $renderSortIcon = function(string $col) use ($sort, $direction) {
     </div>
 
     <!-- Search Form -->
-    <form method="get" class="book-import-search-form" style="display: flex; gap: 8px; align-items: center; flex-wrap: nowrap; flex: 1; justify-content: flex-end; min-width: 0;">
+    <form method="get" class="book-import-search-form" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; flex: 1; justify-content: flex-end; min-width: 0;">
         <input type="hidden" name="type" value="<?= htmlspecialchars((string)$type) ?>">
         <input type="hidden" name="sort" value="<?= htmlspecialchars((string)$sort) ?>">
         <input type="hidden" name="direction" value="<?= htmlspecialchars((string)$direction) ?>">

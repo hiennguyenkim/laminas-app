@@ -1331,7 +1331,7 @@ img.catalog-chat-avatar {
   .topbar-page-label { display: none !important; }
 
   /* Responsive filters row */
-  .book-filters-row, .user-filters-row, .filters-row, .book-import-filters-container, .ticket-filters-row, .tx-filters-bar {
+  .book-filters-row, .user-filters-row, .filters-row, .book-import-filters-row, .ticket-filters-row, .tx-filters-bar {
     flex-direction: column !important;
     align-items: stretch !important;
     gap: 16px !important;

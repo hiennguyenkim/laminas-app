@@ -70,7 +70,11 @@ try {
     $renewSql = "SELECT br.borrow_id, br.user_id, b.title AS book_title 
                  FROM borrow_records br
                  JOIN books b ON br.book_id = b.book_id
-                 WHERE br.is_renew_pending = 1 AND br.updated_at < DATE_SUB(NOW(), INTERVAL 24 HOUR)";
+                 WHERE br.is_renew_pending = 1 
+                   AND COALESCE(
+                       (SELECT MIN(n.created_at) FROM notifications n WHERE n.related_id = br.borrow_id AND n.type = 'borrow' AND n.title = 'Yêu cầu gia hạn sách'),
+                       br.updated_at
+                   ) < DATE_SUB(NOW(), INTERVAL 24 HOUR)";
     
     $renewRecords = iterator_to_array($db->query($renewSql)->execute());
     echo "Found " . count($renewRecords) . " expired renewal request(s) to reject." . PHP_EOL;

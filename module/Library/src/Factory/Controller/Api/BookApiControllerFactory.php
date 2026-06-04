@@ -9,7 +9,7 @@ use Laminas\ServiceManager\Factory\FactoryInterface;
 use Library\Controller\Api\BookApiController;
 use Library\Model\Table\BookTable;
 use Library\Model\Table\ChatLogTable;
-
+use Library\Model\Table\UserTable;
 use Library\Service\GeminiService;
 
 class BookApiControllerFactory implements FactoryInterface
@@ -19,7 +19,8 @@ class BookApiControllerFactory implements FactoryInterface
         return new BookApiController(
             $container->get(BookTable::class),
             $container->get(ChatLogTable::class),
-            $container->get(GeminiService::class)
+            $container->get(GeminiService::class),
+            $container->get(UserTable::class)
         );
     }
 }

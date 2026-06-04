@@ -181,7 +181,20 @@ class Module
                     // Trigger background script (Windows compatible)
                     $scriptPath = realpath(__DIR__ . '/../../../bin/cron-cancel-pending.php');
                     if ($scriptPath) {
-                        pclose(popen("start /B php \"$scriptPath\"", "r"));
+                        $phpBinary = PHP_BINARY;
+                        if (strpos(strtolower($phpBinary), 'php') === false || strpos(strtolower($phpBinary), 'php-cgi') !== false) {
+                            if (file_exists('C:\xampp\php\php.exe')) {
+                                $phpBinary = 'C:\xampp\php\php.exe';
+                            } else {
+                                $cgiReplaced = str_ireplace('php-cgi.exe', 'php.exe', $phpBinary);
+                                if (file_exists($cgiReplaced)) {
+                                    $phpBinary = $cgiReplaced;
+                                } else {
+                                    $phpBinary = 'php';
+                                }
+                            }
+                        }
+                        pclose(popen("start /B \"\" \"$phpBinary\" \"$scriptPath\"", "r"));
                     }
                 }
             } catch (\Throwable $t) {

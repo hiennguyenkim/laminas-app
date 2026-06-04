@@ -85,7 +85,7 @@ abstract class BaseController extends AbstractActionController
     }
 
     /**
-     * @return array{id:int, username:string, email:string, full_name:string, role:string}|null
+     * @return array{id:int, username:string, email:string, full_name:string, role:string, avatar_url:string, nickname:string, account_status:string, locked_until:string}|null
      */
     protected function currentUser(): ?array
     {
@@ -96,13 +96,15 @@ abstract class BaseController extends AbstractActionController
         }
 
         return [
-            'id'         => (int) ($user['id'] ?? 0),
-            'username'   => (string) ($user['username'] ?? ''),
-            'email'      => (string) ($user['email'] ?? ''),
-            'full_name'  => (string) ($user['full_name'] ?? ''),
-            'role'       => (string) ($user['role'] ?? ''),
-            'avatar_url' => (string) ($user['avatar_url'] ?? ''),
-            'nickname'   => (string) ($user['nickname'] ?? ''),
+            'id'             => (int) ($user['id'] ?? 0),
+            'username'       => (string) ($user['username'] ?? ''),
+            'email'          => (string) ($user['email'] ?? ''),
+            'full_name'      => (string) ($user['full_name'] ?? ''),
+            'role'           => (string) ($user['role'] ?? ''),
+            'avatar_url'     => (string) ($user['avatar_url'] ?? ''),
+            'nickname'       => (string) ($user['nickname'] ?? ''),
+            'account_status' => (string) ($user['account_status'] ?? 'active'),
+            'locked_until'   => (string) ($user['locked_until'] ?? ''),
         ];
     }
 

@@ -13,6 +13,7 @@ use Library\Model\Table\BookTable;
  * @psalm-suppress PropertyNotSetInConstructor
  */
 use Library\Model\Table\ChatLogTable;
+use Library\Model\Table\UserTable;
 
 /**
  * @psalm-suppress PropertyNotSetInConstructor
@@ -22,7 +23,8 @@ class BookApiController extends AbstractRestfulController
     public function __construct(
         private BookTable $table,
         private ChatLogTable $chatLogTable,
-        private \Library\Service\GeminiService $geminiService
+        private \Library\Service\GeminiService $geminiService,
+        private UserTable $userTable
     ) {
     }
 
@@ -148,6 +150,21 @@ class BookApiController extends AbstractRestfulController
         $payload = $this->requestJsonBody();
         $message = trim((string)($payload['message'] ?? ''));
         $userId  = !empty($payload['user_id']) ? (int)$payload['user_id'] : null;
+
+        if ($userId !== null) {
+            try {
+                $user = $this->userTable->getUser($userId);
+                if ($user->isPermanentlyLocked()) {
+                    return $this->jsonResponse([
+                        'error' => 'Tài khoản của bạn đã bị khóa vĩnh viễn và không được phép sử dụng chức năng chat.'
+                    ], 403);
+                }
+            } catch (\Throwable $e) {
+                return $this->jsonResponse([
+                    'error' => 'Tài khoản không hợp lệ.'
+                ], 403);
+            }
+        }
 
         if ($message === '') {
             return $this->jsonResponse(['error' => 'Tin nhắn trống'], 400);

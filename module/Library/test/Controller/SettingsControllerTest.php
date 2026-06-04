@@ -131,7 +131,7 @@ class SettingsControllerTest extends AbstractHttpControllerTestCase
         ]);
 
         $this->assertResponseStatusCode(302);
-        $this->assertRedirectTo('/admin/settings');
+        $this->assertRedirectTo('/admin/book/categories');
 
         $flashMessenger = $this->getApplicationServiceLocator()->get('ControllerPluginManager')->get('flashMessenger');
         $this->assertTrue($flashMessenger->hasCurrentSuccessMessages());
@@ -181,7 +181,7 @@ class SettingsControllerTest extends AbstractHttpControllerTestCase
         $this->dispatch('/admin/settings/delete-category/99', 'GET');
 
         $this->assertResponseStatusCode(302);
-        $this->assertRedirectTo('/admin/settings');
+        $this->assertRedirectTo('/admin/book/categories');
 
         $flashMessenger = $this->getApplicationServiceLocator()->get('ControllerPluginManager')->get('flashMessenger');
         $this->assertTrue($flashMessenger->hasCurrentSuccessMessages());
@@ -223,7 +223,7 @@ class SettingsControllerTest extends AbstractHttpControllerTestCase
         $this->dispatch('/admin/settings/delete-category/1', 'GET');
 
         $this->assertResponseStatusCode(302);
-        $this->assertRedirectTo('/admin/settings');
+        $this->assertRedirectTo('/admin/book/categories');
 
         $flashMessenger = $this->getApplicationServiceLocator()->get('ControllerPluginManager')->get('flashMessenger');
         $this->assertTrue($flashMessenger->hasCurrentErrorMessages());
@@ -277,7 +277,7 @@ class SettingsControllerTest extends AbstractHttpControllerTestCase
         ]);
 
         $this->assertResponseStatusCode(302);
-        $this->assertRedirectTo('/admin/settings');
+        $this->assertRedirectTo('/admin/book/categories');
 
         $flashMessenger = $this->getApplicationServiceLocator()->get('ControllerPluginManager')->get('flashMessenger');
         $this->assertTrue($flashMessenger->hasCurrentSuccessMessages());

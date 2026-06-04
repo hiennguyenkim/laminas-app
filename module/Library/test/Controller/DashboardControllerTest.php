@@ -234,6 +234,30 @@ class DashboardControllerTest extends AbstractHttpControllerTestCase
         $this->assertResponseStatusCode(401);
     }
 
+    public function testChatActionPostMessagePermanentlyLockedUser(): void
+    {
+        $this->mockLoginAsRole('student');
+
+        $userTableMock = $this->createMock(UserTable::class);
+        $userObj = new \Library\Model\Entity\User();
+        $userObj->exchangeArray([
+            'user_id' => 2,
+            'account_status' => 'locked',
+            'locked_until' => '9999-12-31 00:00:00',
+        ]);
+        $userTableMock->method('getUser')->with(2)->willReturn($userObj);
+
+        $serviceLocator = $this->getApplicationServiceLocator();
+        $serviceLocator->setAllowOverride(true);
+        $serviceLocator->setService(UserTable::class, $userTableMock);
+
+        $this->dispatch('/student/dashboard/chat', 'POST', ['message' => 'Hello']);
+        $this->assertResponseStatusCode(403);
+        
+        $response = json_decode($this->getResponse()->getContent(), true);
+        $this->assertStringContainsString('khóa vĩnh viễn', $response['error']);
+    }
+
     public function testChatActionPostDeleteAdmin(): void
     {
         $this->mockLoginAsRole('admin');

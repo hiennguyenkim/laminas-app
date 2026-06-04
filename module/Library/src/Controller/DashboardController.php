@@ -118,6 +118,17 @@ class DashboardController extends BaseController
             if (!$currentUser) {
                 return $this->jsonResponse(['error' => 'Unauthorized'], 401);
             }
+            
+            $userId = (int)($currentUser['id'] ?? 0);
+            try {
+                $userObj = $this->userTable->getUser($userId);
+                if ($userObj->isPermanentlyLocked()) {
+                    return $this->jsonResponse(['error' => 'Tài khoản của bạn đã bị khóa vĩnh viễn và bị chặn tính năng thảo luận.'], 403);
+                }
+            } catch (\Throwable $e) {
+                // Fallback
+            }
+
             $data = $this->postData();
             $action = trim((string)($data['action'] ?? ''));
 

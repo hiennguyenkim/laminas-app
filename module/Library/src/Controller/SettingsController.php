@@ -92,7 +92,9 @@ class SettingsController extends BaseController
             return $response;
         }
 
-        if (!$this->getRequest()->isPost()) {
+        $request = $this->getRequest();
+        assert($request instanceof \Laminas\Http\Request);
+        if (!$request->isPost()) {
             return $this->redirect()->toRoute('library/settings');
         }
 
@@ -152,7 +154,9 @@ class SettingsController extends BaseController
             return $response;
         }
 
-        if (!$this->getRequest()->isPost()) {
+        $request = $this->getRequest();
+        assert($request instanceof \Laminas\Http\Request);
+        if (!$request->isPost()) {
             return $this->redirect()->toRoute('library/settings');
         }
 
@@ -195,7 +199,9 @@ class SettingsController extends BaseController
             return $response;
         }
 
-        if (!$this->getRequest()->isPost()) {
+        $request = $this->getRequest();
+        assert($request instanceof \Laminas\Http\Request);
+        if (!$request->isPost()) {
             return $this->redirect()->toRoute('library/settings');
         }
 
@@ -224,7 +230,9 @@ class SettingsController extends BaseController
             return $response;
         }
 
-        if (!$this->getRequest()->isPost()) {
+        $request = $this->getRequest();
+        assert($request instanceof \Laminas\Http\Request);
+        if (!$request->isPost()) {
             return $this->redirect()->toRoute('library/settings');
         }
 
@@ -256,8 +264,10 @@ class SettingsController extends BaseController
             return $response;
         }
 
-        if (!$this->getRequest()->isPost()) {
-            return $this->redirectToRefererOrSettings();
+        $request = $this->getRequest();
+        assert($request instanceof \Laminas\Http\Request);
+        if (!$request->isPost()) {
+            return $this->redirectToRefererOrCategories();
         }
 
         $data = $this->postData();
@@ -265,12 +275,12 @@ class SettingsController extends BaseController
 
         if ($name === '') {
             $this->flash()->addErrorMessage('Tên danh mục không được để trống.');
-            return $this->redirectToRefererOrSettings();
+            return $this->redirectToRefererOrCategories();
         }
 
         if (mb_strlen($name) > 100) {
             $this->flash()->addErrorMessage('Tên danh mục tối đa 100 ký tự.');
-            return $this->redirectToRefererOrSettings();
+            return $this->redirectToRefererOrCategories();
         }
 
         try {
@@ -286,7 +296,7 @@ class SettingsController extends BaseController
             $this->flash()->addErrorMessage('Lỗi hệ thống: ' . $e->getMessage());
         }
 
-        return $this->redirectToRefererOrSettings();
+        return $this->redirectToRefererOrCategories();
     }
 
     // ── Delete category ───────────────────────────────────────────────
@@ -299,7 +309,7 @@ class SettingsController extends BaseController
         $id = (int)$this->params()->fromRoute('id', 0);
         if ($id <= 0) {
             $this->flash()->addErrorMessage('ID danh mục không hợp lệ.');
-            return $this->redirectToRefererOrSettings();
+            return $this->redirectToRefererOrCategories();
         }
 
         try {
@@ -307,7 +317,7 @@ class SettingsController extends BaseController
             $cat = $this->bookCategoryTable->getById($id);
             if (!$cat) {
                 $this->flash()->addErrorMessage('Không tìm thấy danh mục cần xóa.');
-                return $this->redirectToRefererOrSettings();
+                return $this->redirectToRefererOrCategories();
             }
 
             $catName = $cat['name'];
@@ -325,7 +335,7 @@ class SettingsController extends BaseController
             $this->flash()->addErrorMessage('Lỗi hệ thống: ' . $e->getMessage());
         }
 
-        return $this->redirectToRefererOrSettings();
+        return $this->redirectToRefererOrCategories();
     }
 
     // ── Edit category ─────────────────────────────────────────────────
@@ -335,14 +345,16 @@ class SettingsController extends BaseController
             return $response;
         }
 
-        if (!$this->getRequest()->isPost()) {
-            return $this->redirectToRefererOrSettings();
+        $request = $this->getRequest();
+        assert($request instanceof \Laminas\Http\Request);
+        if (!$request->isPost()) {
+            return $this->redirectToRefererOrCategories();
         }
 
         $id = (int)$this->params()->fromRoute('id', 0);
         if ($id <= 0) {
             $this->flash()->addErrorMessage('ID danh mục không hợp lệ.');
-            return $this->redirectToRefererOrSettings();
+            return $this->redirectToRefererOrCategories();
         }
 
         $data = $this->postData();
@@ -350,12 +362,12 @@ class SettingsController extends BaseController
 
         if ($newName === '') {
             $this->flash()->addErrorMessage('Tên danh mục không được để trống.');
-            return $this->redirectToRefererOrSettings();
+            return $this->redirectToRefererOrCategories();
         }
 
         if (mb_strlen($newName) > 100) {
             $this->flash()->addErrorMessage('Tên danh mục tối đa 100 ký tự.');
-            return $this->redirectToRefererOrSettings();
+            return $this->redirectToRefererOrCategories();
         }
 
         try {
@@ -363,13 +375,13 @@ class SettingsController extends BaseController
             $cat = $this->bookCategoryTable->getById($id);
             if (!$cat) {
                 $this->flash()->addErrorMessage('Không tìm thấy danh mục cần sửa.');
-                return $this->redirectToRefererOrSettings();
+                return $this->redirectToRefererOrCategories();
             }
 
             $oldName = $cat['name'];
 
             if ($oldName === $newName) {
-                return $this->redirectToRefererOrSettings();
+                return $this->redirectToRefererOrCategories();
             }
 
             // Check if new name already exists
@@ -386,15 +398,17 @@ class SettingsController extends BaseController
             $this->flash()->addErrorMessage('Lỗi hệ thống: ' . $e->getMessage());
         }
 
-        return $this->redirectToRefererOrSettings();
+        return $this->redirectToRefererOrCategories();
     }
 
-    private function redirectToRefererOrSettings(): Response
+    private function redirectToRefererOrCategories(): Response
     {
-        $referer = $this->getRequest()->getHeader('Referer');
-        if ($referer) {
+        $request = $this->getRequest();
+        assert($request instanceof \Laminas\Http\Request);
+        $referer = $request->getHeader('Referer');
+        if ($referer instanceof \Laminas\Http\Header\Referer) {
             return $this->redirect()->toUrl($referer->getUri());
         }
-        return $this->redirect()->toRoute('library/settings');
+        return $this->redirect()->toRoute('library/book', ['action' => 'categories']);
     }
 }

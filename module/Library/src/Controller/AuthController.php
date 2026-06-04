@@ -80,13 +80,15 @@ class AuthController extends BaseController
                     }
 
                     $this->authSession()->user = [
-                        'id'         => $user->id,
-                        'username'   => $user->username,
-                        'email'      => $user->email,
-                        'full_name'  => $user->fullName,
-                        'role'       => $user->role,
-                        'avatar_url' => $user->avatarUrl,
-                        'nickname'   => $user->nickname,
+                        'id'             => $user->id,
+                        'username'       => $user->username,
+                        'email'          => $user->email,
+                        'full_name'      => $user->fullName,
+                        'role'           => $user->role,
+                        'avatar_url'     => $user->avatarUrl,
+                        'nickname'       => $user->nickname,
+                        'account_status' => $user->accountStatus,
+                        'locked_until'   => $user->lockedUntil,
                     ];
                     $this->flash()->addSuccessMessage('Chào mừng ' . $user->fullName . '!');
                     return $this->redirectToRoleHome($user->role);
@@ -299,13 +301,15 @@ class AuthController extends BaseController
 
             // 5. Log in
             $this->authSession()->user = [
-                'id'         => $user->id,
-                'username'   => $user->username,
-                'email'      => $user->email,
-                'full_name'  => $user->fullName,
-                'role'       => $user->role,
-                'avatar_url' => $user->avatarUrl,
-                'nickname'   => $user->nickname,
+                'id'             => $user->id,
+                'username'       => $user->username,
+                'email'          => $user->email,
+                'full_name'      => $user->fullName,
+                'role'           => $user->role,
+                'avatar_url'     => $user->avatarUrl,
+                'nickname'       => $user->nickname,
+                'account_status' => $user->accountStatus,
+                'locked_until'   => $user->lockedUntil,
             ];
 
             $this->flash()->addSuccessMessage('Đăng nhập Google thành công! Chào mừng ' . $user->fullName);
@@ -389,13 +393,15 @@ class AuthController extends BaseController
 
                 // Establish session
                 $this->authSession()->user = [
-                    'id'         => $user->id,
-                    'username'   => $user->username,
-                    'email'      => $user->email,
-                    'full_name'  => $user->fullName,
-                    'role'       => $user->role,
-                    'avatar_url' => $user->avatarUrl,
-                    'nickname'   => $user->nickname,
+                    'id'             => $user->id,
+                    'username'       => $user->username,
+                    'email'          => $user->email,
+                    'full_name'      => $user->fullName,
+                    'role'           => $user->role,
+                    'avatar_url'     => $user->avatarUrl,
+                    'nickname'       => $user->nickname,
+                    'account_status' => $user->accountStatus,
+                    'locked_until'   => $user->lockedUntil,
                 ];
                 unset($this->authSession()->otpUserId);
 

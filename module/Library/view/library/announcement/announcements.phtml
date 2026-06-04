@@ -3,6 +3,12 @@ $authUser    = $this->currentUser();
 $routePrefix = 'student';
 $isGuest     = $authUser === null;
 
+$isPermanentlyLocked = false;
+if ($authUser) {
+    $isPermanentlyLocked = ($authUser['account_status'] ?? '') === 'locked' 
+        && strpos(($authUser['locked_until'] ?? ''), '9999-12-31') !== false;
+}
+
 $this->headTitle('Bảng tin Thư viện');
 $this->layout('layout/library-layout');
 
@@ -130,6 +136,8 @@ $totalPages = (int) ($totalPages ?? 1);
             <div class="forum-footer">
                 <?php if ($isGuest): ?>
                     <div class="forum-guest-msg">Vui lòng <a href="<?= $this->url('auth', ['action' => 'login']) ?>" class="forum-guest-link">Đăng nhập</a> để tham gia thảo luận.</div>
+                <?php elseif ($isPermanentlyLocked): ?>
+                    <div class="forum-guest-msg text-danger"><i class="bi bi-shield-slash"></i> Tài khoản của bạn đã bị khóa vĩnh viễn và bị chặn tính năng thảo luận.</div>
                 <?php else: ?>
                     <div class="forum-input-row">
                         <div style="position: relative; flex: 1; display: flex; align-items: center;">

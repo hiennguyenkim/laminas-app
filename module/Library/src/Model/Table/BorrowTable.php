@@ -336,8 +336,7 @@ class BorrowTable
         $select = $sql->select()->columns([
             'c' => new Expression(
                 "SUM(CASE
-                    WHEN borrow_records.status IN ('borrowed', 'overdue')
-                      OR (borrow_records.status = 'borrowed' AND borrow_records.return_date < CURDATE())
+                    WHEN borrow_records.status = 'borrowed' AND borrow_records.return_date >= CURDATE()
                         THEN 1
                     ELSE 0
                  END)"
@@ -355,6 +354,7 @@ class BorrowTable
         $result = $stmt->execute();
         return $this->extractCount($result->current());
     }
+
 
     public function countOverdue(array $filters = [], ?int $userId = null): int
     {
@@ -736,9 +736,28 @@ class BorrowTable
             'pending'   => $this->countPending($summaryFilters, $userId),
             'renew_pending' => $this->countRenewPending($summaryFilters, $userId),
             'due_soon'  => $userId !== null ? $this->countDueSoon($userId) : 0,
-            'total'     => $this->countTotalBorrowedHistory($summaryFilters, $userId),
+            'total'     => $this->countTotal($summaryFilters, $userId),
         ];
     }
+
+    public function countTotal(array $filters = [], ?int $userId = null): int
+    {
+        $this->cleanupExpiredReturnedHistory();
+
+        $sql    = $this->tableGateway->getSql();
+        $select = $sql->select()
+            ->columns(['c' => new Expression('COUNT(*)')])
+            ->join('books', 'borrow_records.book_id = books.book_id', [])
+            ->join('users', 'borrow_records.user_id = users.user_id', []);
+
+        $this->applyFilters($select, $filters, $userId);
+
+        $stmt   = $sql->prepareStatementForSqlObject($select);
+        $result = $stmt->execute();
+
+        return $this->extractCount($result->current());
+    }
+
 
     public function countTotalBorrowedHistory(array $filters = [], ?int $userId = null): int
     {

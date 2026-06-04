@@ -298,11 +298,13 @@ sequenceDiagram
 #### Quy tắc kiểm duyệt mượn trả tự động:
 1.  **Hạn mức mượn (Borrow Limit)**: Mặc định mỗi Sinh viên chỉ được phép đăng ký tối đa **5 cuốn sách** ở trạng thái đang mượn (bao gồm cả phiếu `pending` đã gửi). Vượt quá hạn mức hệ thống sẽ báo lỗi và chặn tạo phiếu mượn.
 2.  **Thời hạn mượn sách tối đa**: Không quá **30 ngày** kể từ ngày mượn.
-3.  **Khóa do quá hạn & Xử phạt lũy tiến (Late Return Penalties)**: Sinh viên có bất kỳ một cuốn sách nào đang mượn quá hạn sẽ bị hệ thống khóa hoàn toàn chức năng mượn mới. Đồng thời, khi sinh viên trả sách trễ hạn, hệ thống tính tổng số lần trễ hạn trong lịch sử của sinh viên và áp dụng các mốc phạt tự động:
-    *   **Trễ hạn 3-4 lần**: Tạm khóa tài khoản **1 ngày**, giảm hạn mức mượn (`borrow_limit`) xuống còn **4 cuốn**.
-    *   **Trễ hạn 5 lần**: Tạm khóa tài khoản **3 ngày**, giảm hạn mức mượn xuống còn **2 cuốn**.
-    *   **Trễ hạn 6 lần**: Tạm khóa tài khoản **7 ngày**, giảm hạn mức mượn xuống còn **1 cuốn**.
-    *   **Trễ hạn từ 7 lần trở lên**: Khóa tài khoản **vĩnh viễn** (đến ngày 31/12/9999) và cập nhật hạn mức mượn (`borrow_limit`) về **0**.
+3.  **Khóa do quá hạn & Xử phạt lũy tiến (Late Return Penalties)**: Sinh viên có bất kỳ một cuốn sách nào đang mượn quá hạn sẽ bị hệ thống khóa hoàn toàn chức năng mượn mới. Đồng thời, hệ thống áp dụng các hình thức xử phạt tự động sau:
+    *   **Quy tắc trễ hạn quá 15 ngày (Khóa ngay lập tức)**: Nếu sinh viên có **bất kỳ một cuốn sách nào trễ hạn quá 15 ngày** (sách chưa trả bị quá hạn hơn 15 ngày dựa trên quét Cron hằng ngày, hoặc sách được trả muộn quá 15 ngày so với hạn trả tại quầy), tài khoản sinh viên đó sẽ lập tức bị **khóa vĩnh viễn** (đến ngày 31/12/9999), cập nhật hạn mức mượn (`borrow_limit`) về **0**, ghi log phạt và gửi thông báo hệ thống.
+    *   **Hình phạt lũy tiến theo số lần trễ hạn (khi trả sách trễ hạn <= 15 ngày)**: Hệ thống tính tổng số lần từng trả muộn trong lịch sử của sinh viên và áp dụng các mốc phạt:
+        *   **Trễ hạn 3-4 lần**: Tạm khóa tài khoản **1 ngày**, giảm hạn mức mượn (`borrow_limit`) xuống còn **4 cuốn**.
+        *   **Trễ hạn 5 lần**: Tạm khóa tài khoản **3 ngày**, giảm hạn mức mượn xuống còn **2 cuốn**.
+        *   **Trễ hạn 6 lần**: Tạm khóa tài khoản **7 ngày**, giảm hạn mức mượn xuống còn **1 cuốn**.
+        *   **Trễ hạn từ 7 lần trở lên**: Khóa tài khoản **vĩnh viễn** (đến ngày 31/12/9999) và cập nhật hạn mức mượn (`borrow_limit`) về **0**.
 4.  **Khóa do kỷ luật & Báo mất sách (Disciplinary Lock & Lost Book Workflow)**:
     *   Tài khoản bị khóa (`locked`) sẽ không thể mượn sách hay được phê duyệt phiếu mượn hiện tại.
     *   **Quy trình báo mất sách**: Khi Sinh viên hoặc Admin báo mất sách, hệ thống chuyển trạng thái phiếu mượn sang `lost`. Nếu là bản sao cuối cùng của sách đó trên kệ, trạng thái đầu sách cập nhật thành `lost`. Hệ thống tự động **khóa tài khoản sinh viên vĩnh viễn** với lý do nêu rõ tên sách đã mất (ví dụ: *Làm mất sách: 'Tên sách'.*) cho đến khi hoàn tất thủ tục đền bù, và cập nhật hạn mức mượn (`borrow_limit`) về **0**.
@@ -413,6 +415,9 @@ sequenceDiagram
 
 #### 3.4.2. Kênh thảo luận công khai (Public Chat)
 *   **Gửi tin nhắn**: Người dùng đã đăng nhập gửi tin nhắn chat (tối đa **255 ký tự**), nội dung được kiểm duyệt AI trước khi lưu.
+*   **Chặn chat đối với tài khoản bị khóa vĩnh viễn (Chat Block Policy)**: Để đảm bảo an toàn thông tin và kỷ luật, các tài khoản bị khóa vĩnh viễn (`account_status = 'locked'` và `locked_until` chứa mốc `'9999-12-31'`) sẽ **bị vô hiệu hóa hoàn toàn khả năng thảo luận**:
+    - Phía giao diện (frontend) tự động ẩn ô nhập chat và thay thế bằng thông báo cảnh báo màu đỏ: `"Tài khoản của bạn đã bị khóa vĩnh viễn và bị chặn tính năng thảo luận."`
+    - Phía máy chủ (backend API `chatAction` của `DashboardController`) chặn xử lý và trả về mã trạng thái HTTP `403 Forbidden` đối với bất kỳ yêu cầu gửi tin nhắn, xóa tin nhắn hoặc thả cảm xúc nào từ tài khoản bị khóa vĩnh viễn.
 *   **Ghim/Bỏ ghim tin nhắn (Admin)**: Admin có thể ghim một tin nhắn nổi bật lên đầu kênh chat. Chỉ cho phép ghim tối đa **1 tin nhắn** tại một thời điểm (ghim mới sẽ bỏ ghim cũ).
 *   **Xóa tin nhắn**: Sinh viên xóa tin nhắn của chính mình; Admin có thể xóa bất kỳ tin nhắn nào.
 *   **Thả cảm xúc (Emoji Reactions)**: Người dùng có thể toggle (thêm/gỡ) cảm xúc cho bất kỳ tin nhắn nào. Cảm xúc được lưu dưới dạng chuỗi JSON trong trường `reactions` của bảng `public_chats`, chứa danh sách user IDs cho mỗi loại emoji.

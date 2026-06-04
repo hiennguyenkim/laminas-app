@@ -187,4 +187,45 @@ class BookApiControllerTest extends AbstractHttpControllerTestCase
         $this->assertStringContainsString('Công nghệ thông tin', $response['reply']);
         $this->assertCount(1, $response['suggestions']);
     }
+
+    public function testChatActionWithPermanentlyLockedUser(): void
+    {
+        $user = new \Library\Model\Entity\User();
+        $user->exchangeArray([
+            'id' => 2,
+            'username' => 'student1',
+            'email' => 'student1@library.local',
+            'full_name' => 'Lê Thanh Sơn',
+            'role' => 'student',
+            'account_status' => 'locked',
+            'locked_until' => '9999-12-31',
+        ]);
+
+        $userTableMock = $this->createMock(\Library\Model\Table\UserTable::class);
+        $userTableMock->expects(self::once())
+            ->method('getUser')
+            ->with(2)
+            ->willReturn($user);
+
+        $bookTableMock = $this->createMock(BookTable::class);
+        $geminiMock = $this->createMock(\Library\Service\GeminiService::class);
+
+        $serviceLocator = $this->getApplicationServiceLocator();
+        $serviceLocator->setAllowOverride(true);
+        $serviceLocator->setService(\Library\Model\Table\UserTable::class, $userTableMock);
+        $serviceLocator->setService(BookTable::class, $bookTableMock);
+        $serviceLocator->setService(\Library\Service\GeminiService::class, $geminiMock);
+
+        $this->getRequest()->setContent(json_encode([
+            'message' => 'Tôi muốn tìm sách',
+            'user_id' => 2
+        ]));
+
+        $this->dispatch('/api/books/chat', 'POST');
+        $this->assertResponseStatusCode(403);
+
+        $response = json_decode($this->getResponse()->getContent(), true);
+        $this->assertArrayHasKey('error', $response);
+        $this->assertStringContainsString('khóa vĩnh viễn', $response['error']);
+    }
 }

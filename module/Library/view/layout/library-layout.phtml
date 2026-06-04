@@ -336,12 +336,18 @@ document.querySelectorAll('.btn-xs, .btn-sm, .btn').forEach(btn => {
     <?php
     $userInitials = 'B';
     $userAvatarUrl = '';
+    $isChatDisabled = false;
     if ($authUser) {
         $displayName = !empty($authUser['nickname']) ? $authUser['nickname'] : ($authUser['full_name'] ?? '');
         $userInitials = mb_strtoupper(mb_substr($displayName, 0, 1, 'UTF-8'), 'UTF-8');
         $userAvatarUrl = $authUser['avatar_url'] ?? '';
+        
+        $isChatDisabled = ($authUser['account_status'] ?? '') === 'locked' 
+            && strpos(($authUser['locked_until'] ?? ''), '9999-12-31') !== false;
     }
     ?>
+    
+    <?php if (!$isChatDisabled): ?>
     <!-- AI CHATBOX WIDGET -->
     <div id="ai-chatbox" class="chatbox-container">
         <div class="chatbox-header" onclick="toggleChatbox()">
@@ -375,6 +381,7 @@ document.querySelectorAll('.btn-xs, .btn-sm, .btn').forEach(btn => {
     <button id="chatbox-fab" class="chatbox-fab" onclick="toggleChatbox()">
         <i class="bi bi-chat-dots-fill"></i>
     </button>
+    <?php endif; ?>
 
 
 
@@ -396,19 +403,24 @@ document.querySelectorAll('.btn-xs, .btn-sm, .btn').forEach(btn => {
     const basePath = <?= json_encode($this->basePath()) ?>;
 
     function toggleChatbox() {
-        document.getElementById('ai-chatbox').classList.toggle('active');
-        if (document.getElementById('ai-chatbox').classList.contains('active')) {
-            document.getElementById('chatbox-input').focus();
+        const chatbox = document.getElementById('ai-chatbox');
+        if (!chatbox) return;
+        chatbox.classList.toggle('active');
+        if (chatbox.classList.contains('active')) {
+            const input = document.getElementById('chatbox-input');
+            if (input) input.focus();
         }
     }
 
     async function sendChat() {
         const input = document.getElementById('chatbox-input');
+        if (!input) return;
         const msg = input.value.trim();
         if (!msg) return;
 
         // Add user msg
         const body = document.getElementById('chatbox-body');
+        if (!body) return;
         const userAvatarHtml = userAvatarUrl 
             ? `<img src="${basePath + userAvatarUrl}" class="chat-avatar user-avatar" alt="User">`
             : `<div class="chat-avatar user-avatar">${userInitials}</div>`;

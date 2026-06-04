@@ -80,6 +80,11 @@ class User
         return $this->accountStatus === 'locked';
     }
 
+    public function isPermanentlyLocked(): bool
+    {
+        return $this->accountStatus === 'locked' && strpos($this->lockedUntil, '9999-12-31') !== false;
+    }
+
     public function getDisplayName(): string
     {
         if ($this->nickname !== '') {

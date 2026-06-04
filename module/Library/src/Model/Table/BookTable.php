@@ -17,9 +17,15 @@ class BookTable
 
     private TableGateway $tableGateway;
 
+    /** @var \Laminas\Db\Adapter\Adapter */
+    private \Laminas\Db\Adapter\Adapter $adapter;
+
     public function __construct(TableGateway $tableGateway)
     {
         $this->tableGateway = $tableGateway;
+        $adapter = $tableGateway->getAdapter();
+        assert($adapter instanceof \Laminas\Db\Adapter\Adapter);
+        $this->adapter = $adapter;
     }
 
     public function fetchAll(array $filters = []): \Laminas\Db\ResultSet\ResultSetInterface
@@ -197,13 +203,13 @@ class BookTable
     public function updateCategoryName(string $oldName, string $newName): void
     {
         $sql = "UPDATE books SET category = ? WHERE category = ?";
-        $this->tableGateway->getAdapter()->query($sql)->execute([$newName, $oldName]);
+        $this->adapter->query($sql)->execute([$newName, $oldName]);
     }
 
     public function countBooksInCategory(string $categoryName): int
     {
         $sql = "SELECT COUNT(*) as cnt FROM books WHERE category = ?";
-        $row = $this->tableGateway->getAdapter()->query($sql)->execute([$categoryName])->current();
+        $row = $this->adapter->query($sql)->execute([$categoryName])->current();
         return (int)($row['cnt'] ?? 0);
     }
 
@@ -213,7 +219,7 @@ class BookTable
     public function countAll(): int
     {
         $sql     = $this->tableGateway->getSql();
-        $select  = $sql->select()->columns(['c' => new \Laminas\Db\Sql\Expression('COUNT(*)')]);
+        $select  = $sql->select()->columns(['c' => new Expression('COUNT(*)')]);
         $stmt    = $sql->prepareStatementForSqlObject($select);
         $result  = $stmt->execute();
         return $this->extractCount($result->current());
@@ -249,17 +255,17 @@ class BookTable
     {
         $sql    = $this->tableGateway->getSql();
         $select = $sql->select()->columns([
-            'total_titles'      => new \Laminas\Db\Sql\Expression('COUNT(*)'),
-            'available_titles'  => new \Laminas\Db\Sql\Expression(
+            'total_titles'      => new Expression('COUNT(*)'),
+            'available_titles'  => new Expression(
                 "SUM(CASE WHEN status = 'available' THEN 1 ELSE 0 END)"
             ),
-            'borrowed_titles'   => new \Laminas\Db\Sql\Expression(
+            'borrowed_titles'   => new Expression(
                 "SUM(CASE WHEN status = 'borrowed' THEN 1 ELSE 0 END)"
             ),
-            'unavailable_titles' => new \Laminas\Db\Sql\Expression(
+            'unavailable_titles' => new Expression(
                 "SUM(CASE WHEN status = 'unavailable' THEN 1 ELSE 0 END)"
             ),
-            'total_copies'      => new \Laminas\Db\Sql\Expression(
+            'total_copies'      => new Expression(
                 "SUM(quantity) + (SELECT COUNT(*) FROM borrow_records WHERE status IN ('pending', 'borrowed', 'overdue'))"
             ),
         ]);
@@ -284,7 +290,7 @@ class BookTable
                     (SELECT COUNT(*) FROM borrow_records WHERE status = 'pending') as pending,
                     SUM(CASE WHEN status = 'unavailable' THEN quantity ELSE 0 END) as unavailable
                 FROM books";
-        $row = $this->tableGateway->getAdapter()->query($sql)->execute()->current();
+        $row = $this->adapter->query($sql)->execute()->current();
         return [
             'Sẵn sàng' => (int)($row['on_shelf'] ?? 0),
             'Đang mượn' => (int)($row['borrowed'] ?? 0),
@@ -493,7 +499,11 @@ class BookTable
             $select->where(function (Where $where) use ($searchValue): void {
                 $searchWildcard = '%' . $searchValue . '%';
                 $where->nest()
-                    ->expression('MATCH(title, author) AGAINST(? IN NATURAL LANGUAGE MODE)', $searchValue)
+                    ->expression('MATCH(title, author) AGAINST(? IN NATURAL LANGUAGE MODE)', [$searchValue])
+                    ->or
+                    ->like('title', $searchWildcard)
+                    ->or
+                    ->like('author', $searchWildcard)
                     ->or
                     ->like('isbn', $searchWildcard)
                     ->unnest();

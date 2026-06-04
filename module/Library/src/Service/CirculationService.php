@@ -302,6 +302,40 @@ class CirculationService
                 ]);
             } catch (\Throwable $e) {}
 
+            // Kiểm tra xem cuốn sách trả này có bị trễ hạn quá 15 ngày không
+            $isOverdueOver15Days = false;
+            if ($record->returnDate !== null) {
+                $daysLate = (int) floor((time() - strtotime($record->returnDate)) / 86400);
+                if ($daysLate > 15) {
+                    $isOverdueOver15Days = true;
+                }
+            }
+
+            if ($isOverdueOver15Days) {
+                $lockUntil = '9999-12-31';
+                $reason = "Trả sách trễ hạn quá 15 ngày (Sách: \"" . $record->bookTitle . "\"). Tạm khóa tài khoản VĨNH VIỄN.";
+                $this->userTable->lockUser((int)$record->userId, $reason, $lockUntil);
+                
+                // Cập nhật borrow_limit của user thành 0
+                try {
+                    $user = $this->userTable->getUser((int)$record->userId);
+                    $user->borrowLimit = 0;
+                    $this->userTable->saveUser($user);
+                } catch (\Throwable $e) {}
+                
+                // Notify student about lock
+                try {
+                    $stmt = $this->adapter->createStatement(
+                        "INSERT INTO notifications (user_id, sender_id, title, message, type, related_id) 
+                         VALUES (?, NULL, 'Tài khoản bị khóa vĩnh viễn', ?, 'borrow_alert', ?)"
+                    );
+                    $stmt->execute([$record->userId, $reason, $recordId]);
+                } catch (\Throwable $e) {}
+
+                $connection->commit();
+                return;
+            }
+
             // Xử lý phạt theo số lần trả muộn (Hạng mục 2 nâng cấp)
             // Tính tổng số lần từng trả muộn trong lịch sử
             $lateCount = $this->borrowTable->countReturnedLateForUser((int)$record->userId);
