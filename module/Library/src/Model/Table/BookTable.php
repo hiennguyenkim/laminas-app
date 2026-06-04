@@ -279,8 +279,8 @@ class BookTable
     {
         $sql = "SELECT 
                     SUM(quantity) as on_shelf,
-                    (SELECT COUNT(*) FROM borrow_records WHERE status = 'borrowed') as borrowed,
-                    (SELECT COUNT(*) FROM borrow_records WHERE status = 'overdue') as overdue,
+                    (SELECT COUNT(*) FROM borrow_records WHERE status = 'borrowed' AND return_date >= CURDATE()) as borrowed,
+                    (SELECT COUNT(*) FROM borrow_records WHERE status = 'overdue' OR (status = 'borrowed' AND return_date < CURDATE())) as overdue,
                     (SELECT COUNT(*) FROM borrow_records WHERE status = 'pending') as pending,
                     SUM(CASE WHEN status = 'unavailable' THEN quantity ELSE 0 END) as unavailable
                 FROM books";

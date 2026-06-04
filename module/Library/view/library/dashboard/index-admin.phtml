@@ -62,8 +62,8 @@ $borrCatValues = array_values($borrowingCategoryStats);
         <div class="stat-value"><?= number_format($totalBorrowed) ?></div>
         <div class="stat-label">Đang mượn</div>
     </a>
-    <a href="<?= $this->url('library/transaction', [], ['query' => ['status' => 'overdue']]) ?>" class="stat-card red stat-card-link">
-        <div class="stat-icon red"><i class="bi bi-exclamation-triangle-fill"></i></div>
+    <a href="<?= $this->url('library/transaction', [], ['query' => ['status' => 'overdue']]) ?>" class="stat-card pink stat-card-link">
+        <div class="stat-icon pink"><i class="bi bi-exclamation-triangle-fill"></i></div>
         <div class="stat-value"><?= number_format($totalOverdue) ?></div>
         <div class="stat-label">Vi phạm quá hạn</div>
     </a>

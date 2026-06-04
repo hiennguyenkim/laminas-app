@@ -83,7 +83,7 @@ $buildTabUrl = function(string $statusVal) use ($filters, $routePrefix) {
     return $this->url($routePrefix . '/ticket', [], ['query' => array_filter($q, fn($v) => $v !== null && $v !== '')]);
 };
 ?>
-<div class="ticket-filters-row" style="display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 24px; width: 100%; flex-wrap: nowrap;">
+<div class="ticket-filters-row" style="display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 24px; width: 100%; flex-wrap: wrap;">
     <div class="filter-tabs user-filter-tabs" style="margin-bottom: 0; flex-shrink: 0;">
         <a href="<?= $buildTabUrl('') ?>" class="filter-tab <?= !($filters['status'] ?? '') ? 'active' : '' ?>">
             Tất cả <span class="count"><?= (int)($allCount ?? 0) ?></span>
@@ -96,7 +96,7 @@ $buildTabUrl = function(string $statusVal) use ($filters, $routePrefix) {
         </a>
     </div>
 
-    <form method="GET" class="user-search-form" style="display: flex; gap: 8px; align-items: center; flex-wrap: nowrap; flex: 1; justify-content: flex-end; min-width: 0;">
+    <form method="GET" class="user-search-form" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; flex: 1; justify-content: flex-end; min-width: 0;">
         <?php if (!empty($filters['status'])): ?>
             <input type="hidden" name="status" value="<?= htmlspecialchars($filters['status']) ?>">
         <?php endif; ?>

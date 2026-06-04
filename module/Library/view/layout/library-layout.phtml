@@ -184,7 +184,10 @@ $pageLabel = $authUser ? ($pageLabels[$activeKey] ?? '') : 'Đăng nhập';
         <?php if ($authUser): ?>
         <!-- TOPBAR -->
         <header class="topbar">
-            <div class="topbar-left">
+            <div class="topbar-left" style="display: flex; align-items: center; gap: 12px;">
+                <button class="toggle-sidebar-btn" id="toggle-sidebar-btn" onclick="document.getElementById('sidebar').classList.toggle('open')">
+                    <i class="bi bi-list"></i>
+                </button>
                 <div class="page-breadcrumb"><?= $pageLabel ?></div>
             </div>
             <div class="topbar-right topbar-right-wrap">
@@ -236,15 +239,15 @@ $pageLabel = $authUser ? ($pageLabels[$activeKey] ?? '') : 'Đăng nhập';
             <div class="topbar-guest-right">
                 <?php if ($activeKey === 'book' || strpos($currentUri, '/books') !== false): ?>
                 <a href="<?= $this->url('announcements') ?>" class="btn btn-outline btn-sm topbar-guest-btn-announcement">
-                    <i class="bi bi-megaphone-fill"></i>Bảng tin
+                    <i class="bi bi-megaphone-fill"></i><span class="btn-text">Bảng tin</span>
                 </a>
                 <?php else: ?>
                 <a href="<?= $this->url('catalog') ?>" class="btn btn-outline btn-sm topbar-guest-btn-announcement">
-                    <i class="bi bi-book"></i>Mượn sách
+                    <i class="bi bi-book"></i><span class="btn-text">Mượn sách</span>
                 </a>
                 <?php endif; ?>
                 <a href="<?= $this->url('auth', ['action' => 'login']) ?>" class="btn btn-primary btn-sm topbar-guest-btn-login">
-                    <i class="bi bi-box-arrow-in-right"></i>Đăng nhập
+                    <i class="bi bi-box-arrow-in-right"></i><span class="btn-text">Đăng nhập</span>
                 </a>
                 <a href="<?= $this->url('auth', ['action' => 'register']) ?>" class="btn btn-outline btn-sm topbar-guest-btn-register">
                     Đăng ký
@@ -378,6 +381,16 @@ document.querySelectorAll('.btn-xs, .btn-sm, .btn').forEach(btn => {
 
 
     <script>
+    document.addEventListener('click', function(event) {
+        const sidebar = document.getElementById('sidebar');
+        const toggleBtn = document.getElementById('toggle-sidebar-btn');
+        if (sidebar && sidebar.classList.contains('open') && 
+            !sidebar.contains(event.target) && 
+            toggleBtn && !toggleBtn.contains(event.target)) {
+            sidebar.classList.remove('open');
+        }
+    });
+
     const userInitials = <?= json_encode($userInitials) ?>;
     const userAvatarUrl = <?= json_encode($userAvatarUrl) ?>;
     const basePath = <?= json_encode($this->basePath()) ?>;

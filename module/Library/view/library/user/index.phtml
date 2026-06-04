@@ -76,7 +76,7 @@ th.sortable a { display: flex; align-items: center; text-decoration: none; color
 @media (max-width: 992px) { .catalog-filter-form { flex-direction: column; align-items: stretch; } }
 </style>
 
-<div class="user-filters-row" style="display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 24px; width: 100%; flex-wrap: nowrap;">
+<div class="user-filters-row" style="display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 24px; width: 100%; flex-wrap: wrap;">
     <div class="filter-tabs user-filter-tabs" style="margin-bottom: 0; flex-shrink: 0;">
         <a href="<?= $buildTabUrl('') ?>" class="filter-tab <?= $activeRole === '' ? 'active' : '' ?>">
             Tất cả <span class="count"><?= number_format((int)($summary['total'] ?? 0)) ?></span>
@@ -89,7 +89,7 @@ th.sortable a { display: flex; align-items: center; text-decoration: none; color
         </a>
     </div>
 
-    <form method="GET" id="user-filter-form" style="display: flex; gap: 8px; align-items: center; flex-wrap: nowrap; flex: 1; justify-content: flex-end; min-width: 0;">
+    <form method="GET" id="user-filter-form" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; flex: 1; justify-content: flex-end; min-width: 0;">
         <input type="hidden" name="role" value="<?= htmlspecialchars($activeRole) ?>">
         <input type="hidden" name="sort" value="<?= htmlspecialchars($currentSort) ?>">
         <input type="hidden" name="direction" value="<?= htmlspecialchars($currentDir) ?>">

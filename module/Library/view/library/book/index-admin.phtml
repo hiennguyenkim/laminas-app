@@ -108,7 +108,7 @@ th.sortable:hover { background: rgba(255,255,255,0.05) !important; }
 th.sortable a { display: flex; align-items: center; text-decoration: none; color: inherit; width: 100%; height: 100%; }
 </style>
 
-<div class="book-filters-row" style="display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 24px; width: 100%; flex-wrap: nowrap;">
+<div class="book-filters-row" style="display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 24px; width: 100%; flex-wrap: wrap;">
     <div class="filter-tabs book-filter-tabs" style="margin-bottom: 0; flex-shrink: 0;">
         <a href="<?= $buildTabUrl('') ?>" class="filter-tab <?= $filterStatus === '' ? 'active' : '' ?>">
             Tất cả <span class="count"><?= number_format((int)($summary['total_titles'] ?? 0)) ?></span>
@@ -124,7 +124,7 @@ th.sortable a { display: flex; align-items: center; text-decoration: none; color
         </a>
     </div>
 
-    <form method="GET" id="book-filter-form" style="display: flex; gap: 8px; align-items: center; flex-wrap: nowrap; flex: 1; justify-content: flex-end; min-width: 0;">
+    <form method="GET" id="book-filter-form" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; flex: 1; justify-content: flex-end; min-width: 0;">
         <input type="hidden" name="status" value="<?= htmlspecialchars($filterStatus) ?>">
         <input type="hidden" name="sort" value="<?= htmlspecialchars($currentSort) ?>">
         <input type="hidden" name="direction" value="<?= htmlspecialchars($currentDir) ?>">

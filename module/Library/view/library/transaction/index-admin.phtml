@@ -140,7 +140,7 @@ $renderSortIcon = function(string $col) use ($queryBase): string {
 
 <!-- FILTERS -->
 <div class="tx-filters-bar" style="margin-bottom: 24px;">
-    <form method="GET" class="tx-filter-form" style="display: flex; gap: 8px; align-items: center; justify-content: flex-end; width: 100%; flex-wrap: nowrap;">
+    <form method="GET" class="tx-filter-form" style="display: flex; gap: 8px; align-items: center; justify-content: flex-end; width: 100%; flex-wrap: wrap;">
         <input type="hidden" name="status" value="<?= htmlspecialchars($filterStatus) ?>">
         <input type="hidden" name="sort" value="<?= htmlspecialchars((string)($filters['sort'] ?? '')) ?>">
         <input type="hidden" name="direction" value="<?= htmlspecialchars((string)($filters['direction'] ?? '')) ?>">
