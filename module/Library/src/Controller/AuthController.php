@@ -199,8 +199,13 @@ class AuthController extends BaseController
     public function googleCallbackAction(): Response
     {
         $code = $this->params()->fromQuery('code');
+        $error = $this->params()->fromQuery('error');
         if (!$code) {
-            $this->flash()->addErrorMessage('Không nhận được mã xác thực từ Google.');
+            if ($error) {
+                $this->flash()->addErrorMessage('Lỗi từ Google: ' . htmlspecialchars($error));
+            } else {
+                $this->flash()->addErrorMessage('Không nhận được mã xác thực từ Google.');
+            }
             return $this->redirect()->toRoute('library/auth', ['action' => 'login']);
         }
 
