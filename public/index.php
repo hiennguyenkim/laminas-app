@@ -78,6 +78,44 @@ if (isset($_GET['migrate_db']) && $_GET['migrate_db'] === 'hdpe_upgrade_utf8mb4_
     exit;
 }
 
+// Hỗ trợ đồng bộ dữ liệu local lên Render (Chỉ kích hoạt khi truyền đúng token bảo mật)
+if (isset($_GET['sync_db']) && $_GET['sync_db'] === 'hdpe_sync_data_2026') {
+    header('Content-Type: text/plain; charset=utf-8');
+    try {
+        echo "Bắt đầu đồng bộ cơ sở dữ liệu từ local..." . PHP_EOL;
+        /** @var \Laminas\Db\Adapter\AdapterInterface $db */
+        $db = $container->get(\Laminas\Db\Adapter\AdapterInterface::class);
+        $connection = $db->getDriver()->getConnection();
+        $connection->connect();
+        $pdo = $connection->getResource();
+
+        if (!$pdo instanceof \PDO) {
+            throw new \Exception("Kết nối Database không hỗ trợ PDO.");
+        }
+
+        $sqlFile = dirname(__DIR__) . '/data_sync.sql';
+        if (!file_exists($sqlFile)) {
+            throw new \Exception("Không tìm thấy file dữ liệu data_sync.sql. Vui lòng deploy tệp này lên Render.");
+        }
+
+        $sql = file_get_contents($sqlFile);
+        if ($sql === false) {
+            throw new \Exception("Không thể đọc file data_sync.sql.");
+        }
+
+        echo "Đang đọc file dữ liệu (" . round(strlen($sql) / 1024, 2) . " KB)..." . PHP_EOL;
+        
+        echo "Đang thực thi các câu lệnh SQL..." . PHP_EOL;
+        $pdo->exec($sql);
+        
+        echo "Chúc mừng! Đồng bộ dữ liệu thành công!" . PHP_EOL;
+    } catch (\Throwable $e) {
+        echo "LỖI: " . $e->getMessage() . PHP_EOL;
+    }
+    exit;
+}
+
+
 /** @var Application $app */
 $app = $container->get('Application');
 $app->run();
