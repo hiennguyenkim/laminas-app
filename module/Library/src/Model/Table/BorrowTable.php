@@ -778,7 +778,7 @@ class BorrowTable
                 'cnt'   => new Expression('COUNT(*)'),
             ])
             ->where(new \Laminas\Db\Sql\Predicate\Expression("YEAR(borrow_date) = ?", $year))
-            ->where(function (Where $where) {
+            ->where(function ($where) {
                 $where->in('status', ['borrowed', 'returned', 'overdue']);
             })
             ->group(new Expression('MONTH(borrow_date)'));
@@ -840,7 +840,7 @@ class BorrowTable
                 ['category']
             )
             ->where(new \Laminas\Db\Sql\Predicate\Expression("YEAR(borrow_records.borrow_date) = ?", $year))
-            ->where(function (Where $where) {
+            ->where(function ($where) {
                 $where->in('borrow_records.status', ['borrowed', 'returned', 'overdue']);
             })
             ->group([new Expression('MONTH(borrow_records.borrow_date)'), 'books.category'])

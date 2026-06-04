@@ -472,7 +472,7 @@ sequenceDiagram
 
 #### 3.7.1. Trợ lý AI tư vấn sách (AI Book Consultation Chatbot)
 *   **Chức năng:** Hỗ trợ Sinh viên trò chuyện, đặt câu hỏi để nhận các gợi ý sách hoặc tài liệu học tập phù hợp theo nhu cầu cá nhân.
-*   **Tích hợp API:** Sử dụng mô hình `gemini-flash-latest` thông qua Gemini API để xử lý ngôn ngữ tự nhiên và tạo câu trả lời tối ưu.
+*   **Tích hợp API:** Sử dụng mô hình `gemini-2.0-flash` thông qua Gemini API để xử lý ngôn ngữ tự nhiên và tạo câu trả lời tối ưu.
 *   **Cơ chế Cache phản hồi (Caching Engine):**
     *   Hệ thống băm (hash SHA-256) nội dung câu hỏi (prompt) của độc giả thành một chuỗi duy nhất làm khóa (`prompt_hash`).
     *   Trước khi gọi API ngoài, hệ thống truy vấn bảng `ai_responses_cache` tìm kiếm `prompt_hash` tương ứng.
@@ -487,7 +487,7 @@ sequenceDiagram
     participant Client as "Trình duyệt (Giao diện Chat AI)"
     participant Server as "Hệ thống (Backend)"
     participant DB as "Cơ sở dữ liệu (Cache)"
-    participant Gemini as "Gemini API (gemini-flash-latest)"
+    participant Gemini as "Gemini API (gemini-2.0-flash)"
 
     SV->>Client: Nhập câu hỏi tư vấn sách (prompt)
     Client->>Server: Gửi yêu cầu (POST /api/books/chat)

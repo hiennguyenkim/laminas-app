@@ -12,7 +12,7 @@ class GeminiService
     private string $apiKey;
     private \Laminas\Db\Adapter\AdapterInterface $adapter;
     private \Laminas\Db\Adapter\Adapter $db;
-    private string $apiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent';
+    private string $apiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 
     public function __construct(string $apiKey, \Laminas\Db\Adapter\AdapterInterface $adapter)
     {
