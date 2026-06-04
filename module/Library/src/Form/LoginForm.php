@@ -35,14 +35,14 @@ class LoginForm extends Form
             'options'    => ['label' => 'Mật khẩu'],
             'attributes' => ['class' => 'form-control', 'required' => true],
         ]);
-        
-        /* CSRF temporarily disabled to fix session sync issues */
-        /*
+
+        // CSRF token — hidden field, giá trị được sinh và kiểm tra bởi AuthController
+        // qua AuthSessionContainer (namespace 'library_auth') để tránh session sync issue
+        // khi dùng Element\Csrf riêng biệt.
         $this->add([
-            'name' => 'csrf',
-            'type' => Element\Csrf::class,
+            'name'       => 'csrf_token',
+            'type'       => Element\Hidden::class,
         ]);
-        */
 
         $this->add([
             'name'       => 'submit',
@@ -63,14 +63,11 @@ class LoginForm extends Form
             'name'     => 'password',
             'required' => true,
         ]);
-
-        /* CSRF disabled */
-        /*
+        // csrf_token không cần validate ở Form level — controller chịu trách nhiệm
         $filter->add([
-            'name'     => 'csrf',
-            'required' => true,
+            'name'     => 'csrf_token',
+            'required' => false,
         ]);
-        */
 
         return $filter;
     }

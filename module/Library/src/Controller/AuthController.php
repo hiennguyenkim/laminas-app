@@ -46,9 +46,23 @@ class AuthController extends BaseController
         $request = $this->httpRequest();
 
         if ($request->isPost()) {
-            $form->setData($this->postData());
+            // ── CSRF validation ────────────────────────────────────────────────
+            $postData   = $this->postData();
+            $postedToken = (string) ($postData['csrf_token'] ?? '');
+            $sessionToken = (string) ($this->authSession()->loginCsrfToken ?? '');
+
+            // Xóa token khỏi session ngay sau khi lấy (one-time use)
+            unset($this->authSession()->loginCsrfToken);
+
+            if ($sessionToken === '' || !hash_equals($sessionToken, $postedToken)) {
+                $this->flash()->addErrorMessage('Yêu cầu không hợp lệ. Vui lòng thử lại.');
+                return $this->redirect()->toRoute('library/auth', ['action' => 'login']);
+            }
+            // ── End CSRF validation ────────────────────────────────────────────
+
+            $form->setData($postData);
             if ($form->isValid()) {
-                /** @var array{username:string, password:string} $data */
+                /** @var array{username:string, password:string, csrf_token:string} $data */
                 $data = $form->getData();
                 $user = $this->userTable->getByUsername($data['username']);
 
@@ -81,6 +95,12 @@ class AuthController extends BaseController
                 $this->flash()->addErrorMessage('Tên đăng nhập hoặc mật khẩu không đúng.');
             }
         }
+
+        // ── Generate CSRF token cho request tiếp theo ──────────────────────
+        $csrfToken = bin2hex(random_bytes(32));
+        $this->authSession()->loginCsrfToken = $csrfToken;
+        $form->get('csrf_token')->setValue($csrfToken);
+        // ── End CSRF generation ────────────────────────────────────────────
 
         return new ViewModel(['form' => $form]);
     }

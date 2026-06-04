@@ -57,11 +57,16 @@ class ProfileControllerTest extends AbstractHttpControllerTestCase
 
         $bookTableMock = $this->createMock(BookTable::class);
 
+        $bookReviewTableMock = $this->createMock(\Library\Model\Table\BookReviewTable::class);
+        $bookReviewTableMock->method('countReviewsByUser')->willReturn(0);
+        $bookReviewTableMock->method('getReviewedBookIds')->willReturn([]);
+
         $serviceLocator = $this->getApplicationServiceLocator();
         $serviceLocator->setAllowOverride(true);
         $serviceLocator->setService(UserTable::class, $userTableMock);
         $serviceLocator->setService(BorrowTable::class, $borrowTableMock);
         $serviceLocator->setService(BookTable::class, $bookTableMock);
+        $serviceLocator->setService(\Library\Model\Table\BookReviewTable::class, $bookReviewTableMock);
 
         $this->dispatch('/student/profile', 'GET');
 

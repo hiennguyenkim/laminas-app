@@ -50,14 +50,18 @@ class MailService
             $mail->Port       = $port ?: 587;
             $mail->CharSet    = 'UTF-8';
 
-            // XAMPP local testing bypass for SSL
-            $mail->SMTPOptions = array(
-                'ssl' => array(
-                    'verify_peer' => false,
-                    'verify_peer_name' => false,
-                    'allow_self_signed' => true
-                )
-            );
+            // Tắt kiểm tra SSL certificate chỉ khi host là localhost (XAMPP dev).
+            // Trên production với host thực, PHPMailer dùng verify_peer = true (mặc định an toàn).
+            $isLocalhost = in_array(strtolower($host), ['localhost', '127.0.0.1', '::1'], true);
+            if ($isLocalhost) {
+                $mail->SMTPOptions = [
+                    'ssl' => [
+                        'verify_peer'       => false,
+                        'verify_peer_name'  => false,
+                        'allow_self_signed' => true,
+                    ],
+                ];
+            }
 
             // Recipients
             $mail->setFrom($fromEmail, $fromName);

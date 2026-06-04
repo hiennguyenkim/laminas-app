@@ -220,6 +220,23 @@ class AnnouncementControllerTest extends AbstractHttpControllerTestCase
 
     public function testGuestVisitsAnnouncementsRendersSuccessfully(): void
     {
+        $dbMock = $this->createMock(\Laminas\Db\Adapter\Adapter::class);
+
+        $stmtMock = $this->createMock(StatementInterface::class);
+        $resultMock = $this->createMock(ResultInterface::class);
+        $resultMock->method('current')->willReturn(['cnt' => 0]);
+        $resultMock->method('rewind')->willReturnCallback(function() {});
+        $resultMock->method('valid')->willReturn(false);
+        $stmtMock->method('execute')->willReturn($resultMock);
+
+        $dbMock->method('query')->willReturnCallback(function($sql) use ($stmtMock) {
+            return $stmtMock;
+        });
+
+        $serviceLocator = $this->getApplicationServiceLocator();
+        $serviceLocator->setAllowOverride(true);
+        $serviceLocator->setService(AdapterInterface::class, $dbMock);
+
         // No login (guest)
         $this->dispatch('/announcements', 'GET');
         $this->assertResponseStatusCode(200);

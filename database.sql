@@ -81,7 +81,7 @@ CREATE TABLE IF NOT EXISTS borrow_records (
     user_id     INT UNSIGNED NOT NULL,
     borrow_date DATE         NOT NULL,
     return_date DATE         DEFAULT NULL,
-    status      ENUM('pending','borrowed','returned','overdue') NOT NULL DEFAULT 'pending',
+    status      ENUM('pending','borrowed','returned','overdue','lost') NOT NULL DEFAULT 'pending',
     returned_at DATETIME     DEFAULT NULL,
     created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_borrow_book FOREIGN KEY (book_id) REFERENCES books(book_id) ON DELETE CASCADE,
@@ -299,7 +299,8 @@ CREATE TABLE IF NOT EXISTS system_settings (
 
 INSERT INTO system_settings (setting_key, setting_value) VALUES
 ('maintenance_mode', '0'),
-('maintenance_until', NULL);
+('maintenance_until', NULL),
+('last_cron_run', '0');
 
 -- ───────────────────────────────────────────────
 -- 14. BẢNG penalty_logs (Lịch sử xử phạt sinh viên)
