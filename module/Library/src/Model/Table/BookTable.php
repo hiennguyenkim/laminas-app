@@ -41,6 +41,7 @@ class BookTable
                 'status',
                 'created_at',
                 'cover_image_url',
+                'preview_url',
                 'last_returned_at' => new Expression(
                     '(SELECT MAX(br.returned_at) FROM borrow_records br '
                     . 'WHERE br.book_id = books.book_id '
@@ -92,6 +93,7 @@ class BookTable
                 'status',
                 'created_at',
                 'cover_image_url',
+                'preview_url',
                 'last_returned_at' => new Expression(
                     '(SELECT MAX(br.returned_at) FROM borrow_records br '
                     . 'WHERE br.book_id = books.book_id '
@@ -144,6 +146,7 @@ class BookTable
                 'published_year',
                 'import_date',
                 'cover_image_url',
+                'preview_url',
                 'quantity',
                 'status',
                 'created_at',
@@ -184,6 +187,7 @@ class BookTable
             'published_year' => $book->publishedYear !== '' ? $book->publishedYear : null,
             'import_date'    => $book->importDate !== '' ? $book->importDate : null,
             'cover_image_url'=> $book->coverImageUrl !== '' ? $book->coverImageUrl : null,
+            'preview_url'    => $book->previewUrl !== '' ? $book->previewUrl : null,
         ];
 
         $book->status = $status;

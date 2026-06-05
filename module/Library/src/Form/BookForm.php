@@ -123,6 +123,13 @@ class BookForm extends Form
         ]);
 
         $this->add([
+            'name'       => 'preview_url',
+            'type'       => Element\Text::class,
+            'options'    => ['label' => 'Xem thử (URL)'],
+            'attributes' => ['class' => 'form-control'],
+        ]);
+
+        $this->add([
             'name'       => 'status',
             'type'       => Element\Select::class,
             'options'    => [
@@ -193,6 +200,9 @@ class BookForm extends Form
 
         $filter->add(['name' => 'import_date', 'required' => false]);
         $filter->add(['name' => 'cover_image_url', 'required' => false,
+            'filters' => [['name' => \Laminas\Filter\StringTrim::class]]
+        ]);
+        $filter->add(['name' => 'preview_url', 'required' => false,
             'filters' => [['name' => \Laminas\Filter\StringTrim::class]]
         ]);
         $filter->add(['name' => 'status', 'required' => true]);

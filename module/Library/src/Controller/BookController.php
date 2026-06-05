@@ -325,6 +325,47 @@ class BookController extends BaseController
         return null;
     }
 
+    private function handlePreviewUpload(?string $existingUrl = null): ?string
+    {
+        $file = $_FILES['preview_file'] ?? null;
+        if (!$file || $file['error'] !== UPLOAD_ERR_OK) {
+            return null;
+        }
+
+        $maxSize = 10 * 1024 * 1024; // 10 MB
+        if ($file['size'] > $maxSize) {
+            $this->flash()->addWarningMessage('File tài liệu xem thử quá lớn. Tối đa 10MB.');
+            return null;
+        }
+
+        $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+        $allowed = ['pdf'];
+        if (!in_array($ext, $allowed)) {
+            $this->flash()->addWarningMessage('Định dạng tài liệu xem thử không hỗ trợ. Chỉ chấp nhận: ' . implode(', ', $allowed));
+            return null;
+        }
+
+        $uploadDir = getcwd() . '/public/uploads/previews/';
+        if (!is_dir($uploadDir)) {
+            mkdir($uploadDir, 0777, true);
+        }
+
+        // Delete existing local preview if it exists
+        if ($existingUrl && str_starts_with($existingUrl, '/uploads/previews/')) {
+            $oldPath = getcwd() . '/public' . $existingUrl;
+            if (file_exists($oldPath)) {
+                @unlink($oldPath);
+            }
+        }
+
+        $newFilename = 'preview_' . uniqid() . '.' . $ext;
+        if (move_uploaded_file($file['tmp_name'], $uploadDir . $newFilename)) {
+            return '/uploads/previews/' . $newFilename;
+        }
+
+        return null;
+    }
+
     public function addAction(): Response|ViewModel
     {
         if ($response = $this->requireAdmin()) {
@@ -349,6 +390,11 @@ class BookController extends BaseController
                 $uploadedUrl = $this->handleCoverUpload();
                 if ($uploadedUrl) {
                     $book->coverImageUrl = $uploadedUrl;
+                }
+
+                $uploadedPreviewUrl = $this->handlePreviewUpload();
+                if ($uploadedPreviewUrl) {
+                    $book->previewUrl = $uploadedPreviewUrl;
                 }
 
                 $this->bookTable->saveBook($book);
@@ -389,6 +435,7 @@ class BookController extends BaseController
             $form->setData($this->postData());
             if ($form->isValid()) {
                 $oldCoverUrl = $book->coverImageUrl;
+                $oldPreviewUrl = $book->previewUrl;
 
                 // Form binding automatically updates $book properties with form inputs
                 // So $book->coverImageUrl has the value from $form->get('cover_image_url')
@@ -396,6 +443,11 @@ class BookController extends BaseController
                 $uploadedUrl = $this->handleCoverUpload($oldCoverUrl);
                 if ($uploadedUrl) {
                     $book->coverImageUrl = $uploadedUrl;
+                }
+
+                $uploadedPreviewUrl = $this->handlePreviewUpload($oldPreviewUrl);
+                if ($uploadedPreviewUrl) {
+                    $book->previewUrl = $uploadedPreviewUrl;
                 }
 
                 $this->bookTable->saveBook($book);
@@ -434,6 +486,12 @@ class BookController extends BaseController
                 $oldPath = getcwd() . '/public' . $book->coverImageUrl;
                 if (file_exists($oldPath)) {
                     @unlink($oldPath);
+                }
+            }
+            if ($book->previewUrl && str_starts_with($book->previewUrl, '/uploads/previews/')) {
+                $oldPreviewPath = getcwd() . '/public' . $book->previewUrl;
+                if (file_exists($oldPreviewPath)) {
+                    @unlink($oldPreviewPath);
                 }
             }
         } catch (\Exception $e) {}

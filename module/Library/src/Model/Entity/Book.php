@@ -28,6 +28,7 @@ class Book
     public string $publishedYear = '';
     public string $importDate    = '';
     public string $coverImageUrl = '';
+    public string $previewUrl    = '';
 
     public function exchangeArray(array $data): void
     {
@@ -50,6 +51,7 @@ class Book
         $this->publishedYear = (string) ($data['published_year'] ?? '');
         $this->importDate    = (string) ($data['import_date'] ?? '');
         $this->coverImageUrl = (string) ($data['cover_image_url'] ?? '');
+        $this->previewUrl    = (string) ($data['preview_url'] ?? '');
     }
 
     public function getArrayCopy(): array
@@ -67,6 +69,7 @@ class Book
             'published_year' => $this->publishedYear,
             'import_date'    => $this->importDate,
             'cover_image_url'=> $this->coverImageUrl,
+            'preview_url'    => $this->previewUrl,
         ];
     }
 }

@@ -468,8 +468,8 @@ $this->layout('layout/library-layout');
         
         <div class="book-form-grid-layout">
             <!-- LEFT COLUMN: Book Cover Management -->
-            <div class="book-form-left-col">
-                <div class="premium-card sticky-card">
+            <div class="book-form-left-col sticky-card">
+                <div class="premium-card">
                     <div class="premium-card-header">
                         <i class="bi bi-image"></i> Ảnh bìa sách
                     </div>
@@ -516,6 +516,46 @@ $this->layout('layout/library-layout');
                                        style="padding-left: 36px; padding-top: 8px; padding-bottom: 8px; font-size: 12.5px;"
                                        value="<?= htmlspecialchars((string)($currentCover ?? '')) ?>" 
                                        placeholder="https://example.com/cover.jpg">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="premium-card" style="margin-top: 20px;">
+                    <div class="premium-card-header">
+                        <i class="bi bi-file-earmark-pdf"></i> Tài liệu xem thử (Preview)
+                    </div>
+                    <div class="premium-card-body" style="padding: 16px;">
+                        <?php
+                        $currentPreview = $form->get('preview_url')->getValue();
+                        ?>
+                        <div class="upload-actions-wrapper">
+                            <input type="file" name="preview_file" id="previewFileInput" accept=".pdf" class="d-none">
+                            <button type="button" class="btn-upload-trigger" onclick="document.getElementById('previewFileInput').click()">
+                                <i class="bi bi-file-earmark-arrow-up"></i> Tải lên tệp PDF
+                            </button>
+                            <span class="file-info-text" id="previewFileNameLabel" style="margin-top: 4px; text-align: center; display: block; max-width: 100%; word-break: break-all;">
+                                <?php if ($currentPreview && str_starts_with($currentPreview, '/uploads/previews/')): ?>
+                                    Đang có file: <?= htmlspecialchars(basename($currentPreview)) ?>
+                                <?php else: ?>
+                                    PDF (Tối đa 10MB)
+                                <?php endif; ?>
+                            </span>
+                        </div>
+
+                        <div class="url-input-divider">
+                            <span>HOẶC</span>
+                        </div>
+
+                        <div class="form-group-custom">
+                            <label class="form-label-custom">Nhập đường dẫn URL tài liệu</label>
+                            <div class="input-with-icon">
+                                <i class="bi bi-link-45deg"></i>
+                                <input type="text" name="preview_url" id="previewUrlInput" 
+                                       class="form-control-custom" 
+                                       style="padding-left: 36px; padding-top: 8px; padding-bottom: 8px; font-size: 12.5px;"
+                                       value="<?= htmlspecialchars((string)($currentPreview ?? '')) ?>" 
+                                       placeholder="https://example.com/preview.pdf">
                             </div>
                         </div>
                     </div>
@@ -713,6 +753,17 @@ document.addEventListener('DOMContentLoaded', function() {
                                  </div>`;
         }
     });
+ 
+    const previewFileInput = document.getElementById('previewFileInput');
+    const previewFileNameLabel = document.getElementById('previewFileNameLabel');
+    if (previewFileInput && previewFileNameLabel) {
+        previewFileInput.addEventListener('change', function() {
+            const file = this.files[0];
+            if (file) {
+                previewFileNameLabel.textContent = file.name + ' (' + (file.size / 1024 / 1024).toFixed(2) + ' MB)';
+            }
+        });
+    }
 
     // Searchable Category Dropdown Logic
     const categoryWrapper = document.getElementById('categorySelectWrapper');
