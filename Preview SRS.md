@@ -1663,3 +1663,38 @@ stateDiagram-v2
     LockAccount --> Returned : Sinh viên hoàn trả sách quá hạn & được Admin mở khóa phạt
 ```
 
+## 8. Kết quả Kiểm thử & Xác minh Hệ thống (System Verification & QA Testing Results)
+
+Để đảm bảo hệ thống đáp ứng đầy đủ các yêu cầu đặc tả (chức năng và phi chức năng) trong tài liệu SRS này, một đợt kiểm thử toàn diện (Full-stack QA Testing) đã được thực hiện vào ngày 05/06/2026.
+
+### 8.1. Tóm tắt kết quả kiểm thử toàn hệ thống
+* **Tổng số ca kiểm thử:** 140 ca
+* **Trạng thái:**
+  - **Đạt (PASS):** 140 / 140 ca (Tỉ lệ 100%)
+  - **Lỗi (FAIL):** 0 ca
+  - **Bỏ qua (SKIP):** 0 ca
+
+### 8.2. Chi tiết kết quả kiểm thử theo phương pháp
+
+#### 8.2.1. Kiểm thử đơn vị & Tích hợp (PHPUnit Tests)
+Kiểm thử tự động ở cấp độ mã nguồn thông qua PHPUnit, kiểm tra các Model, Service, Form, và Controller Factories:
+* **Số lượng:** 107/107 Unit Tests
+* **Trạng thái:** ✅ PASS
+* **Phạm vi phủ sóng:** Xác thực người dùng, Ràng buộc nhập kho (ISBN), Động cơ mượn/trả sách (Circulation Service, Penalty Logic, Overdue limits), Bảng tin, Ticket hỗ trợ, Cấu hình hệ thống, và API Controllers.
+
+#### 8.2.2. Kiểm thử luồng E2E & Giao diện (Browser E2E Tests)
+Kiểm thử giả lập người dùng trên trình duyệt Chrome để đảm bảo hoạt động trơn tru của các tính năng Frontend tương tác với Backend:
+* **Số lượng:** 33/33 kịch bản tích hợp nâng cao
+* **Trạng thái:** ✅ PASS
+* **Các kịch bản E2E cốt lõi:**
+  1. **Đăng ký sinh viên mới:** Nhập thông tin -> gửi OTP qua Email -> xác thực OTP thành công -> tài khoản chuyển sang trạng thái kích hoạt (`is_approved = 1`).
+  2. **Luồng Khôi phục Mật khẩu:** Gửi yêu cầu -> nhận OTP -> đổi mật khẩu mới (tích hợp độ mạnh mật khẩu trực quan) -> đăng nhập bằng mật khẩu mới thành công.
+  3. **Khóa chống Brute-force OTP:** Nhập sai OTP quá 5 lần sẽ tự động hủy phiên khôi phục để bảo mật.
+  4. **Nhập kho tự động:** Import file Excel chứa ISBN, cộng dồn số lượng bản sao khả dụng và tự động cập nhật trạng thái sách.
+  5. **Giữ chỗ chắc chắn (Hard Reservation):** Sinh viên gửi yêu cầu mượn `pending` -> số lượng sách khả dụng giảm ngay lập tức. Admin từ chối -> hoàn trả số lượng về kệ.
+  6. **Kiểm duyệt tin nhắn bằng AI:** Gửi tin nhắn chứa từ cấm sẽ bị chặn qua API (mã lỗi 400), tự động fallback sang danh sách từ cấm cục bộ (local blacklist) khi mất kết nối.
+  7. **Hỏi đáp & hỗ trợ (Support Ticket):** Tạo ticket -> admin phản hồi -> sinh viên phản hồi, định tuyến an toàn không lỗi phân quyền.
+  8. **Cấu hình & Xóa tài khoản:** Chặn xóa admin, chặn tự xóa chính mình, chặn xóa sinh viên đang có sách mượn hoặc yêu cầu chờ duyệt.
+
+Chi tiết nhật ký chạy kiểm thử và kịch bản chi tiết được ghi nhận tại tài liệu [QA_REPORT.md](file:///c:/xampp/htdocs/laminas-app/QA_REPORT.md).
+

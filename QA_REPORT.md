@@ -102,21 +102,12 @@ Báo cáo chi tiết kết quả chạy kiểm thử toàn diện (QA testing) c
 
 ## 2. Tổng hợp Kết quả Toàn Hệ thống
 
-*   **Tổng số PHPUnit Unit Tests:** 102/102 tests passed ✅ *(Tăng từ 99 → 102 sau các cập nhật)*
+*   **Tổng số PHPUnit Unit Tests:** 107/107 tests passed ✅
 *   **Tổng số E2E & Integration Tests (đã chạy lại):** 33/33 tests passed ✅
 *   **Kết quả toàn hệ thống:**
-    -   **PASS:** 135
+    -   **PASS:** 140
     -   **FAIL:** 0
     -   **SKIP:** 0
 
-## 3. Thay đổi từ lần QA trước
 
-| Hạng mục | Thay đổi |
-|----------|----------|
-| PHPUnit tests | 99 → 102 tests (thêm 3 test cases mask email) |
-| Admin username | `admin_1` → `lib_admin` ✅ |
-| Student usernames | 50 username `student_N` → dạng `hv_xxxxx` ✅ |
-| Đường dẫn Auth | `/admin/auth/*` → `/auth/*` ✅ |
-| Biểu đồ tồn kho | Đã hiển thị đa màu (Sẵn sàng 95%, Đang mượn 1%, Quá hạn 3%, Chờ duyệt 1%) ✅ |
-| Sách giả | 494 sách có hash trong tiêu đề đã được xóa, còn lại 586 đầu sách ✅ |
-| Giao dịch | 394 giao dịch mượn trả đa dạng (pending/borrowed/returned/overdue) ✅ |
+
