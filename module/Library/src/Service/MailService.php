@@ -26,6 +26,10 @@ class MailService
 
     public function sendEmail(string $toEmail, string $toName, string $subject, string $body): bool
     {
+        $toEmail = trim($toEmail);
+        if ($toEmail === '' || filter_var($toEmail, FILTER_VALIDATE_EMAIL) === false) {
+            return false;
+        }
         $host = $this->getSetting('smtp_host');
         $port = (int)$this->getSetting('smtp_port');
         $user = $this->getSetting('smtp_user');
