@@ -119,6 +119,12 @@ class AuthController extends BaseController
             throw new RuntimeException('Không thể khởi tạo biểu mẫu đăng ký.');
         }
 
+        // Dọn dẹp tài khoản chưa kích hoạt OTP đã hết hạn trước khi đăng ký mới
+        try {
+            $adapter = $this->userTable->getAdapter();
+            $adapter->query("DELETE FROM users WHERE is_approved = 0 AND otp_expires_at < NOW()")->execute();
+        } catch (\Throwable $e) {}
+
         if ($this->httpRequest()->isPost()) {
             $form->setData($this->postData());
 
@@ -151,8 +157,10 @@ class AuthController extends BaseController
                         $this->flash()->addSuccessMessage('Đăng ký thành công! Mã xác thực OTP đã được gửi đến email của bạn. Vui lòng nhập mã để kích hoạt tài khoản.');
                         return $this->redirect()->toRoute('auth', ['action' => 'verifyOtp']);
                     } catch (\Throwable $e) {
-                        $this->flash()->addWarningMessage('Đăng ký thành công, nhưng không thể gửi mã OTP: ' . $e->getMessage() . '. Vui lòng đăng nhập để gửi lại mã.');
-                        return $this->redirect()->toRoute('auth', ['action' => 'login']);
+                        if ($user->id > 0) {
+                            $this->userTable->deleteUser($user->id);
+                        }
+                        $form->get('email')->setMessages(['Email không tồn tại hoặc không thể nhận mã OTP. Vui lòng nhập lại email.']);
                     }
                 }
             }
@@ -570,7 +578,10 @@ class AuthController extends BaseController
               . "Trân trọng,\n"
               . "Thư viện HDPE";
               
-        $this->mailService->sendEmail($user->email, $user->fullName, $subject, $body);
+        $sent = $this->mailService->sendEmail($user->email, $user->fullName, $subject, $body);
+        if (!$sent) {
+            throw new \RuntimeException('Địa chỉ email không hợp lệ hoặc không thể gửi thư.');
+        }
     }
 
     private function sendOtpToUser(User $user): void
@@ -592,7 +603,10 @@ class AuthController extends BaseController
               . "Trân trọng,\n"
               . "Thư viện HDPE";
               
-        $this->mailService->sendEmail($user->email, $user->fullName, $subject, $body);
+        $sent = $this->mailService->sendEmail($user->email, $user->fullName, $subject, $body);
+        if (!$sent) {
+            throw new \RuntimeException('Địa chỉ email không hợp lệ hoặc không thể gửi thư.');
+        }
     }
 
     private function maskEmail(string $email): string

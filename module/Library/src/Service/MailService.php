@@ -30,6 +30,13 @@ class MailService
         if ($toEmail === '' || filter_var($toEmail, FILTER_VALIDATE_EMAIL) === false) {
             return false;
         }
+
+        // Kiểm tra xem tên miền của email có thực sự tồn tại thông qua bản ghi MX hoặc A
+        $parts = explode('@', $toEmail);
+        $domain = array_pop($parts);
+        if (!checkdnsrr($domain, 'MX') && !checkdnsrr($domain, 'A')) {
+            return false;
+        }
         $host = $this->getSetting('smtp_host');
         $port = (int)$this->getSetting('smtp_port');
         $user = $this->getSetting('smtp_user');

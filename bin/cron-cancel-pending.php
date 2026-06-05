@@ -207,6 +207,15 @@ try {
     $cleanupResult = $db->query($cleanupSql)->execute();
     echo "Deleted " . $cleanupResult->getAffectedRows() . " old read/deleted notification(s)." . PHP_EOL;
 
+    // 8. Tự động dọn dẹp tài khoản chưa kích hoạt OTP đã hết hạn
+    echo "[" . date('Y-m-d H:i:s') . "] Starting Unverified Users Cleanup..." . PHP_EOL;
+    $cleanupUsersSql = "DELETE FROM users 
+                        WHERE is_approved = 0 
+                        AND otp_expires_at IS NOT NULL 
+                        AND otp_expires_at < NOW()";
+    $cleanupUsersResult = $db->query($cleanupUsersSql)->execute();
+    echo "Deleted " . $cleanupUsersResult->getAffectedRows() . " unverified user(s) whose OTP expired." . PHP_EOL;
+
 } catch (\Throwable $e) {
     echo "CRITICAL ERROR: " . $e->getMessage() . PHP_EOL;
     exit(1);

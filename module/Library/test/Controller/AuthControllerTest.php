@@ -54,9 +54,25 @@ namespace LibraryTest\Controller {
     use Laminas\Test\PHPUnit\Controller\AbstractHttpControllerTestCase;
     use PHPUnit\Framework\MockObject\MockObject;
 
+    class TestRegisterForm extends \Library\Form\RegisterForm
+    {
+        public function __construct()
+        {
+            parent::__construct();
+            if ($this->getInputFilter()->has('csrf')) {
+                $this->getInputFilter()->remove('csrf');
+            }
+            $this->getInputFilter()->add([
+                'name' => 'csrf',
+                'required' => false,
+            ]);
+        }
+    }
+
     class AuthControllerTest extends AbstractHttpControllerTestCase
     {
         private MockObject $userTableMock;
+        private bool $mailSendResult = true;
 
         protected function setUp(): void
         {
@@ -76,14 +92,23 @@ namespace LibraryTest\Controller {
             $sessionManagerMock = $this->createMock(\Laminas\Session\SessionManager::class);
 
             $this->userTableMock = $this->createMock(UserTable::class);
+            $this->mailSendResult = true;
 
             $mailServiceMock = $this->createMock(\Library\Service\MailService::class);
+            $mailServiceMock->method('sendEmail')
+                ->willReturnCallback(function () {
+                    return $this->mailSendResult;
+                });
 
             $serviceLocator = $this->getApplicationServiceLocator();
             $serviceLocator->setAllowOverride(true);
             $serviceLocator->setService(\Laminas\Session\SessionManager::class, $sessionManagerMock);
             $serviceLocator->setService(UserTable::class, $this->userTableMock);
             $serviceLocator->setService(\Library\Service\MailService::class, $mailServiceMock);
+
+            $formElementManager = $serviceLocator->get(\Laminas\Form\FormElementManager::class);
+            $formElementManager->setAllowOverride(true);
+            $formElementManager->setService(\Library\Form\RegisterForm::class, new TestRegisterForm());
 
             // Reset Curl Mock
             \Library\Controller\CurlMock::reset();
@@ -754,5 +779,77 @@ namespace LibraryTest\Controller {
             // Check that the response contains masked email
             $this->assertStringContainsString('ngu***@gmail.com', $this->getResponse()->getContent());
         }
+
+        public function testRegisterActionGet(): void
+        {
+            $this->dispatch('/auth/register', 'GET');
+            $this->assertResponseStatusCode(200);
+            $this->assertStringContainsString('name="csrf"', $this->getResponse()->getContent());
+        }
+
+        public function testRegisterActionPostSuccess(): void
+        {
+            // 1. Setup UserTable mock expectations
+            $this->userTableMock->method('usernameExists')->with('teststudent')->willReturn(false);
+            $this->userTableMock->method('emailExists')->with('student@gmail.com')->willReturn(false);
+            
+            // Set user ID upon saveUser call
+            $this->userTableMock->method('saveUser')
+                ->willReturnCallback(function (\Library\Model\Entity\User $user, ?string $passwordHash = null) {
+                    $user->id = 123;
+                });
+
+            // Mock mailService to return true (success)
+            /** @var \PHPUnit\Framework\MockObject\MockObject $mailServiceMock */
+            $mailServiceMock = $this->getApplicationServiceLocator()->get(\Library\Service\MailService::class);
+            $mailServiceMock->method('sendEmail')->willReturn(true);
+
+            // 2. POST the registration data
+            $this->dispatch('/auth/register', 'POST', [
+                'full_name' => 'Test Student',
+                'username'  => 'teststudent',
+                'email'     => 'student@gmail.com',
+                'password'  => 'Student@123',
+                'password_confirm' => 'Student@123',
+            ]);
+
+            $this->assertResponseStatusCode(302);
+            $this->assertRedirectTo('/auth/verifyOtp');
+        }
+
+        public function testRegisterActionPostOtpMailFailure(): void
+        {
+            // 1. Setup UserTable mock expectations
+            $this->userTableMock->method('usernameExists')->with('teststudent')->willReturn(false);
+            $this->userTableMock->method('emailExists')->with('student@gmail.com')->willReturn(false);
+            
+            // Set user ID upon saveUser call
+            $this->userTableMock->method('saveUser')
+                ->willReturnCallback(function (\Library\Model\Entity\User $user, ?string $passwordHash = null) {
+                    $user->id = 123;
+                });
+
+            // Set mailSendResult to false (failure)
+            $this->mailSendResult = false;
+
+            // Expect user to be deleted from the database
+            $this->userTableMock->expects($this->once())
+                ->method('deleteUser')
+                ->with(123);
+
+            // 2. POST the registration data
+            $this->dispatch('/auth/register', 'POST', [
+                'full_name' => 'Test Student',
+                'username'  => 'teststudent',
+                'email'     => 'student@gmail.com',
+                'password'  => 'Student@123',
+                'password_confirm' => 'Student@123',
+            ]);
+
+            $this->assertResponseStatusCode(200);
+            // Verify form validation error message on email
+            $this->assertStringContainsString('Email không tồn tại hoặc không thể nhận mã OTP. Vui lòng nhập lại email.', $this->getResponse()->getContent());
+        }
     }
 }
+

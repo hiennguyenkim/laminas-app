@@ -173,8 +173,10 @@ class Module
                 $lastRun = $result ? (int) $result['setting_value'] : 0;
                 $now = time();
                 
-                // Run if more than 1 hour (3600 seconds) has passed
-                if ($now - $lastRun >= 3600) {
+                $cronIntervalSeconds = 300; // 5 minutes
+
+                // Run every 5 minutes so expired OTP accounts are cleaned promptly.
+                if ($now - $lastRun >= $cronIntervalSeconds) {
                     // Update timestamp immediately to prevent race conditions
                     $dbAdapter->query("UPDATE system_settings SET setting_value = ? WHERE setting_key = 'last_cron_run'")->execute([$now]);
                     
