@@ -12,7 +12,7 @@ class GeminiService
     private string $apiKey;
     private \Laminas\Db\Adapter\AdapterInterface $adapter;
     private \Laminas\Db\Adapter\Adapter $db;
-    private string $apiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+    private string $apiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
 
     public function __construct(string $apiKey, \Laminas\Db\Adapter\AdapterInterface $adapter)
     {
@@ -31,7 +31,6 @@ class GeminiService
             return "Cấu hình Gemini API Key chưa hoàn tất.";
         }
 
-        // 0. Tự động dọn dẹp Cache cũ (30 ngày) - Xác suất 5%
         if (mt_rand(1, 20) === 1) {
             $this->cleanupOldCache(30);
         }
@@ -114,14 +113,39 @@ class GeminiService
 
         // Nếu có lỗi kết nối hoặc cấu hình, không chặn toàn bộ chat của người dùng.
         // Thay vào đó, chạy bộ lọc từ cấm cục bộ đơn giản để dự phòng.
-        if (str_starts_with($trimmedResponse, 'Lỗi kết nối AI') 
-            || str_starts_with($trimmedResponse, 'Lỗi từ Gemini') 
+        if (
+            str_starts_with($trimmedResponse, 'Lỗi kết nối AI')
+            || str_starts_with($trimmedResponse, 'Lỗi từ Gemini')
             || str_starts_with($trimmedResponse, 'Cấu hình Gemini')
         ) {
             $badWords = [
-                'đm', 'đéo', 'vcl', 'clm', 'chó', 'mẹ mày', 'bố mày', 'lìn', 'lồn', 'cặc', 'buồi', 
-                'đmm', 'dkm', 'đkm', 'vkl', 'đcm', 'súc vật', 'óc chó', 'ăn cứt', 'ăn phân', 
-                'đĩ', 'phò', 'điếm', 'chịch', 'xoạc', 'cút', 'ngu lờ'
+                'đm',
+                'đéo',
+                'vcl',
+                'clm',
+                'chó',
+                'mẹ mày',
+                'bố mày',
+                'lìn',
+                'lồn',
+                'cặc',
+                'buồi',
+                'đmm',
+                'dkm',
+                'đkm',
+                'vkl',
+                'đcm',
+                'súc vật',
+                'óc chó',
+                'ăn cứt',
+                'ăn phân',
+                'đĩ',
+                'phò',
+                'điếm',
+                'chịch',
+                'xoạc',
+                'cút',
+                'ngu lờ'
             ];
             $cleanText = mb_strtolower($text, 'UTF-8');
             foreach ($badWords as $word) {
