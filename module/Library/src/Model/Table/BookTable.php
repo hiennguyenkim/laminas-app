@@ -552,6 +552,32 @@ class BookTable
         return $normalized;
     }
 
+    public function getRecommendationsForUser(int $userId, ?string $category = null, int $limit = 3): array
+    {
+        $select = $this->tableGateway->getSql()->select();
+        $select->where(['books.status' => 'available']);
+        
+        // Exclude books already borrowed by the user
+        $select->where->expression(
+            'books.book_id NOT IN (SELECT br.book_id FROM borrow_records br WHERE br.user_id = ?)',
+            [$userId]
+        );
+        
+        if ($category !== null && $category !== '') {
+            $select->where(['books.category' => $category]);
+        }
+        
+        $select->order(new Expression('RAND()'));
+        $select->limit($limit);
+        
+        $resultSet = $this->tableGateway->selectWith($select);
+        $books = [];
+        foreach ($resultSet as $book) {
+            $books[] = $book;
+        }
+        return $books;
+    }
+
     public function getAdapter(): \Laminas\Db\Adapter\AdapterInterface
     {
         return $this->tableGateway->getAdapter();

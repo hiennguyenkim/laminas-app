@@ -289,6 +289,18 @@ class CirculationService
             $this->borrowTable->returnBook($recordId);
             $this->bookTable->incrementAvailability($record->bookId);
 
+            // Insert late fine if book returned late
+            $isOnTime = (date('Y-m-d') <= $record->returnDate);
+            if (!$isOnTime) {
+                $fineReason = sprintf("Phạt trễ hạn sách: \"%s\" (Mã mượn: #%d)", $record->bookTitle, $recordId);
+                $stmtCheck = $this->adapter->createStatement("SELECT COUNT(*) AS cnt FROM fines WHERE user_id = ? AND reason = ?");
+                $checkRes = $stmtCheck->execute([$record->userId, $fineReason])->current();
+                if ((int)($checkRes['cnt'] ?? 0) === 0) {
+                    $stmtInsert = $this->adapter->createStatement("INSERT INTO fines (user_id, amount, reason, status, created_at) VALUES (?, 20000.00, ?, 'unpaid', NOW())");
+                    $stmtInsert->execute([$record->userId, $fineReason]);
+                }
+            }
+
             // Notify student
             try {
                 $stmt = $this->adapter->createStatement(
@@ -297,7 +309,7 @@ class CirculationService
                 );
                 $stmt->execute([
                     $record->userId,
-                    "Cảm ơn bạn đã trả cuốn sách '" . $record->bookTitle . "'. Thủ thư đã xác nhận việc trả sách.",
+                    "Cảm ơn bạn đã trả cuốn sách '" . $record->bookTitle . "'. Thủ thư đã xác nhận việc trả sách." . (!$isOnTime ? " Bạn bị phạt 20.000đ do trễ hạn." : ""),
                     $recordId
                 ]);
             } catch (\Throwable $e) {}
@@ -689,6 +701,15 @@ class CirculationService
                 $user->borrowLimit = 0;
                 $this->userTable->saveUser($user);
             } catch (\Throwable $e) {}
+
+            // 3b. Add a lost book fine (100,000 VND)
+            $fineReason = sprintf("Phạt làm mất sách: \"%s\" (Mã mượn: #%d)", $record->bookTitle, $recordId);
+            $stmtCheck = $this->adapter->createStatement("SELECT COUNT(*) AS cnt FROM fines WHERE user_id = ? AND reason = ?");
+            $checkRes = $stmtCheck->execute([$record->userId, $fineReason])->current();
+            if ((int)($checkRes['cnt'] ?? 0) === 0) {
+                $stmtInsert = $this->adapter->createStatement("INSERT INTO fines (user_id, amount, reason, status, created_at) VALUES (?, 100000.00, ?, 'unpaid', NOW())");
+                $stmtInsert->execute([$record->userId, $fineReason]);
+            }
 
             // 4. Notify student
             try {

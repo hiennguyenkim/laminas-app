@@ -185,10 +185,14 @@ $activeCat = (string)($filters['category'] ?? '');
                 <option value="all" <?= (string)$perPageRaw === 'all' ? 'selected' : '' ?>>Tất cả</option>
             </select>
 
-            <div class="topbar-search catalog-search-wrap" style="max-width: 300px; margin: 0;">
+            <div class="topbar-search catalog-search-wrap" style="max-width: 300px; margin: 0; display: flex; align-items: center;">
                 <i class="bi bi-search"></i>
-                <input type="text" id="book-search-input" name="search" value="<?= htmlspecialchars($filters['search'] ?? '') ?>" placeholder="Tìm tên sách, tác giả...">
+                <input type="text" id="book-search-input" name="search" value="<?= htmlspecialchars($filters['search'] ?? '') ?>" placeholder="Tìm tên sách, tác giả..." style="flex: 1;">
             </div>
+            <input type="hidden" name="ai_search" id="ai-search-hidden" value="<?= ($filters['ai_search'] ?? '0') === '1' ? '1' : '0' ?>">
+            <button type="button" id="btn-ai-search-toggle" class="btn btn-outline" style="border-color: <?= ($filters['ai_search'] ?? '0') === '1' ? 'var(--accent-purple)' : 'var(--border-color)' ?>; color: <?= ($filters['ai_search'] ?? '0') === '1' ? '#fff' : 'var(--text-secondary)' ?>; background: <?= ($filters['ai_search'] ?? '0') === '1' ? 'var(--accent-purple)' : 'transparent' ?>; display: inline-flex; align-items: center; gap: 6px; padding: 0 12px; height: 38px; border-radius: 8px;" title="Tìm kiếm thông minh bằng AI">
+                <i class="bi bi-cpu"></i> AI
+            </button>
             <button type="submit" class="btn btn-primary">Tìm kiếm</button>
         </div>
     </form>
@@ -350,6 +354,41 @@ document.addEventListener('DOMContentLoaded', () => {
                 directionHidden.value = 'DESC'; // Default to DESC for stars
             } else {
                 directionHidden.value = 'ASC';
+            }
+        });
+    }
+
+    // AI Search Toggle Logic
+    const aiSearchHidden = document.getElementById('ai-search-hidden');
+    const aiSearchToggleBtn = document.getElementById('btn-ai-search-toggle');
+    const bookSearchInput = document.getElementById('book-search-input');
+    
+    if (aiSearchToggleBtn && aiSearchHidden && bookSearchInput) {
+        const updateAiSearchUI = () => {
+            const isAi = aiSearchHidden.value === '1';
+            if (isAi) {
+                aiSearchToggleBtn.style.borderColor = 'var(--accent-purple)';
+                aiSearchToggleBtn.style.color = '#fff';
+                aiSearchToggleBtn.style.backgroundColor = 'var(--accent-purple)';
+                bookSearchInput.placeholder = 'Hỏi AI: Sách dạy làm giàu, tâm lý học...';
+            } else {
+                aiSearchToggleBtn.style.borderColor = 'var(--border-color)';
+                aiSearchToggleBtn.style.color = 'var(--text-secondary)';
+                aiSearchToggleBtn.style.backgroundColor = 'transparent';
+                bookSearchInput.placeholder = 'Tìm tên sách, tác giả...';
+            }
+        };
+        
+        // Initialize
+        updateAiSearchUI();
+        
+        aiSearchToggleBtn.addEventListener('click', () => {
+            aiSearchHidden.value = aiSearchHidden.value === '1' ? '0' : '1';
+            updateAiSearchUI();
+            
+            // If search input has value, automatically submit the form
+            if (bookSearchInput.value.trim() !== '') {
+                form.submit();
             }
         });
     }

@@ -283,6 +283,93 @@ class BookApiController extends AbstractRestfulController
         ]);
     }
 
+    /**
+     * GET/POST /api/books/semantic-search
+     * Tìm kiếm sách bằng AI (Gemini) dựa trên ngôn ngữ tự nhiên
+     */
+    public function semanticSearchAction(): Response
+    {
+        $request = $this->getRequest();
+        assert($request instanceof \Laminas\Http\Request);
+        
+        $message = '';
+        if ($request->isPost()) {
+            $payload = $this->requestJsonBody();
+            $message = trim((string)($payload['q'] ?? $payload['message'] ?? ''));
+        } else {
+            $message = trim((string)$request->getQuery('q', ''));
+        }
+
+        if ($message === '') {
+            return $this->jsonResponse(['error' => 'Từ khóa tìm kiếm trống'], 400);
+        }
+
+        $adapter = $this->table->getAdapter();
+        assert($adapter instanceof \Laminas\Db\Adapter\Adapter);
+
+        // Fetch all available books
+        $allBooks = [];
+        try {
+            $results = $adapter->query("SELECT book_id, title, author, category FROM books WHERE status = 'available'")->execute();
+            foreach ($results as $row) {
+                $allBooks[] = [
+                    'id' => (int)$row['book_id'],
+                    'title' => $row['title'],
+                    'author' => $row['author'],
+                    'category' => $row['category'],
+                ];
+            }
+        } catch (\Throwable $e) {}
+
+        if (empty($allBooks)) {
+            return $this->jsonResponse([]);
+        }
+
+        $bookListStr = "";
+        foreach ($allBooks as $b) {
+            $bookListStr .= "- ID: {$b['id']} | Tên: {$b['title']} | Tác giả: {$b['author']} | Thể loại: {$b['category']}\n";
+        }
+
+        $systemPrompt = "Bạn là trợ lý AI tìm kiếm sách thông minh cho thư viện. Nhiệm vụ của bạn là nhận câu hỏi tìm kiếm bằng ngôn ngữ tự nhiên từ người dùng và phân tích danh sách sách hiện có của thư viện để tìm ra tối đa 10 đầu sách phù hợp nhất.
+        Danh sách sách hiện có:
+        {$bookListStr}
+        Hãy phân tích câu hỏi của người dùng và trả về danh sách các ID của sách phù hợp nhất, sắp xếp từ phù hợp nhất xuống dưới.
+        Định dạng câu trả lời bắt buộc: Chỉ trả về duy nhất một mảng JSON chứa các số nguyên đại diện cho các ID của sách (ví dụ: [1, 3, 5]). Tuyệt đối không thêm bất kỳ văn bản nào khác ngoài mảng JSON này.";
+
+        $responseMsg = $this->geminiService->generateResponse($message, $systemPrompt);
+        
+        $responseText = trim($responseMsg);
+        if (preg_match('/\[\s*\d+\s*(?:,\s*\d+\s*)*\]/s', $responseText, $matches)) {
+            $responseText = $matches[0];
+        }
+        
+        $bookIds = json_decode($responseText, true);
+        
+        $results = [];
+        if (is_array($bookIds) && !empty($bookIds)) {
+            foreach ($bookIds as $id) {
+                try {
+                    $book = $this->table->getBook((int)$id);
+                    $results[] = $book->getArrayCopy();
+                } catch (\Throwable $e) {
+                    // Ignore invalid IDs
+                }
+            }
+        }
+
+        // Fallback to standard search if AI fails
+        if (empty($results)) {
+            $books = $this->table->searchAvailable($message, true, 10);
+            foreach ($books as $b) {
+                try {
+                    $book = $this->table->getBook((int)$b['id']);
+                    $results[] = $book->getArrayCopy();
+                } catch (\Throwable $e) {}
+            }
+        }
+
+        return $this->jsonResponse($results);
+    }
 
     /**
      * @return array<string, mixed>

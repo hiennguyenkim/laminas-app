@@ -22,6 +22,21 @@ $statusLabels = [
     </div>
 </div>
 
+<?php if (isset($unpaidFinesCount) && $unpaidFinesCount > 0): ?>
+<div class="db-alert db-alert-danger" style="background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.25); margin-bottom: 20px; display: flex; gap: 15px; align-items: flex-start; padding: 15px 20px; border-radius: 8px;">
+    <i class="bi bi-wallet2 db-alert-icon" style="color: #ef4444; font-size: 24px;"></i>
+    <div style="flex: 1; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+        <div>
+            <strong class="db-alert-title" style="color: #ef4444; font-size: 15px; display: block;">Bạn có <?= $unpaidFinesCount ?> khoản phạt chưa thanh toán!</strong>
+            <div class="db-alert-text-medium" style="color: var(--text-secondary); margin-top: 4px; font-size: 13.5px;">Tổng tiền phạt trễ hạn hoặc mất sách: <strong style="color: var(--text-primary);"><?= number_format($unpaidFinesSum) ?>đ</strong>. Tài khoản mượn của bạn có thể bị tạm khóa hoặc giới hạn.</div>
+        </div>
+        <a href="<?= $this->url('student/fine') ?>" class="btn btn-sm btn-icon" style="background: #ef4444; border-color: #ef4444; color: #fff; padding: 6px 14px; font-size: 12.5px; border-radius: 6px; font-weight: 600; text-decoration: none;">
+            <i class="bi bi-credit-card-2-front"></i> Nộp phạt ngay
+        </a>
+    </div>
+</div>
+<?php endif; ?>
+
 <?php if (isset($isLocked) && $isLocked): ?>
 <div class="db-alert db-alert-danger">
     <i class="bi bi-shield-slash db-alert-icon"></i>
@@ -163,43 +178,111 @@ $statusLabels = [
     </div>
 </div>
 
-<!-- ROW 3: RECENT TRANSACTIONS -->
-<div class="card dashboard-card-flat" style="margin-top: 24px;">
-    <div class="card-header">
-        <div>
-            <div class="card-title"><i class="bi bi-clock-history dashboard-recent-icon"></i>Hoạt động mượn gần đây</div>
-            <div class="card-subtitle">Lịch sử các lượt mượn trả mới nhất của bạn</div>
+<style>
+.rec-book-item:hover {
+    background: rgba(124, 106, 255, 0.08) !important;
+    border-color: var(--accent-purple) !important;
+    transform: translateY(-2px);
+}
+.rec-book-title-hover:hover {
+    color: var(--accent-purple) !important;
+}
+@media (max-width: 992px) {
+    .dashboard-row-split {
+        grid-template-columns: 1fr !important;
+        gap: 20px !important;
+    }
+}
+</style>
+
+<!-- ROW 3: RECENT TRANSACTIONS + AI SUGGESTIONS -->
+<div class="dashboard-row-split" style="margin-top: 24px; display: grid; grid-template-columns: 1.8fr 1.2fr; gap: 24px;">
+    <!-- Left: Recent Transactions -->
+    <div class="card dashboard-card-flat" style="margin-top: 0;">
+        <div class="card-header">
+            <div>
+                <div class="card-title"><i class="bi bi-clock-history dashboard-recent-icon"></i>Hoạt động mượn gần đây</div>
+                <div class="card-subtitle">Lịch sử các lượt mượn trả mới nhất của bạn</div>
+            </div>
+            <a href="<?= $this->url('student/transaction') ?>" class="btn btn-outline btn-sm">Xem tất cả</a>
         </div>
-        <a href="<?= $this->url('student/transaction') ?>" class="btn btn-outline btn-sm">Xem tất cả</a>
+        <div class="dashboard-table-responsive">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>#ID</th>
+                        <th>Tên đầu sách</th>
+                        <th>Ngày mượn</th>
+                        <th>Hạn trả</th>
+                        <th>Trạng thái</th>
+                    </tr>
+                </thead>
+                <tbody>
+                <?php if ($recentBorrows === []): ?>
+                    <tr><td colspan="5" class="dashboard-table-empty">Chưa có dữ liệu mượn trả gần đây.</td></tr>
+                <?php else: ?>
+                    <?php foreach ($recentBorrows as $record): ?>
+                    <?php $s = $statusLabels[$record->status] ?? ['label' => $record->status, 'class' => 'badge-gray']; ?>
+                    <tr>
+                        <td class="text-muted">#<?= (int)$record->id ?></td>
+                        <td class="fw-medium"><?= htmlspecialchars($record->bookTitle) ?></td>
+                        <td><?= htmlspecialchars($record->borrowDate) ?></td>
+                        <td><?= htmlspecialchars($record->returnDate) ?></td>
+                        <td><span class="badge <?= $s['class'] ?>"><?= $s['label'] ?></span></td>
+                    </tr>
+                    <?php endforeach; ?>
+                <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
     </div>
-    <div class="dashboard-table-responsive">
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th>#ID</th>
-                    <th>Tên đầu sách</th>
-                    <th>Ngày mượn</th>
-                    <th>Hạn trả</th>
-                    <th>Trạng thái</th>
-                </tr>
-            </thead>
-            <tbody>
-            <?php if ($recentBorrows === []): ?>
-                <tr><td colspan="5" class="dashboard-table-empty">Chưa có dữ liệu mượn trả gần đây.</td></tr>
+
+    <!-- Right: AI Recommendations -->
+    <div class="card dashboard-card-flat" style="margin-top: 0; display: flex; flex-direction: column;">
+        <div class="card-header">
+            <div>
+                <div class="card-title"><i class="bi bi-sparkles" style="color: var(--accent-purple); margin-right: 6px;"></i>Có thể bạn quan tâm</div>
+                <div class="card-subtitle">AI đề xuất sách phù hợp với bạn</div>
+            </div>
+        </div>
+        <div class="card-body" style="flex: 1; padding: 20px; display: flex; flex-direction: column; gap: 16px;">
+            <?php if (empty($recommendedBooks)): ?>
+                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--text-muted); font-size: 13px; text-align: center; padding: 20px; min-height: 150px;">
+                    <i class="bi bi-journal-text" style="font-size: 28px; margin-bottom: 8px; opacity: 0.6; color: var(--accent-purple);"></i>
+                    Không có gợi ý nào khả dụng lúc này.
+                </div>
             <?php else: ?>
-                <?php foreach ($recentBorrows as $record): ?>
-                <?php $s = $statusLabels[$record->status] ?? ['label' => $record->status, 'class' => 'badge-gray']; ?>
-                <tr>
-                    <td class="text-muted">#<?= (int)$record->id ?></td>
-                    <td class="fw-medium"><?= htmlspecialchars($record->bookTitle) ?></td>
-                    <td><?= htmlspecialchars($record->borrowDate) ?></td>
-                    <td><?= htmlspecialchars($record->returnDate) ?></td>
-                    <td><span class="badge <?= $s['class'] ?>"><?= $s['label'] ?></span></td>
-                </tr>
+                <?php 
+                $recGrads = [
+                    'linear-gradient(135deg, #6a11cb 0%, #2575fc 100%)',
+                    'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    'linear-gradient(135deg, #5ee7df 0%, #b490ca 100%)',
+                ];
+                $idx = 0;
+                foreach ($recommendedBooks as $book): 
+                    $grad = $recGrads[$idx % count($recGrads)];
+                    $idx++;
+                    $hasCover = !empty($book->coverImageUrl);
+                    $coverUrl = $hasCover ? $book->coverImageUrl : '';
+                    if ($hasCover && !str_starts_with($coverUrl, 'http://') && !str_starts_with($coverUrl, 'https://')) {
+                        $coverUrl = $this->basePath(ltrim($coverUrl, '/'));
+                    }
+                    $coverStyle = $hasCover
+                        ? 'background: url(' . htmlspecialchars($coverUrl) . ') center/cover no-repeat;'
+                        : 'background: ' . $grad . ';';
+                    $viewUrl = $this->url('student/book', ['action' => 'view', 'id' => $book->id]);
+                ?>
+                <div class="rec-book-item" style="display: flex; gap: 14px; align-items: center; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; transition: all 0.2s ease-in-out;">
+                    <a href="<?= $viewUrl ?>" style="width: 50px; height: 70px; border-radius: 4px; <?= $coverStyle ?> display: block; flex-shrink: 0; box-shadow: 0 4px 10px rgba(0,0,0,0.3);"></a>
+                    <div style="flex: 1; min-width: 0;">
+                        <a href="<?= $viewUrl ?>" style="font-size: 13.5px; font-weight: 700; color: var(--text-primary); text-decoration: none; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px;" class="rec-book-title-hover"><?= htmlspecialchars($book->title) ?></a>
+                        <div style="font-size: 12px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 6px;"><?= htmlspecialchars($book->author) ?></div>
+                        <span class="badge badge-purple" style="font-size: 10px; padding: 3px 8px;"><?= htmlspecialchars($book->category) ?></span>
+                    </div>
+                </div>
                 <?php endforeach; ?>
             <?php endif; ?>
-            </tbody>
-        </table>
+        </div>
     </div>
 </div>
 

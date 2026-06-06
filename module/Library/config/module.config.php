@@ -49,10 +49,14 @@ use Library\Controller\Api\BookApiController;
 use Library\Controller\Api\UserApiController;
 use Library\Controller\Api\BorrowApiController;
 use Library\Controller\Api\NotificationApiController;
+use Library\Controller\Api\SseController;
 use Library\Factory\Controller\Api\BookApiControllerFactory;
 use Library\Factory\Controller\Api\UserApiControllerFactory;
 use Library\Factory\Controller\Api\BorrowApiControllerFactory;
 use Library\Factory\Controller\Api\NotificationApiControllerFactory;
+use Library\Factory\Controller\Api\SseControllerFactory;
+use Library\Controller\FineController;
+use Library\Factory\Controller\FineControllerFactory;
 
 return [
     // ── Routing ─────────────────────────────────────────────────────────
@@ -353,6 +357,20 @@ return [
                             ],
                         ],
                     ],
+                    'fine' => [
+                        'type'    => Segment::class,
+                        'options' => [
+                            'route'    => '/fine[/:action[/:id]]',
+                            'constraints' => [
+                                'action' => '[a-zA-Z][a-zA-Z0-9_-]*',
+                                'id'     => '[0-9]+',
+                            ],
+                            'defaults' => [
+                                'controller' => FineController::class,
+                                'action'     => 'index',
+                            ],
+                        ],
+                    ],
                 ],
             ],
             'api' => [
@@ -375,6 +393,26 @@ return [
                             ],
                         ],
                     ],
+                    'sse-notifications' => [
+                        'type'    => Literal::class,
+                        'options' => [
+                            'route'    => '/sse/notifications',
+                            'defaults' => [
+                                'controller' => SseController::class,
+                                'action'     => 'notification',
+                            ],
+                        ],
+                    ],
+                    'sse-chat' => [
+                        'type'    => Literal::class,
+                        'options' => [
+                            'route'    => '/sse/chat',
+                            'defaults' => [
+                                'controller' => SseController::class,
+                                'action'     => 'chat',
+                            ],
+                        ],
+                    ],
                     'books-search' => [
                         'type'    => Literal::class,
                         'options' => [
@@ -392,6 +430,16 @@ return [
                             'defaults' => [
                                 'controller' => BookApiController::class,
                                 'action'     => 'chat',
+                            ],
+                        ],
+                    ],
+                    'books-semantic-search' => [
+                        'type'    => Literal::class,
+                        'options' => [
+                            'route'    => '/books/semantic-search',
+                            'defaults' => [
+                                'controller' => BookApiController::class,
+                                'action'     => 'semanticSearch',
                             ],
                         ],
                     ],
@@ -465,6 +513,8 @@ return [
             UserApiController::class     => UserApiControllerFactory::class,
             BorrowApiController::class   => BorrowApiControllerFactory::class,
             NotificationApiController::class => NotificationApiControllerFactory::class,
+            SseController::class => SseControllerFactory::class,
+            FineController::class => FineControllerFactory::class,
         ],
     ],
 

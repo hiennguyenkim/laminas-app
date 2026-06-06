@@ -315,7 +315,7 @@ $renderSortIcon = function(string $col) use ($queryBase): string {
                                 </form>
                             </div>
                         <?php elseif (in_array($record->status, ['borrowed','overdue'], true)): ?>
-                            <div class="d-flex align-items-center justify-content-start">
+                            <div class="d-flex align-items-center justify-content-start gap-2">
                                 <?php if ($record->isRenewPending): ?>
                                     <span class="badge badge-outline-orange" style="font-size: 11px; padding: 4px 8px;"><i class="bi bi-hourglass-split"></i> Đang duyệt GH</span>
                                 <?php elseif ($record->renewCount === 0): ?>
@@ -327,6 +327,12 @@ $renderSortIcon = function(string $col) use ($queryBase): string {
                                 <?php else: ?>
                                     <span class="tx-status-hint" style="margin-top: 0; font-style: italic;"><i class="bi bi-check-circle"></i> Đã gia hạn 1 lần</span>
                                 <?php endif; ?>
+
+                                <form action="<?= $this->url('student/transaction', ['action' => 'lost', 'id' => $record->id]) ?>" method="POST" style="margin: 0;" onsubmit="return confirm('XÁC NHẬN BÁO MẤT: Hành động này sẽ trừ vĩnh viễn sách khỏi kho và KHÓA TÀI KHOẢN của bạn vĩnh viễn cho đến khi đền bù. Tiếp tục?');">
+                                    <button type="submit" class="btn btn-sm btn-danger" style="font-size: 11.5px; font-weight: 500; padding: 4px 12px; border-radius: 6px; white-space: nowrap;">
+                                        <i class="bi bi-patch-exclamation"></i> Báo mất
+                                    </button>
+                                </form>
                             </div>
                         <?php elseif ($record->status === 'returned'): ?>
                             <?php if (in_array((int)$record->bookId, $reviewedBookIds ?? [], true)): ?>

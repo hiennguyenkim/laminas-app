@@ -283,6 +283,107 @@ class TransactionControllerTest extends AbstractHttpControllerTestCase
         $this->assertMatchedRouteName('library/transaction');
     }
 
+    public function testLostActionAsAdmin(): void
+    {
+        $this->mockLoginAsRole('admin');
+
+        $record = new BorrowRecord();
+        $record->exchangeArray([
+            'id' => 105,
+            'book_id' => 1,
+            'user_id' => 2,
+            'status' => 'borrowed',
+        ]);
+
+        $borrowTableMock = $this->createMock(BorrowTable::class);
+        $borrowTableMock->expects(self::once())
+            ->method('getRecord')
+            ->with(105)
+            ->willReturn($record);
+
+        $circulationServiceMock = $this->createMock(CirculationService::class);
+        $circulationServiceMock->expects(self::once())
+            ->method('reportLostBook')
+            ->with(105);
+
+        $serviceLocator = $this->getApplicationServiceLocator();
+        $serviceLocator->setAllowOverride(true);
+        $serviceLocator->setService(BorrowTable::class, $borrowTableMock);
+        $serviceLocator->setService(CirculationService::class, $circulationServiceMock);
+
+        $this->dispatch('/admin/borrow/lost/105', 'POST');
+
+        $this->assertResponseStatusCode(302);
+        $this->assertRedirectTo('/admin/borrow');
+    }
+
+    public function testLostActionAsStudentSuccess(): void
+    {
+        $this->mockLoginAsRole('student'); // student user_id is 2
+
+        $record = new BorrowRecord();
+        $record->exchangeArray([
+            'id' => 105,
+            'book_id' => 1,
+            'user_id' => 2, // matches student1 user_id
+            'status' => 'borrowed',
+        ]);
+
+        $borrowTableMock = $this->createMock(BorrowTable::class);
+        $borrowTableMock->expects(self::once())
+            ->method('getRecord')
+            ->with(105)
+            ->willReturn($record);
+
+        $circulationServiceMock = $this->createMock(CirculationService::class);
+        $circulationServiceMock->expects(self::once())
+            ->method('reportLostBook')
+            ->with(105);
+
+        $serviceLocator = $this->getApplicationServiceLocator();
+        $serviceLocator->setAllowOverride(true);
+        $serviceLocator->setService(BorrowTable::class, $borrowTableMock);
+        $serviceLocator->setService(CirculationService::class, $circulationServiceMock);
+
+        $this->dispatch('/student/borrow/lost/105', 'POST');
+
+        $this->assertResponseStatusCode(302);
+        $this->assertRedirectTo('/student/borrow');
+    }
+
+    public function testLostActionAsStudentFailure(): void
+    {
+        $this->mockLoginAsRole('student'); // student user_id is 2
+
+        $record = new BorrowRecord();
+        $record->exchangeArray([
+            'id' => 105,
+            'book_id' => 1,
+            'user_id' => 99, // does NOT match student1 user_id (2)
+            'status' => 'borrowed',
+        ]);
+
+        $borrowTableMock = $this->createMock(BorrowTable::class);
+        $borrowTableMock->expects(self::once())
+            ->method('getRecord')
+            ->with(105)
+            ->willReturn($record);
+
+        $circulationServiceMock = $this->createMock(CirculationService::class);
+        $circulationServiceMock->expects(self::never())
+            ->method('reportLostBook');
+
+        $serviceLocator = $this->getApplicationServiceLocator();
+        $serviceLocator->setAllowOverride(true);
+        $serviceLocator->setService(BorrowTable::class, $borrowTableMock);
+        $serviceLocator->setService(CirculationService::class, $circulationServiceMock);
+
+        $this->dispatch('/student/borrow/lost/105', 'POST');
+
+        $this->assertResponseStatusCode(302);
+        $this->assertRedirectTo('/student/borrow');
+    }
+
     private function mockLoginAsRole(string $role): void
     {
         /** @var AuthSessionContainer $authSession */

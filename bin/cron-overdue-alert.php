@@ -47,6 +47,16 @@ try {
         $db->query($updateSql, [$recordId]);
         $updatedCount++;
 
+        // 2b. Insert fine record if not exists (20,000 VND)
+        $fineReason = sprintf("Phạt trễ hạn sách: \"%s\" (Mã mượn: #%d)", $bookTitle, $recordId);
+        $checkFineSql = "SELECT COUNT(*) AS cnt FROM fines WHERE user_id = ? AND reason = ?";
+        $fineRes = $db->query($checkFineSql, [$userId, $fineReason])->current();
+        if ((int)($fineRes['cnt'] ?? 0) === 0) {
+            $insertFineSql = "INSERT INTO fines (user_id, amount, reason, status, created_at) VALUES (?, 20000.00, ?, 'unpaid', NOW())";
+            $db->query($insertFineSql, [$userId, $fineReason]);
+            echo " - Created a fine of 20,000 VND for User #{$userId} (Record #{$recordId})" . PHP_EOL;
+        }
+
         // 3. Check if notification for this record already exists
         $checkNotifySql = "SELECT COUNT(*) AS cnt FROM notifications WHERE related_id = ? AND type = 'system'";
         $checkRes = $db->query($checkNotifySql, [$recordId])->current();
@@ -59,7 +69,7 @@ try {
             
             $title = "Cảnh báo: Sách mượn quá hạn!";
             $message = sprintf(
-                "Sách \"%s\" của bạn đã quá hạn trả vào ngày %s. Vui lòng hoàn trả sách về thư viện sớm nhất có thể.",
+                "Sách \"%s\" của bạn đã quá hạn trả vào ngày %s. Bạn bị phạt 20.000đ. Vui lòng thanh toán và hoàn trả sách về thư viện sớm nhất có thể.",
                 $bookTitle,
                 date('d/m/Y', strtotime($returnDate))
             );

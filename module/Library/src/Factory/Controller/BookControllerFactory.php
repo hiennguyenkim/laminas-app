@@ -25,7 +25,8 @@ class BookControllerFactory
             $container->get(FormElementManager::class),
             $container->get(AnnouncementTable::class),
             $container->get(BookReviewTable::class),
-            $container->get(BookCategoryTable::class)
+            $container->get(BookCategoryTable::class),
+            $container->get(\Library\Service\GeminiService::class)
         );
     }
 }

@@ -32,7 +32,8 @@ class BookController extends BaseController
         private FormElementManager $formElementManager,
         private AnnouncementTable $announcementTable,
         private BookReviewTable $bookReviewTable,
-        private BookCategoryTable $bookCategoryTable
+        private BookCategoryTable $bookCategoryTable,
+        private \Library\Service\GeminiService $geminiService
     ) {
         parent::__construct($authSessionContainer);
     }
@@ -70,10 +71,12 @@ class BookController extends BaseController
             $searchQuery = trim((string)$this->queryString('q', ''));
         }
 
+        $aiSearch = (int)$this->queryString('ai_search', '0');
         $filters = [
-            'search'   => $searchQuery,
-            'category' => $this->queryString('category'),
-            'status'   => $statusFilter,
+            'search'    => $searchQuery,
+            'category'  => $this->queryString('category'),
+            'status'    => $statusFilter,
+            'ai_search' => $aiSearch === 1 ? '1' : '0',
         ];
 
         $perPageRaw = $this->queryString('perPage', '20');
@@ -93,9 +96,18 @@ class BookController extends BaseController
         $page = (int) $this->queryString('page', '1');
         $page = max(1, $page);
 
-        $totalItems = $this->bookTable->countFiltered($filters);
-        $totalPages = max(1, (int) ceil($totalItems / $perPage));
-        $page = min($page, $totalPages);
+        $books = [];
+        if ($aiSearch === 1 && $searchQuery !== '') {
+            $books = $this->performSemanticSearch($searchQuery);
+            $totalItems = count($books);
+            $totalPages = 1;
+            $page = 1;
+        } else {
+            $totalItems = $this->bookTable->countFiltered($filters);
+            $totalPages = max(1, (int) ceil($totalItems / $perPage));
+            $page = min($page, $totalPages);
+            $books = $this->bookTable->fetchPage($filters, $page, $perPage, $sort, $direction);
+        }
 
         $announcements = [];
         try {
@@ -105,7 +117,7 @@ class BookController extends BaseController
         }
 
         $viewModel = new ViewModel([
-            'books'      => $this->bookTable->fetchPage($filters, $page, $perPage, $sort, $direction),
+            'books'      => $books,
             'filters'    => array_merge($filters, ['sort' => $sort, 'direction' => $direction]),
             'categories' => array_keys($this->getCategoryOptions()),
             'summary'    => $this->bookTable->getSummary(),
@@ -673,6 +685,74 @@ class BookController extends BaseController
         } catch (\Throwable $e) {
             return [];
         }
+    }
+
+    private function performSemanticSearch(string $query): array
+    {
+        $adapter = $this->bookTable->getAdapter();
+        
+        // Fetch all available books
+        $allBooks = [];
+        try {
+            $results = $adapter->query("SELECT book_id, title, author, category FROM books WHERE status = 'available'")->execute();
+            foreach ($results as $row) {
+                $allBooks[] = [
+                    'id' => (int)$row['book_id'],
+                    'title' => $row['title'],
+                    'author' => $row['author'],
+                    'category' => $row['category'],
+                ];
+            }
+        } catch (\Throwable $e) {}
+
+        if (empty($allBooks)) {
+            return [];
+        }
+
+        $bookListStr = "";
+        foreach ($allBooks as $b) {
+            $bookListStr .= "- ID: {$b['id']} | Tên: {$b['title']} | Tác giả: {$b['author']} | Thể loại: {$b['category']}\n";
+        }
+
+        $systemPrompt = "Bạn là trợ lý AI tìm kiếm sách thông minh cho thư viện. Nhiệm vụ của bạn là nhận câu hỏi tìm kiếm bằng ngôn ngữ tự nhiên từ người dùng và phân tích danh sách sách hiện có của thư viện để tìm ra tối đa 10 đầu sách phù hợp nhất.\n"
+            . "Danh sách sách hiện có:\n"
+            . $bookListStr . "\n"
+            . "Hãy phân tích câu hỏi của người dùng và trả về danh sách các ID của sách phù hợp nhất, sắp xếp từ phù hợp nhất xuống dưới.\n"
+            . "Định dạng câu trả lời bắt buộc: Chỉ trả về duy nhất một mảng JSON chứa các số nguyên đại diện cho các ID của sách (ví dụ: [1, 3, 5]). Tuyệt đối không thêm bất kỳ văn bản nào khác ngoài mảng JSON này.";
+
+        $responseMsg = $this->geminiService->generateResponse($query, $systemPrompt);
+        
+        $responseText = trim($responseMsg);
+        if (preg_match('/\[\s*\d+\s*(?:,\s*\d+\s*)*\]/s', $responseText, $matches)) {
+            $responseText = $matches[0];
+        }
+        
+        $bookIds = json_decode($responseText, true);
+        
+        $results = [];
+        if (is_array($bookIds) && !empty($bookIds)) {
+            foreach ($bookIds as $id) {
+                try {
+                    $book = $this->bookTable->getBook((int)$id);
+                    $results[] = $book;
+                } catch (\Throwable $e) {
+                    // Ignore invalid IDs
+                }
+            }
+        }
+
+        // Fallback to standard search if AI fails or returns empty
+        if (empty($results)) {
+            $books = $this->bookTable->searchAvailable($query, true, 10);
+            foreach ($books as $b) {
+                try {
+                    $book = $this->bookTable->getBook((int)$b['id']);
+                    $results[] = $book;
+                } catch (\Throwable $e) {}
+            }
+        }
+
+        return $results;
     }
 }
 

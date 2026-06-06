@@ -273,6 +273,9 @@ $statusMap = [
 </div>
 </div>
 
+<!-- Load PDF.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+
 <!-- Custom Preview Modal -->
 <div id="bookPreviewModal" class="custom-modal" style="display: none;">
     <div class="custom-modal-overlay" onclick="closePreviewModal()"></div>
@@ -284,12 +287,12 @@ $statusMap = [
             </div>
             <button class="custom-modal-close-btn" onclick="closePreviewModal()">&times;</button>
         </div>
-        <div class="custom-modal-body" style="flex: 1; padding: 12px; background: #0b0f19; overflow: hidden; position: relative;">
-            <div id="previewLoader" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: var(--text-muted); font-size: 14px; display: flex; align-items: center; gap: 8px;">
+        <div class="custom-modal-body" style="flex: 1; padding: 16px; background: #0b0f19; overflow-y: auto; position: relative;">
+            <div id="previewLoader" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: var(--text-muted); font-size: 14px; display: flex; align-items: center; gap: 8px; z-index: 10;">
                 <i class="bi bi-arrow-repeat spin-loader" style="font-size: 20px;"></i>
                 Đang tải nội dung xem thử...
             </div>
-            <iframe id="previewPdfIframe" src="" width="100%" height="100%" style="border: none; border-radius: 6px; display: none;" onload="onPreviewIframeLoaded()"></iframe>
+            <div id="pdfCanvasContainer" style="display: flex; flex-direction: column; gap: 20px; align-items: center; width: 100%;"></div>
         </div>
     </div>
 </div>
@@ -301,20 +304,44 @@ $statusMap = [
 @keyframes loader-spin {
     to { transform: rotate(360deg); }
 }
+#pdfCanvasContainer canvas {
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+}
 </style>
 
 <script>
+// Configure PDF.js worker
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+
+let pdfDoc = null;
+
+// Prevent copying/printing in the modal
+document.getElementById('bookPreviewModal').addEventListener('contextmenu', e => e.preventDefault());
+document.getElementById('bookPreviewModal').addEventListener('selectstart', e => e.preventDefault());
+window.addEventListener('keydown', e => {
+    const modal = document.getElementById('bookPreviewModal');
+    if (modal.style.display !== 'none' && modal.classList.contains('show')) {
+        if (e.ctrlKey && (e.key === 'p' || e.key === 'P' || e.key === 's' || e.key === 'S' || e.key === 'c' || e.key === 'C')) {
+            e.preventDefault();
+            alert('Chức năng bị vô hiệu hóa để bảo vệ bản quyền sách.');
+        }
+    }
+});
+
 function openPreviewModal(title, previewUrl) {
     const modal = document.getElementById('bookPreviewModal');
     const titleText = document.getElementById('previewModalTitleText');
-    const iframe = document.getElementById('previewPdfIframe');
+    const container = document.getElementById('pdfCanvasContainer');
     const loader = document.getElementById('previewLoader');
     
-    if (!modal || !iframe) return;
+    if (!modal || !container) return;
     
     titleText.textContent = 'Đọc thử: ' + title;
     loader.style.display = 'flex';
-    iframe.style.display = 'none';
+    container.innerHTML = '';
     
     // Check if it's an uploaded local file or an external URL
     let fullUrl = previewUrl;
@@ -322,36 +349,85 @@ function openPreviewModal(title, previewUrl) {
         fullUrl = '<?= $this->basePath() ?>' + '/' + previewUrl.replace(/^\//, '');
     }
     
-    iframe.src = fullUrl;
     modal.style.display = 'flex';
     setTimeout(() => {
         modal.classList.add('show');
     }, 10);
     
     document.body.style.overflow = 'hidden'; // Lock background scrolling
+
+    // Load and render PDF
+    pdfjsLib.getDocument(fullUrl).promise.then(pdf => {
+        pdfDoc = pdf;
+        loader.style.display = 'none';
+        
+        // Limit to max 5 pages
+        const pagesToRender = Math.min(pdf.numPages, 5);
+        
+        for (let pageNum = 1; pageNum <= pagesToRender; pageNum++) {
+            renderPage(pageNum);
+        }
+    }).catch(err => {
+        loader.style.display = 'none';
+        container.innerHTML = '<div style="color: #ef4444; text-align: center; padding: 20px; font-weight: 500;">Không thể tải tài liệu xem thử: ' + err.message + '</div>';
+    });
+}
+
+function renderPage(num) {
+    pdfDoc.getPage(num).then(page => {
+        const container = document.getElementById('pdfCanvasContainer');
+        const canvas = document.createElement('canvas');
+        canvas.style.boxShadow = '0 6px 24px rgba(0,0,0,0.5)';
+        canvas.style.borderRadius = '6px';
+        canvas.style.maxWidth = '100%';
+        canvas.style.marginBottom = '10px';
+        container.appendChild(canvas);
+
+        const ctx = canvas.getContext('2d');
+        const viewport = page.getViewport({ scale: 1.5 });
+        canvas.height = viewport.height;
+        canvas.width = viewport.width;
+
+        const renderContext = {
+            canvasContext: ctx,
+            viewport: viewport
+        };
+
+        page.render(renderContext).promise.then(() => {
+            // Draw diagonal watermark text
+            ctx.save();
+            ctx.font = 'bold 36px Arial';
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.12)';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            // Translate to center and rotate
+            ctx.translate(canvas.width / 2, canvas.height / 2);
+            ctx.rotate(-Math.PI / 4);
+            
+            // Draw watermark in multiple grid lines
+            ctx.fillText('HDPE LIBRARY - ĐỌC THỬ', 0, 0);
+            ctx.fillText('HDPE LIBRARY - ĐỌC THỬ', 0, -180);
+            ctx.fillText('HDPE LIBRARY - ĐỌC THỬ', 0, 180);
+            
+            ctx.restore();
+        });
+    });
 }
 
 function closePreviewModal() {
     const modal = document.getElementById('bookPreviewModal');
-    const iframe = document.getElementById('previewPdfIframe');
+    const container = document.getElementById('pdfCanvasContainer');
     
     if (!modal) return;
     
     modal.classList.remove('show');
     setTimeout(() => {
         modal.style.display = 'none';
-        if (iframe) iframe.src = '';
+        if (container) container.innerHTML = '';
+        pdfDoc = null;
     }, 220);
     
     document.body.style.overflow = ''; // Unlock background scrolling
-}
-
-function onPreviewIframeLoaded() {
-    const iframe = document.getElementById('previewPdfIframe');
-    const loader = document.getElementById('previewLoader');
-    if (iframe && loader) {
-        loader.style.display = 'none';
-        iframe.style.display = 'block';
-    }
 }
 </script>

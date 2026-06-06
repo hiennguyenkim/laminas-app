@@ -40,11 +40,14 @@ if ($authUser) {
         $navItems[] = ['url' => $this->url('library/settings'), 'icon' => 'bi-gear-fill', 'label' => 'Cài đặt', 'key' => 'settings', 'color' => '#8b5cf6'];
     }
     $navItems[] = ['url' => $this->url($routePrefix . '/transaction'), 'icon' => 'bi-arrow-left-right', 'label' => 'Mượn / Trả', 'key' => 'transaction', 'color' => '#ec4899'];
+    if (!$isAdmin) {
+        $navItems[] = ['url' => $this->url('student/fine'), 'icon' => 'bi-credit-card-2-front', 'label' => 'Khoản phạt', 'key' => 'fine', 'color' => '#ef4444'];
+    }
     $navItems[] = ['url' => $this->url($routePrefix . '/ticket'), 'icon' => 'bi-chat-left-text', 'label' => 'Hỏi đáp & Hỗ trợ', 'key' => 'ticket', 'color' => '#14b8a6'];
     $navItems[] = ['url' => $this->url($routePrefix . '/profile'), 'icon' => 'bi-person-circle', 'label' => 'Hồ sơ', 'key' => 'profile', 'color' => '#3b82f6'];
 }
 
-$pageColors = ['dashboard' => '#7c6aff', 'book' => '#f97316', 'announcements' => '#ef4444', 'user' => '#22c55e', 'books-import' => '#f59e0b', 'transaction' => '#ec4899', 'ticket' => '#14b8a6', 'profile' => '#3b82f6', 'settings' => '#8b5cf6'];
+$pageColors = ['dashboard' => '#7c6aff', 'book' => '#f97316', 'announcements' => '#ef4444', 'user' => '#22c55e', 'books-import' => '#f59e0b', 'transaction' => '#ec4899', 'ticket' => '#14b8a6', 'profile' => '#3b82f6', 'settings' => '#8b5cf6', 'fine' => '#ef4444'];
 $activeKey  = 'dashboard';
 // Match actual route segments: /admin/book, /admin/user, /admin/borrow, /admin/ticket or /library/ticket
 if      (strpos($currentUri, '/books/import') !== false) $activeKey = 'books-import';
@@ -53,6 +56,7 @@ elseif  (strpos($currentUri, '/announcements')!== false) $activeKey = 'announcem
 elseif  (strpos($currentUri, '/book')   !== false) $activeKey = 'book';
 elseif  (strpos($currentUri, '/user')   !== false) $activeKey = 'user';
 elseif  (strpos($currentUri, '/borrow') !== false) $activeKey = 'transaction';
+elseif  (strpos($currentUri, '/fine')   !== false) $activeKey = 'fine';
 elseif  (strpos($currentUri, '/ticket') !== false) $activeKey = 'ticket';
 elseif  (strpos($currentUri, '/profile')!== false) $activeKey = 'profile';
 if (strpos($currentUri, '/auth') !== false) $activeKey = '';
@@ -68,6 +72,7 @@ $pageLabels = [
     'ticket'       => 'Hỏi đáp & Hỗ trợ',
     'profile'      => 'Hồ sơ cá nhân',
     'settings'     => 'Cài đặt hệ thống',
+    'fine'         => 'Khoản phạt cá nhân',
 ];
 $pageLabel = $authUser ? ($pageLabels[$activeKey] ?? '') : 'Đăng nhập';
 ?>
@@ -314,6 +319,7 @@ setTimeout(() => {
 
 // GLOBAL LOADING STATES (New Category)
 document.addEventListener('submit', function(e) {
+    if (e.defaultPrevented) return;
     const form = e.target;
     const btn = form.querySelector('button[type="submit"]');
     if (btn && !btn.classList.contains('no-loader')) {
@@ -540,101 +546,114 @@ document.querySelectorAll('.btn-xs, .btn-sm, .btn').forEach(btn => {
 
     let lastNotificationCount = 0;
 
+    function updateNotificationsUI(data, isPush = false) {
+        const badge = document.getElementById('notification-badge');
+        const countBadge = document.getElementById('notification-count-badge');
+        const list = document.getElementById('notification-list');
+        if (!badge || !countBadge || !list) return;
+
+        const unreadCount = data.filter(item => item.is_read === 0).length;
+
+        if (unreadCount > 0) {
+            badge.textContent = unreadCount;
+            badge.style.display = 'flex';
+            countBadge.textContent = unreadCount + ' mới';
+
+            // If it's a real-time push and count increased, flash the bell
+            if (isPush && unreadCount > lastNotificationCount) {
+                const bellBtn = document.querySelector('.noti-bell-btn i');
+                if (bellBtn) {
+                    bellBtn.classList.add('bi-bell-fill-animated');
+                    setTimeout(() => bellBtn.classList.remove('bi-bell-fill-animated'), 2000);
+                }
+            }
+        } else {
+            badge.style.display = 'none';
+            countBadge.textContent = '0 mới';
+        }
+        lastNotificationCount = unreadCount;
+
+        const dropdown = document.getElementById('notification-dropdown');
+        if (dropdown.style.display === 'block' || !isPush) {
+            if (data.length > 0) {
+                let html = '';
+                data.forEach(item => {
+                    let iconClass = 'bi-bell';
+                    if (item.type === 'borrow') iconClass = 'bi-book';
+                    else if (item.type === 'ticket') iconClass = 'bi-chat-left-text';
+                    else if (item.type === 'borrow_approved') iconClass = 'bi-patch-check-fill';
+                    else if (item.type === 'ticket_answered') iconClass = 'bi-chat-left-text-fill';
+                    else if (item.type === 'borrow_alert') iconClass = 'bi-exclamation-triangle-fill';
+
+                    const readClass = item.is_read ? 'read' : 'unread';
+
+                    html += `
+                        <div class="notification-item-wrapper ${readClass}" id="noti-item-${item.id}">
+                            <a href="${item.url}" class="notification-item ${item.type}" 
+                               onclick="markNotificationRead('${item.id}', '${item.url}', event); return false;">
+                                <div class="noti-icon">
+                                    <i class="bi ${iconClass}"></i>
+                                </div>
+                                <div class="noti-content">
+                                    <div class="noti-title">${item.title}</div>
+                                    <div class="noti-desc">${item.description}</div>
+                                    <div class="noti-time">${item.time}</div>
+                                </div>
+                            </a>
+                            <div class="noti-actions">
+                                ${!item.is_read ? `
+                                <button class="mark-read-btn" onclick="markNotificationReadOnly('${item.id}', event)" title="Đánh dấu đã đọc">
+                                    <i class="bi bi-check2"></i>
+                                </button>` : ''}
+                                <button class="delete-noti-btn" onclick="deleteNotification('${item.id}', event)" title="Xóa thông báo">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+                list.innerHTML = html;
+            } else {
+                list.innerHTML = `
+                    <div class="notification-empty noti-empty">
+                        <i class="bi bi-bell-slash"></i>
+                        Không có thông báo nào mới.
+                    </div>
+                `;
+            }
+        }
+    }
+
     async function loadNotifications(isPolling = false) {
         try {
             const response = await fetch('<?= $this->url('api/notifications') ?>');
             if (!response.ok) return;
             const data = await response.json();
-            
-            const badge = document.getElementById('notification-badge');
-            const countBadge = document.getElementById('notification-count-badge');
-            const list = document.getElementById('notification-list');
-            
-            const unreadCount = data.filter(item => item.is_read === 0).length;
-            
-            // Update badge regardless of polling
-            if (unreadCount > 0) {
-                badge.textContent = unreadCount;
-                badge.style.display = 'flex';
-                countBadge.textContent = unreadCount + ' mới';
-                
-                // If polling and count increased, flash the bell
-                if (isPolling && unreadCount > lastNotificationCount) {
-                    const bellBtn = document.querySelector('.noti-bell-btn i');
-                    if (bellBtn) {
-                        bellBtn.classList.add('bi-bell-fill-animated');
-                        setTimeout(() => bellBtn.classList.remove('bi-bell-fill-animated'), 2000);
-                    }
-                }
-            } else {
-                badge.style.display = 'none';
-                countBadge.textContent = '0 mới';
-            }
-            lastNotificationCount = unreadCount;
-
-            // Only update list if dropdown is open OR if it's the first load
-            const dropdown = document.getElementById('notification-dropdown');
-            if (dropdown.style.display === 'block' || !isPolling) {
-                if (data.length > 0) {
-                    let html = '';
-                    data.forEach(item => {
-                        let iconClass = 'bi-bell';
-                        if (item.type === 'borrow') iconClass = 'bi-book';
-                        else if (item.type === 'ticket') iconClass = 'bi-chat-left-text';
-                        else if (item.type === 'borrow_approved') iconClass = 'bi-patch-check-fill';
-                        else if (item.type === 'ticket_answered') iconClass = 'bi-chat-left-text-fill';
-                        else if (item.type === 'borrow_alert') iconClass = 'bi-exclamation-triangle-fill';
-
-                        const readClass = item.is_read ? 'read' : 'unread';
-
-                        html += `
-                            <div class="notification-item-wrapper ${readClass}" id="noti-item-${item.id}">
-                                <a href="${item.url}" class="notification-item ${item.type}" 
-                                   onclick="markNotificationRead('${item.id}', '${item.url}', event); return false;">
-                                    <div class="noti-icon">
-                                        <i class="bi ${iconClass}"></i>
-                                    </div>
-                                    <div class="noti-content">
-                                        <div class="noti-title">${item.title}</div>
-                                        <div class="noti-desc">${item.description}</div>
-                                        <div class="noti-time">${item.time}</div>
-                                    </div>
-                                </a>
-                                <div class="noti-actions">
-                                    ${!item.is_read ? `
-                                    <button class="mark-read-btn" onclick="markNotificationReadOnly('${item.id}', event)" title="Đánh dấu đã đọc">
-                                        <i class="bi bi-check2"></i>
-                                    </button>` : ''}
-                                    <button class="delete-noti-btn" onclick="deleteNotification('${item.id}', event)" title="Xóa thông báo">
-                                        <i class="bi bi-x-lg"></i>
-                                    </button>
-                                </div>
-                            </div>
-                        `;
-                    });
-                    list.innerHTML = html;
-                } else {
-                    list.innerHTML = `
-                        <div class="notification-empty noti-empty">
-                            <i class="bi bi-bell-slash"></i>
-                            Không có thông báo nào mới.
-                        </div>
-                    `;
-                }
-            }
+            updateNotificationsUI(data, isPolling);
         } catch (e) {
             console.error('Failed to load notifications:', e);
         }
     }
 
-    // Polling every 20 seconds
-    setInterval(() => {
-        loadNotifications(true);
-    }, 20000);
-
-    // Initial load
+    // Initial load and SSE setup
     window.addEventListener('DOMContentLoaded', () => {
         loadNotifications();
+
+        const userId = <?= $authUser ? $authUser['id'] : 'null' ?>;
+        if (userId) {
+            const notiSource = new EventSource('<?= $this->url('api/sse-notifications') ?>');
+            notiSource.onmessage = (event) => {
+                try {
+                    const parsedData = JSON.parse(event.data);
+                    updateNotificationsUI(parsedData, true);
+                } catch (e) {
+                    console.error('SSE JSON parse error:', e);
+                }
+            };
+            notiSource.onerror = (e) => {
+                console.error('SSE Connection failed. Reconnecting in background...', e);
+            };
+        }
     });
 
     async function markNotificationRead(itemId, itemUrl, event) {

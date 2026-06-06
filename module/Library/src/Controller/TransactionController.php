@@ -713,23 +713,36 @@ class TransactionController extends BaseController
 
     public function lostAction(): Response
     {
-        if ($response = $this->requireAdmin()) {
+        if ($response = $this->requireLogin()) {
             return $response;
         }
 
         if (!$this->httpRequest()->isPost()) {
-            return $this->redirect()->toRoute('library/transaction');
+            return $this->redirect()->toRoute($this->routeForRole('transaction'));
         }
 
         $id = $this->routeInt('id');
+        $isAdmin = $this->isAdmin();
+        $currentUser = $this->currentUser() ?? [];
+        $currentUserId = (int) ($currentUser['id'] ?? 0);
 
         try {
+            $record = $this->borrowTable->getRecord($id);
+            if (!$isAdmin && (int)$record->userId !== $currentUserId) {
+                $this->flash()->addErrorMessage('Bạn không có quyền báo mất cuốn sách này.');
+                return $this->redirect()->toRoute('student/transaction');
+            }
+
             $this->circulationService->reportLostBook($id);
-            $this->flash()->addSuccessMessage('Đã ghi nhận báo mất sách. Tài khoản sinh viên đã bị khóa vĩnh viễn.');
+            if ($isAdmin) {
+                $this->flash()->addSuccessMessage('Đã ghi nhận báo mất sách. Tài khoản sinh viên đã bị khóa vĩnh viễn.');
+            } else {
+                $this->flash()->addSuccessMessage('Đã báo mất sách thành công. Tài khoản của bạn đã bị khóa vĩnh viễn chờ đền bù.');
+            }
         } catch (\Throwable $e) {
             $this->flash()->addErrorMessage($e->getMessage());
         }
 
-        return $this->redirect()->toRoute('library/transaction');
+        return $this->redirect()->toRoute($this->routeForRole('transaction'));
     }
 }

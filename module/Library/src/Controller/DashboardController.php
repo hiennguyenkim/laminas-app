@@ -75,11 +75,43 @@ class DashboardController extends BaseController
             $borrowingCategoryStats = $this->borrowTable->getCurrentlyBorrowedCategoryStats();
         }
 
+        $recommendedBooks = [];
+        $unpaidFinesCount = 0;
+        $unpaidFinesSum = 0.0;
+        $categoryStats = [];
+        if (!$isAdmin && $userId > 0) {
+            $categoryStats = $this->bookTable->getCategoryStats($userId);
+            $userCats = $categoryStats;
+            arsort($userCats);
+            $topCategory = !empty($userCats) ? (string)key($userCats) : '';
+            
+            if ($topCategory !== '') {
+                $recommendedBooks = $this->bookTable->getRecommendationsForUser($userId, $topCategory, 3);
+            }
+            if (count($recommendedBooks) < 3) {
+                $additionalBooks = $this->bookTable->getRecommendationsForUser($userId, null, 3 - count($recommendedBooks));
+                $recommendedBooks = array_merge($recommendedBooks, $additionalBooks);
+            }
+
+            try {
+                $sqlFines = "SELECT COUNT(*) AS cnt, SUM(amount) AS total FROM fines WHERE user_id = ? AND status = 'unpaid'";
+                $db = $this->userTable->getAdapter();
+                $fineRow = $db->query($sqlFines)->execute([$userId])->current();
+                $unpaidFinesCount = (int)($fineRow['cnt'] ?? 0);
+                $unpaidFinesSum = (float)($fineRow['total'] ?? 0);
+            } catch (\Throwable $e) {}
+        } else {
+            $categoryStats = $this->bookTable->getCategoryStats(null);
+        }
+
         $viewModel = new ViewModel([
             'isAdmin'              => $isAdmin,
             'currentUser'          => $currentUser,
             'bookSummary'          => $bookSummary,
             'loanSummary'          => $loanSummary,
+            'recommendedBooks'     => $recommendedBooks,
+            'unpaidFinesCount'     => $unpaidFinesCount,
+            'unpaidFinesSum'       => $unpaidFinesSum,
             'totalCategories'      => $this->bookTable->countCategories(),
             'totalTitles'          => $bookSummary['total_titles'] ?? 0,
             'totalCopies'          => $bookSummary['total_copies'] ?? 0,
@@ -90,7 +122,7 @@ class DashboardController extends BaseController
             'totalMembers'         => $isAdmin ? $this->userTable->countByRole('student') : 0,
             'recentBorrows'        => $this->borrowTable->fetchAllWithDetails([], $isAdmin ? null : $userId, 6),
             'monthlyStats'         => $this->borrowTable->getMonthlyStats((int) date('Y'), $isAdmin ? null : $userId),
-            'categoryStats'        => $this->bookTable->getCategoryStats($isAdmin ? null : $userId),
+            'categoryStats'        => $categoryStats,
             'categoryMonthlyStats' => $categoryMonthlyStats,
             'inventoryStatus'      => $inventoryStatus,
             'borrowingCategoryStats' => $borrowingCategoryStats,
