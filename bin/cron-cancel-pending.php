@@ -216,6 +216,31 @@ try {
     $cleanupUsersResult = $db->query($cleanupUsersSql)->execute();
     echo "Deleted " . $cleanupUsersResult->getAffectedRows() . " unverified user(s) whose OTP expired." . PHP_EOL;
 
+    // 9. Tự động kiểm tra gia hạn Gmail Watch (mỗi 6 ngày)
+    echo "[" . date('Y-m-d H:i:s') . "] Checking Gmail Watch renewal..." . PHP_EOL;
+    try {
+        $lastWatchRunRes = $db->query("SELECT setting_value FROM system_settings WHERE setting_key = 'gmail_watch_last_run' LIMIT 1")->execute()->current();
+        $lastWatchRun = $lastWatchRunRes ? (int)$lastWatchRunRes['setting_value'] : 0;
+        
+        $renewIntervalSeconds = 6 * 86400; // 6 days
+        
+        if (time() - $lastWatchRun >= $renewIntervalSeconds) {
+            echo "Gmail Watch needs renewal. Attempting register watch..." . PHP_EOL;
+            /** @var \Library\Service\GmailService $gmailService */
+            $gmailService = $container->get(\Library\Service\GmailService::class);
+            $watchResult = $gmailService->registerWatch();
+            if ($watchResult) {
+                echo "Gmail Watch renewed successfully. Expiration: " . date('Y-m-d H:i:s', (int)($watchResult['expiration'] / 1000)) . PHP_EOL;
+            } else {
+                echo "Gmail Watch renewal skipped (no credentials set)." . PHP_EOL;
+            }
+        } else {
+            echo "Gmail Watch is up to date." . PHP_EOL;
+        }
+    } catch (\Throwable $watchEx) {
+        echo "Failed to renew Gmail Watch: " . $watchEx->getMessage() . PHP_EOL;
+    }
+
 } catch (\Throwable $e) {
     echo "CRITICAL ERROR: " . $e->getMessage() . PHP_EOL;
     exit(1);

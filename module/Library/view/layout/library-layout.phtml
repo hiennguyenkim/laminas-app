@@ -37,6 +37,7 @@ if ($authUser) {
     if ($isAdmin) {
         $navItems[] = ['url' => $this->url('library/user'), 'icon' => 'bi-people', 'label' => 'Thành viên', 'key' => 'user', 'color' => '#22c55e'];
         $navItems[] = ['url' => $this->url('library/books-import'), 'icon' => 'bi-box-seam', 'label' => 'Nhập sách', 'key' => 'books-import', 'color' => '#f59e0b'];
+        $navItems[] = ['url' => $this->url('library/fine'), 'icon' => 'bi-credit-card-2-front', 'label' => 'Khoản phạt', 'key' => 'fine', 'color' => '#ef4444'];
         $navItems[] = ['url' => $this->url('library/settings'), 'icon' => 'bi-gear-fill', 'label' => 'Cài đặt', 'key' => 'settings', 'color' => '#8b5cf6'];
     }
     $navItems[] = ['url' => $this->url($routePrefix . '/transaction'), 'icon' => 'bi-arrow-left-right', 'label' => 'Mượn / Trả', 'key' => 'transaction', 'color' => '#ec4899'];

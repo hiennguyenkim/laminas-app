@@ -95,11 +95,27 @@
 
 ---
 
+### 1.8. Module Payment (VietQR & Webhook Simulator)
+
+| Test case | Role | Kết quả | Trạng thái |
+|-----------|------|---------|------------|
+| Khởi tạo phiên thanh toán phạt | Student | Gọi API `/api/payment/create-session`, sinh `orderCode` ngẫu nhiên độc nhất và lưu DB thành công. | ✅ PASS |
+| Sinh mã VietQR động phía Client | Student | Frontend nhận `orderCode` & `amount`, tự sinh mã quét QR khớp chi tiết. | ✅ PASS |
+| Chuyển đổi tab hiển thị MoMo/VNPay/PayPal | Student | Thay đổi logo, chủ đề phối màu HSL tương thích theo đúng lựa chọn. | ✅ PASS |
+| Đồng hồ đếm ngược hết hạn (15 phút) | Student | Đếm ngược hoạt động chính xác, tự động đóng phiên và chuyển trạng thái DB sang `expired`. | ✅ PASS |
+| Polling kiểm tra trạng thái thanh toán | Student | Tự động gọi API check status mỗi 3 giây, hiển thị overlay chúc mừng khi nhận được tiền. | ✅ PASS |
+| Simulator giả lập Gmail Push | Guest / Dev | Người dùng dán email BIDV giả lập và gửi webhook thành công về API cục bộ. | ✅ PASS |
+| Tự động kích hoạt & Mở khóa tài khoản | System | Webhook khớp thông tin sẽ cập nhật trạng thái phạt sang `paid`, mở khóa thẻ, trả borrowLimit về 5 và lưu thông báo. | ✅ PASS |
+| Tự động gia hạn watch Google API | System / Cron | Pseudo-cron định kỳ kiểm tra gia hạn đăng ký watch Gmail mỗi 6 ngày thành công. | ✅ PASS |
+| Kiểm thử tự động PHPUnit Payment API | System | Toàn bộ 4/4 tests trong `PaymentApiControllerTest` hoạt động ổn định và chính xác. | ✅ PASS |
+
+---
+
 ## 2. Tổng hợp Kết quả Toàn Hệ thống
 
-*   **Tổng số PHPUnit Unit & Integration Tests:** 107/107 tests passed ✅
-*   **Tổng số E2E & Integration Live Checks:** 44/44 cases passed ✅
+*   **Tổng số PHPUnit Unit & Integration Tests:** 127/127 tests passed ✅
+*   **Tổng số E2E & Integration Live Checks:** 53/53 cases passed ✅
 *   **Kết quả toàn hệ thống:**
-    -   **PASS:** 151
+    -   **PASS:** 180
     -   **FAIL:** 0
     -   **SKIP:** 0

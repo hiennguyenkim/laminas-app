@@ -65,10 +65,11 @@ class Module
             }
             $uri = $request->getUri()->getPath();
 
-            // Check if route is maintenance page or auth page
+            // Check if route is maintenance page or auth page or payment api
             if ($matchedRouteName === 'maintenance' || 
                 strpos($uri, '/auth') !== false || 
-                strpos($matchedRouteName, 'auth') !== false) {
+                strpos($matchedRouteName, 'auth') !== false ||
+                strpos($uri, '/api/payment') !== false) {
                 // Let it proceed (will check maintenance route redirection below)
             } else {
                 // Check if maintenance mode is active

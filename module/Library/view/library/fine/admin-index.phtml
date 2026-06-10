@@ -1,0 +1,229 @@
+<?php
+$this->headTitle('Quản lý khoản phạt');
+$this->layout('layout/library-layout');
+
+$routePrefix = 'library/fine';
+$filterStatus = (string)($filters['status'] ?? '');
+$filterSearch = (string)($filters['search'] ?? '');
+
+$pagination = $pagination ?? [];
+$page       = (int) ($pagination['page'] ?? 1);
+$perPage    = (int) ($pagination['perPage'] ?? 20);
+$totalItems = (int) ($pagination['totalItems'] ?? 0);
+$totalPages = (int) ($pagination['totalPages'] ?? 1);
+
+$queryBase = [
+    'search'    => $filterSearch,
+    'status'    => $filterStatus,
+    'sort'      => $filters['sort'] ?? 'created_at',
+    'direction' => $filters['direction'] ?? 'DESC',
+];
+
+$buildPageUrl = function(int $p) use ($queryBase, $routePrefix): string {
+    $q = $queryBase; $q['page'] = $p;
+    $q = array_filter($q, fn($v) => $v !== null && $v !== '');
+    return $this->url($routePrefix, [], ['query' => $q]);
+};
+
+$buildSortUrl = function(string $col) use ($queryBase, $routePrefix): string {
+    $currentSort = $queryBase['sort'];
+    $currentDir  = strtoupper($queryBase['direction']);
+    if ($currentSort === $col) {
+        $newDir = ($currentDir === 'ASC') ? 'DESC' : 'ASC';
+    } else {
+        $newDir = ($col === 'amount') ? 'DESC' : 'ASC';
+    }
+    $q = $queryBase;
+    $q['sort'] = $col;
+    $q['direction'] = $newDir;
+    $q = array_filter($q, fn($v) => $v !== null && $v !== '');
+    return $this->url($routePrefix, [], ['query' => $q]);
+};
+
+$renderSortIcon = function(string $col) use ($queryBase): string {
+    $currentSort = $queryBase['sort'];
+    $currentDir  = strtoupper($queryBase['direction']);
+    if ($currentSort !== $col) {
+        return '<i class="bi bi-arrow-down-up ms-1" style="font-size: 0.75rem; opacity: 0.4;"></i>';
+    }
+    if ($currentDir === 'ASC') {
+        return '<i class="bi bi-sort-down ms-1" style="font-size: 0.85rem; color: var(--accent-purple);"></i>';
+    }
+    return '<i class="bi bi-sort-up ms-1" style="font-size: 0.85rem; color: var(--accent-purple);"></i>';
+};
+?>
+
+<!-- PAGE HEADER -->
+<div class="page-header">
+    <div>
+        <div class="page-title">Quản lý khoản phạt</div>
+        <div class="page-subtitle">Theo dõi, nộp phạt tiền mặt và trích xuất báo cáo khoản phạt toàn hệ thống.</div>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="<?= $this->url('library/fine', ['action' => 'adminExport'], ['query' => $queryBase]) ?>" class="btn btn-outline d-flex align-items-center gap-2" title="Xuất Excel (.xlsx)" style="font-weight: 600; height: 38px;">
+            <i class="bi bi-file-earmark-excel" style="color:#1d6f42;"></i>Xuất .xlsx
+        </a>
+    </div>
+</div>
+
+<!-- STAT CARDS -->
+<div class="stat-cards tx-stat-cards" style="margin-bottom: 24px;">
+    <div class="stat-card red" style="flex: 1; padding: 16px 20px;">
+        <div class="d-flex align-center gap-3">
+            <div class="stat-icon red" style="background: rgba(239, 68, 68, 0.15); color: #ef4444;"><i class="bi bi-wallet2"></i></div>
+            <div>
+                <div class="stat-value" style="font-size: 20px; font-weight: 700; color: #ef4444;"><?= number_format((float)($summary['total_unpaid'] ?? 0)) ?>đ</div>
+                <div class="stat-label" style="font-size: 11px;">Chưa nộp</div>
+            </div>
+        </div>
+    </div>
+    <div class="stat-card green" style="flex: 1; padding: 16px 20px;">
+        <div class="d-flex align-center gap-3">
+            <div class="stat-icon green" style="background: rgba(34, 197, 94, 0.15); color: var(--accent-green);"><i class="bi bi-cash-stack"></i></div>
+            <div>
+                <div class="stat-value" style="font-size: 20px; font-weight: 700; color: var(--accent-green);"><?= number_format((float)($summary['total_paid'] ?? 0)) ?>đ</div>
+                <div class="stat-label" style="font-size: 11px;">Đã thu</div>
+            </div>
+        </div>
+    </div>
+    <div class="stat-card purple" style="flex: 1; padding: 16px 20px;">
+        <div class="d-flex align-center gap-3">
+            <div class="stat-icon purple" style="background: rgba(124, 106, 255, 0.15); color: var(--accent-purple);"><i class="bi bi-file-earmark-text"></i></div>
+            <div>
+                <div class="stat-value" style="font-size: 20px; font-weight: 700; color: var(--accent-purple);"><?= number_format((int)($summary['total_count'] ?? 0)) ?></div>
+                <div class="stat-label" style="font-size: 11px;">Tổng số hóa đơn</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- FILTERS -->
+<div class="tx-filters-bar" style="margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
+    <div class="filter-tabs" style="margin-bottom: 0; display: flex; gap: 8px;">
+        <a href="<?= $this->url('library/fine', [], ['query' => array_merge($queryBase, ['status' => '', 'page' => 1])]) ?>" class="filter-tab <?= $filterStatus === '' ? 'active' : '' ?>" style="text-decoration: none; padding: 6px 16px; border-radius: 20px; font-size: 13px; font-weight: 600;">
+            Tất cả
+        </a>
+        <a href="<?= $this->url('library/fine', [], ['query' => array_merge($queryBase, ['status' => 'unpaid', 'page' => 1])]) ?>" class="filter-tab <?= $filterStatus === 'unpaid' ? 'active' : '' ?>" style="text-decoration: none; padding: 6px 16px; border-radius: 20px; font-size: 13px; font-weight: 600;">
+            Chưa nộp
+        </a>
+        <a href="<?= $this->url('library/fine', [], ['query' => array_merge($queryBase, ['status' => 'paid', 'page' => 1])]) ?>" class="filter-tab <?= $filterStatus === 'paid' ? 'active' : '' ?>" style="text-decoration: none; padding: 6px 16px; border-radius: 20px; font-size: 13px; font-weight: 600;">
+            Đã nộp
+        </a>
+    </div>
+
+    <form method="GET" style="display: flex; gap: 8px; align-items: center; justify-content: flex-end; flex: 1; min-width: 280px;">
+        <input type="hidden" name="status" value="<?= htmlspecialchars($filterStatus) ?>">
+        <input type="hidden" name="sort" value="<?= htmlspecialchars($queryBase['sort']) ?>">
+        <input type="hidden" name="direction" value="<?= htmlspecialchars($queryBase['direction']) ?>">
+
+        <div class="topbar-search" style="position: relative; width: 260px; margin: 0; height: 38px; border-radius: 8px;">
+            <i class="bi bi-search"></i>
+            <input type="text" name="search" value="<?= htmlspecialchars($filterSearch) ?>" placeholder="Tìm mã, sinh viên, lý do...">
+            <?php if (!empty($filterSearch)): ?>
+                <i class="bi bi-x-circle-fill search-clear-btn" style="position: absolute; right: 12px; cursor: pointer; color: var(--text-muted); font-size: 14px; top: 50%; transform: translateY(-50%);" onclick="this.previousElementSibling.value=''; this.closest('form').submit();"></i>
+            <?php endif; ?>
+        </div>
+        <button type="submit" class="btn btn-primary" style="height: 38px; padding: 0 16px; font-weight: 600;">Tìm</button>
+    </form>
+</div>
+
+<!-- DATA TABLE -->
+<div class="card">
+    <div class="card-header">
+        <div class="card-title"><i class="bi bi-wallet2" style="color: var(--accent-purple); margin-right: 8px;"></i> Danh sách khoản phạt</div>
+    </div>
+    <div class="card-body" style="padding: 0; overflow-x: auto;">
+        <?php if (empty($fines)): ?>
+            <div style="padding: 40px; text-align: center; color: var(--text-muted);">
+                <i class="bi bi-inbox" style="font-size: 48px; opacity: 0.3; display: block; margin-bottom: 15px;"></i>
+                <h4 style="color: var(--text-primary); margin-bottom: 8px; font-weight: 600;">Không tìm thấy khoản phạt nào</h4>
+                <p style="font-size: 13.5px; max-width: 400px; margin: 0 auto;">Vui lòng thử lại với từ khóa hoặc điều kiện lọc khác.</p>
+            </div>
+        <?php else: ?>
+            <table class="data-table" style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr>
+                        <th style="width: 70px; padding: 12px 16px;"><a href="<?= $buildSortUrl('id') ?>" style="color: inherit; text-decoration: none;">ID <?= $renderSortIcon('id') ?></a></th>
+                        <th style="min-width: 180px; padding: 12px 16px;"><a href="<?= $buildSortUrl('username') ?>" style="color: inherit; text-decoration: none;">Sinh viên <?= $renderSortIcon('username') ?></a></th>
+                        <th style="width: 110px; padding: 12px 16px;"><a href="<?= $buildSortUrl('amount') ?>" style="color: inherit; text-decoration: none;">Số tiền <?= $renderSortIcon('amount') ?></a></th>
+                        <th style="min-width: 250px; padding: 12px 16px;">Lý do phạt</th>
+                        <th style="width: 130px; padding: 12px 16px;"><a href="<?= $buildSortUrl('status') ?>" style="color: inherit; text-decoration: none;">Trạng thái <?= $renderSortIcon('status') ?></a></th>
+                        <th style="width: 150px; padding: 12px 16px;"><a href="<?= $buildSortUrl('created_at') ?>" style="color: inherit; text-decoration: none;">Ngày tạo <?= $renderSortIcon('created_at') ?></a></th>
+                        <th style="width: 150px; padding: 12px 16px;"><a href="<?= $buildSortUrl('paid_at') ?>" style="color: inherit; text-decoration: none;">Ngày nộp <?= $renderSortIcon('paid_at') ?></a></th>
+                        <th style="width: 140px; padding: 12px 16px; text-align: right;">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($fines as $fine): ?>
+                        <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.04);">
+                            <td data-label="ID" class="text-muted">#<?= $fine['fine_id'] ?></td>
+                            <td data-label="Sinh viên">
+                                <div class="fw-medium" style="color: var(--text-primary);"><?= htmlspecialchars($fine['full_name']) ?></div>
+                                <div class="text-muted small">@<?= htmlspecialchars($fine['username']) ?></div>
+                            </td>
+                            <td data-label="Số tiền" class="fw-bold"><?= number_format((float)$fine['amount']) ?>đ</td>
+                            <td data-label="Lý do" class="text-muted" style="max-width: 320px; font-size: 13px;"><?= htmlspecialchars($fine['reason']) ?></td>
+                            <td data-label="Trạng thái">
+                                <?php if ($fine['status'] === 'paid'): ?>
+                                    <span class="badge badge-green" style="background: rgba(34, 197, 94, 0.1); color: rgb(34, 197, 94); border: 1px solid rgba(34, 197, 94, 0.2); padding: 3px 8px; border-radius: 20px; font-size: 11px;">
+                                        Đã nộp
+                                    </span>
+                                <?php else: ?>
+                                    <span class="badge badge-red" style="background: rgba(239, 68, 68, 0.1); color: rgb(239, 68, 68); border: 1px solid rgba(239, 68, 68, 0.2); padding: 3px 8px; border-radius: 20px; font-size: 11px;">
+                                        Chưa nộp
+                                    </span>
+                                <?php endif; ?>
+                            </td>
+                            <td data-label="Ngày tạo" class="text-muted" style="font-size: 12.5px;"><?= date('d/m/Y H:i', strtotime($fine['created_at'])) ?></td>
+                            <td data-label="Ngày nộp" class="text-muted" style="font-size: 12.5px;"><?= $fine['paid_at'] ? date('d/m/Y H:i', strtotime($fine['paid_at'])) : '<span style="opacity:0.3">—</span>' ?></td>
+                            <td data-label="Thao tác" style="text-align: right;">
+                                <?php if ($fine['status'] === 'unpaid'): ?>
+                                    <form action="<?= $this->url('library/fine', ['action' => 'adminPay', 'id' => $fine['fine_id']]) ?>" method="POST" style="margin:0;" onsubmit="return confirm('Bạn có chắc chắn muốn xác nhận đã thu tiền mặt cho khoản phạt #<?= $fine['fine_id'] ?> của sinh viên <?= htmlspecialchars($fine['full_name']) ?>?');">
+                                        <button type="submit" class="btn btn-outline btn-sm" style="padding: 4px 10px; font-size: 11.5px; height: 26px;">
+                                            <i class="bi bi-cash"></i> Thu tiền mặt
+                                        </button>
+                                    </form>
+                                <?php else: ?>
+                                    <button class="btn btn-outline btn-sm" disabled style="padding: 4px 10px; font-size: 11.5px; height: 26px; opacity: 0.5; cursor: not-allowed;">
+                                        <i class="bi bi-check-lg"></i> Hoàn tất
+                                    </button>
+                                <?php endif; ?>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+
+            <!-- PAGINATION -->
+            <?php if ($totalPages > 1): ?>
+                <div class="book-import-pagination-row" style="padding: 20px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-color); flex-wrap: wrap; gap: 12px;">
+                    <div class="book-import-pagination-info" style="font-size: 13px; color: var(--text-muted);">
+                        Hiển thị trang <strong class="book-import-pagination-bold" style="color: var(--text-primary);"><?= $page ?></strong> / <?= $totalPages ?>
+                        &nbsp;•&nbsp; Tổng <strong class="book-import-pagination-bold" style="color: var(--text-primary);"><?= $totalItems ?></strong> khoản phạt
+                    </div>
+                    <div class="book-import-pagination-btns" style="display: flex; gap: 6px;">
+                        <?php if ($page > 1): ?>
+                            <a href="<?= $buildPageUrl(1) ?>" class="btn btn-outline btn-sm" title="Trang đầu"><i class="bi bi-chevron-double-left"></i></a>
+                            <a href="<?= $buildPageUrl($page - 1) ?>" class="btn btn-outline btn-sm"><i class="bi bi-chevron-left"></i> Trước</a>
+                        <?php endif; ?>
+
+                        <?php
+                        $startPage = max(1, $page - 2);
+                        $endPage   = min($totalPages, $page + 2);
+                        for ($p = $startPage; $p <= $endPage; $p++):
+                        ?>
+                            <a href="<?= $buildPageUrl($p) ?>"
+                               class="btn btn-sm <?= $p === $page ? 'btn-primary' : 'btn-outline' ?>"
+                               style="min-width:32px;text-align:center"><?= $p ?></a>
+                        <?php endfor; ?>
+
+                        <?php if ($page < $totalPages): ?>
+                            <a href="<?= $buildPageUrl($page + 1) ?>" class="btn btn-outline btn-sm">Sau <i class="bi bi-chevron-right"></i></a>
+                            <a href="<?= $buildPageUrl($totalPages) ?>" class="btn btn-outline btn-sm" title="Trang cuối"><i class="bi bi-chevron-double-right"></i></a>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            <?php endif; ?>
+        <?php endif; ?>
+    </div>
+</div>

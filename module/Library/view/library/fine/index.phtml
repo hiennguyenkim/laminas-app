@@ -69,17 +69,16 @@ $this->layout('layout/library-layout');
                                     <?= $fine['paid_at'] ? date('d/m/Y H:i', strtotime($fine['paid_at'])) : '<span style="opacity: 0.4;">—</span>' ?>
                                 </td>
                                 <td style="padding: 16px 20px; text-align: right;">
-                                    <?php if ($fine['status'] === 'unpaid'): ?>
-                                        <a href="<?= $this->url('student/fine', ['action' => 'checkout', 'id' => $fine['fine_id']]) ?>" 
-                                           class="btn btn-sm btn-icon" 
-                                           style="background: var(--accent-purple); border-color: var(--accent-purple); color: #fff; padding: 6px 14px; font-size: 12.5px; border-radius: 6px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; text-decoration: none; transition: var(--transition);">
-                                            <i class="bi bi-credit-card-fill"></i> Thanh toán
-                                        </a>
-                                    <?php else: ?>
-                                        <button class="btn btn-sm btn-icon" disabled style="background: rgba(255,255,255,0.02); border-color: var(--border-color); color: var(--text-muted); padding: 6px 14px; font-size: 12.5px; border-radius: 6px; opacity: 0.6; cursor: not-allowed; display: inline-flex; align-items: center; gap: 6px;">
-                                            <i class="bi bi-check-lg"></i> Hoàn tất
-                                        </button>
-                                    <?php endif; ?>
+                                     <?php if ($fine['status'] === 'unpaid'): ?>
+                                         <a href="<?= $this->url('student/fine', ['action' => 'checkout', 'id' => $fine['fine_id']]) ?>" 
+                                            class="btn btn-sm btn-primary">
+                                             <i class="bi bi-credit-card-fill"></i> Thanh toán
+                                         </a>
+                                     <?php else: ?>
+                                         <button class="btn btn-sm btn-outline" disabled style="opacity: 0.5; cursor: not-allowed;">
+                                             <i class="bi bi-check-lg"></i> Hoàn tất
+                                         </button>
+                                     <?php endif; ?>
                                 </td>
                             </tr>
                         <?php endforeach; ?>

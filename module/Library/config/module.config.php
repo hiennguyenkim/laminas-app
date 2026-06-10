@@ -223,6 +223,20 @@ return [
                             'defaults'    => ['controller' => SettingsController::class, 'action' => 'index'],
                         ],
                     ],
+                    'fine' => [
+                        'type'    => Segment::class,
+                        'options' => [
+                            'route'       => '/fine[/:action[/:id]]',
+                            'constraints' => [
+                                'action' => '[a-zA-Z][a-zA-Z0-9_-]*',
+                                'id'     => '[0-9]+',
+                            ],
+                            'defaults'    => [
+                                'controller' => FineController::class,
+                                'action'     => 'adminIndex',
+                            ],
+                        ],
+                    ],
                     'announcements' => [
                         'type'    => Segment::class,
                         'options' => [
@@ -490,6 +504,18 @@ return [
                             ],
                         ],
                     ],
+                    'payment' => [
+                        'type' => Segment::class,
+                        'options' => [
+                            'route' => '/payment[/:action]',
+                            'constraints' => [
+                                'action' => '[a-zA-Z][a-zA-Z0-9_-]*',
+                            ],
+                            'defaults' => [
+                                'controller' => \Library\Controller\Api\PaymentApiController::class,
+                            ],
+                        ],
+                    ],
                 ],
             ],
         ],
@@ -515,6 +541,7 @@ return [
             NotificationApiController::class => NotificationApiControllerFactory::class,
             SseController::class => SseControllerFactory::class,
             FineController::class => FineControllerFactory::class,
+            \Library\Controller\Api\PaymentApiController::class => \Library\Factory\Controller\Api\PaymentApiControllerFactory::class,
         ],
     ],
 
@@ -524,6 +551,7 @@ return [
             BookTable::class          => BookTableFactory::class,
             UserTable::class          => UserTableFactory::class,
             BorrowTable::class        => BorrowTableFactory::class,
+            \Library\Model\Table\PaymentSessionTable::class => \Library\Factory\Table\PaymentSessionTableFactory::class,
             \Library\Model\Table\AnnouncementTable::class => \Library\Factory\Table\AnnouncementTableFactory::class,
             \Library\Model\Table\PublicChatTable::class => \Library\Factory\Table\PublicChatTableFactory::class,
             \Library\Model\Table\TicketTable::class => \Library\Factory\Table\TicketTableFactory::class,
@@ -538,6 +566,7 @@ return [
             CirculationService::class => CirculationServiceFactory::class,
             AuthSessionContainer::class => AuthSessionContainerFactory::class,
             \Library\Service\MailService::class => \Library\Factory\Service\MailServiceFactory::class,
+            \Library\Service\GmailService::class => \Library\Factory\Service\GmailServiceFactory::class,
         ],
     ],
 
