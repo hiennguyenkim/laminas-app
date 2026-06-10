@@ -47,6 +47,12 @@ class GmailService
             Gmail::GMAIL_READONLY
         ]);
 
+        // Set HTTP timeout to prevent hanging in CLI/cron environments
+        $client->setHttpClient(new \GuzzleHttp\Client([
+            'timeout'         => 30,   // Max 30s per request
+            'connect_timeout' => 10,   // Max 10s to establish connection
+        ]));
+
         // Try getting access token from setting
         $accessTokenJson = $this->systemSettingsTable->getSetting('gmail_access_token');
         if ($accessTokenJson) {
@@ -168,9 +174,11 @@ class GmailService
         $processedCodes = [];
 
         try {
-            // Find unread emails
+            // Filter to bank notification emails only + limit to 20 most recent
+            // This prevents hanging when mailbox has many unread emails
             $response = $gmail->users_messages->listUsersMessages('me', [
-                'q' => 'is:unread'
+                'q'          => 'is:unread subject:(biến động OR giao dịch OR thanh toán OR BIDV OR VCB OR Vietcombank OR MB OR Techcombank OR ACB OR Sacombank OR HDPE)',
+                'maxResults' => 20,
             ]);
 
             $messages = $response->getMessages();
@@ -180,8 +188,18 @@ class GmailService
 
             foreach ($messages as $msgSummary) {
                 $msgId = $msgSummary->getId();
+
+                // Always mark as read first to prevent re-processing on next cron run
+                try {
+                    $mods = new \Google\Service\Gmail\ModifyMessageRequest();
+                    $mods->setRemoveLabelIds(['UNREAD']);
+                    $gmail->users_messages->modify('me', $msgId, $mods);
+                } catch (\Throwable) {
+                    // Non-critical: if mark-read fails, just continue
+                }
+
                 $msg = $gmail->users_messages->get('me', $msgId, ['format' => 'full']);
-                
+
                 // Parse email body
                 $body = $this->getEmailBody($msg);
                 if (empty($body)) {
@@ -210,18 +228,22 @@ class GmailService
                         }
                     }
                 }
-
-                // Mark as read by removing UNREAD label
-                $mods = new \Google\Service\Gmail\ModifyMessageRequest();
-                $mods->setRemoveLabelIds(['UNREAD']);
-                $gmail->users_messages->modify('me', $msgId, $mods);
             }
         } catch (\Throwable $e) {
-            // Log error or ignore
+            // Log to file so cron issues are traceable
+            $logDir = dirname(__DIR__, 5) . '/data/logs';
+            if (is_dir($logDir)) {
+                @file_put_contents(
+                    $logDir . '/cron-gmail.log',
+                    '[' . date('Y-m-d H:i:s') . '] processEmails ERROR: ' . $e->getMessage() . PHP_EOL,
+                    FILE_APPEND | LOCK_EX
+                );
+            }
         }
 
         return $processedCodes;
     }
+
 
     /**
      * Directly simulate webhook parsing with text content (for the local Webhook Simulator Panel)
@@ -311,11 +333,15 @@ class GmailService
 
     private function verifyAmount(string $body, float $amount): bool
     {
-        $intAmount = (int) $amount;
+        // Use round() to avoid float precision issues (e.g. 50000.5 rounding to 50001)
+        $intAmount = (int) round($amount);
         $variations = [
-            (string) $intAmount,
-            number_format($amount, 0, '.', '.'), // 150.000
-            number_format($amount, 0, ',', ','), // 150,000
+            (string) $intAmount,                           // 50000
+            number_format($intAmount, 0, '.', '.'),        // 50.000 (VN format, dot separator)
+            number_format($intAmount, 0, ',', ','),        // 50,000 (comma separator)
+            number_format($intAmount, 0, '.', ' '),        // 50 000 (space separator)
+            number_format($intAmount, 0, '.', ''),         // 50000 (no separator)
+            number_format($intAmount, 0, ',', '.'),        // 50.000 (alternative)
         ];
 
         foreach ($variations as $var) {

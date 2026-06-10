@@ -77,4 +77,24 @@ class PaymentSessionTable
         }
         return $sessions;
     }
+
+    /**
+     * Remove stale pending sessions that have been expired for more than 24 hours.
+     * Call this before creating a new session to keep the table clean.
+     */
+    public function cleanupExpiredSessions(int $targetId, string $targetType = 'fine'): void
+    {
+        // Mark old pending sessions as expired if they're past their expired_at time
+        $cutoff = date('Y-m-d H:i:s', time() - 86400); // 24h ago
+        try {
+            $this->tableGateway->delete(function ($where) use ($targetId, $targetType, $cutoff) {
+                $where->equalTo('target_id', $targetId);
+                $where->equalTo('target_type', $targetType);
+                $where->equalTo('status', 'pending');
+                $where->lessThan('expired_at', $cutoff);
+            });
+        } catch (\Throwable) {
+            // Cleanup failure is non-critical; do not propagate
+        }
+    }
 }

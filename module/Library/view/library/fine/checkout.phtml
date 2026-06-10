@@ -298,6 +298,19 @@ $accountName = !empty($bankSettings['vietqr_account_name']) ? $bankSettings['vie
                 <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Hết hạn sau</div>
                 <div class="countdown-timer" id="timer">--:--</div>
             </div>
+
+            <!-- Confirm Payment Button -->
+            <div style="margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border-color);" id="confirmBtnArea">
+                <button id="confirmPayBtn"
+                    onclick="confirmPayment()"
+                    class="btn"
+                    style="width: 100%; background: linear-gradient(135deg, #10b981, #059669); border: none; color: #fff; font-weight: 700; font-size: 14px; padding: 12px 20px; border-radius: 10px; display: flex; align-items: center; justify-content: center; gap: 10px; transition: 0.2s; box-shadow: 0 4px 15px rgba(16,185,129,0.3);">
+                    <span id="confirmBtnSpinner" class="spinner-border spinner-border-sm" style="display:none;"></span>
+                    <i class="bi bi-check2-circle" id="confirmBtnIcon"></i>
+                    <span id="confirmBtnLabel">Tôi đã chuyển khoản xong</span>
+                </button>
+                <div id="confirmBtnFeedback" style="font-size: 12px; margin-top: 8px; text-align: center;"></div>
+            </div>
         </div>
     </div>
 </div>
@@ -496,6 +509,60 @@ function startPolling() {
 function recreateSession() {
     $('#expiredOverlay').hide();
     requestPaymentSession(currentChannel);
+}
+
+/**
+ * One-click payment confirmation — uses the simulator endpoint.
+ * Works in dev/demo environments where Gmail Pub/Sub is not set up.
+ */
+function confirmPayment() {
+    if (!orderCode) {
+        $('#confirmBtnFeedback').css('color', '#ef4444').text('Chưa có mã phiên. Vui lòng chờ QR tải xong.');
+        return;
+    }
+
+    const emailBody = $('#simEmailContent').val();
+    if (!emailBody || !emailBody.trim()) {
+        $('#confirmBtnFeedback').css('color', '#ef4444').text('Nội dung xác nhận chưa sẵn sàng. Thử tải lại trang.');
+        return;
+    }
+
+    $('#confirmBtnSpinner').show();
+    $('#confirmBtnIcon').hide();
+    $('#confirmBtnLabel').text('Đang xác nhận...');
+    $('#confirmPayBtn').prop('disabled', true);
+    $('#confirmBtnFeedback').text('');
+
+    fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ simulate_email_body: emailBody })
+    })
+    .then(res => res.json())
+    .then(data => {
+        $('#confirmBtnSpinner').hide();
+        $('#confirmBtnIcon').show();
+        if (data.status === 'success' && data.processedCodes && data.processedCodes.length > 0) {
+            $('#confirmPayBtn').css('background', 'linear-gradient(135deg, #059669, #047857)');
+            $('#confirmBtnLabel').text('Đã xác nhận! Đang cập nhật...');
+            $('#confirmBtnFeedback').css('color', '#10b981').text('✓ Giao dịch hợp lệ — trang sẽ tự cập nhật trong giây lát.');
+        } else if (data.processedCodes && data.processedCodes.length === 0) {
+            $('#confirmBtnLabel').text('Tôi đã chuyển khoản xong');
+            $('#confirmPayBtn').prop('disabled', false);
+            $('#confirmBtnFeedback').css('color', '#f59e0b').html('<i class="bi bi-exclamation-triangle"></i> Không khớp mã hoặc số tiền. Kiểm tra lại nội dung chuyển khoản đúng với mã QR.');
+        } else {
+            $('#confirmBtnLabel').text('Tôi đã chuyển khoản xong');
+            $('#confirmPayBtn').prop('disabled', false);
+            $('#confirmBtnFeedback').css('color', '#ef4444').text('Lỗi xác nhận: ' + (data.error || 'Thử lại sau.'));
+        }
+    })
+    .catch(err => {
+        $('#confirmBtnSpinner').hide();
+        $('#confirmBtnIcon').show();
+        $('#confirmBtnLabel').text('Tôi đã chuyển khoản xong');
+        $('#confirmPayBtn').prop('disabled', false);
+        $('#confirmBtnFeedback').css('color', '#ef4444').text('Lỗi kết nối. Vui lòng thử lại.');
+    });
 }
 
 function triggerSimulatedWebhook() {

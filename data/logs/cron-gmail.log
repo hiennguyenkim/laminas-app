@@ -1,0 +1,27 @@
+[2026-06-10 18:29:24] === Gmail Polling START ===
+[2026-06-10 18:31:46] === Gmail Polling START ===
+[2026-06-10 18:31:47] SKIP: Another instance is already running (lock file busy).
+[2026-06-10 18:33:04] === Gmail Polling START ===
+[2026-06-10 18:33:05] ERROR: syntax error, unexpected token "try", expecting "function" or "const"
+[2026-06-10 18:33:05] Trace: C:\xampp\htdocs\laminas-app\module\Library\src\Service\GmailService.php:248
+[2026-06-10 18:33:44] === Gmail Polling START ===
+[2026-06-10 18:33:45] OK: No new payments found.
+[2026-06-10 18:33:45] === Gmail Polling END ===
+[2026-06-10 18:34:04] === Gmail Polling START ===
+[2026-06-10 18:34:05] OK: No new payments found.
+[2026-06-10 18:34:05] === Gmail Polling END ===
+[2026-06-10 18:35:06] === Gmail Polling START ===
+[2026-06-10 18:35:08] OK: No new payments found.
+[2026-06-10 18:35:08] === Gmail Polling END ===
+[2026-06-10 18:36:06] === Gmail Polling START ===
+[2026-06-10 18:36:07] OK: No new payments found.
+[2026-06-10 18:36:07] === Gmail Polling END ===
+[2026-06-10 18:37:04] === Gmail Polling START ===
+[2026-06-10 18:37:06] OK: No new payments found.
+[2026-06-10 18:37:06] === Gmail Polling END ===
+[2026-06-10 18:38:05] === Gmail Polling START ===
+[2026-06-10 18:38:07] OK: No new payments found.
+[2026-06-10 18:38:07] === Gmail Polling END ===
+[2026-06-10 18:39:05] === Gmail Polling START ===
+[2026-06-10 18:39:07] OK: No new payments found.
+[2026-06-10 18:39:07] === Gmail Polling END ===

@@ -26,6 +26,9 @@ class Module
      */
     public function onBootstrap(MvcEvent $event): void
     {
+        // Ensure all date/time operations use Vietnam timezone
+        date_default_timezone_set('Asia/Ho_Chi_Minh');
+
         $application = $event->getApplication();
         $eventManager = $application->getEventManager();
         $container = $application->getServiceManager();
@@ -45,6 +48,7 @@ class Module
                 $sessionManager->start();
             }
         }
+
 
         // Attach Maintenance Check Listener
         $eventManager->attach(MvcEvent::EVENT_ROUTE, function (MvcEvent $e) use ($container) {

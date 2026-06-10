@@ -58,6 +58,9 @@ class PaymentApiController extends AbstractActionController
 
         $amount = (float)$fine['amount'];
         
+        // Clean up expired sessions older than 24h before creating/reusing
+        $this->paymentSessionTable->cleanupExpiredSessions($fineId, 'fine');
+
         // Check if there is already a pending session for this fine
         $existing = $this->paymentSessionTable->getPendingSessionsByTarget($fineId, 'fine');
         if (!empty($existing)) {
