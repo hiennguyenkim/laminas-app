@@ -113,8 +113,8 @@ class FineControllerTest extends AbstractHttpControllerTestCase
 
         // 2. Mock DB query returning a single unpaid fine
         $dbMock = $this->createMock(\Laminas\Db\Adapter\Adapter::class);
-        $stmtMock = $this->createMock(StatementInterface::class);
-        $resMock = $this->createMock(ResultInterface::class);
+        $stmtFine = $this->createMock(StatementInterface::class);
+        $resFine = $this->createMock(ResultInterface::class);
 
         $fineData = [
             'fine_id' => 1,
@@ -126,9 +126,24 @@ class FineControllerTest extends AbstractHttpControllerTestCase
             'paid_at' => null,
         ];
 
-        $resMock->method('current')->willReturn($fineData);
-        $stmtMock->method('execute')->willReturn($resMock);
-        $dbMock->method('createStatement')->with(self::stringContains('SELECT * FROM fines WHERE fine_id'))->willReturn($stmtMock);
+        $resFine->method('current')->willReturn($fineData);
+        $stmtFine->method('execute')->willReturn($resFine);
+
+        $stmtSettings = $this->createMock(StatementInterface::class);
+        $resSettings = $this->createMock(ResultInterface::class);
+        $resSettings->method('rewind')->willReturnCallback(function() {});
+        $resSettings->method('valid')->willReturn(false);
+        $stmtSettings->method('execute')->willReturn($resSettings);
+
+        $dbMock->method('createStatement')->willReturnCallback(function($sql) use ($stmtFine, $stmtSettings) {
+            if (strpos($sql, 'SELECT * FROM fines WHERE fine_id') !== false) {
+                return $stmtFine;
+            }
+            if (strpos($sql, 'FROM system_settings') !== false) {
+                return $stmtSettings;
+            }
+            throw new \RuntimeException("Unexpected SQL in test: " . $sql);
+        });
 
         $serviceLocator = $this->getApplicationServiceLocator();
         $serviceLocator->setAllowOverride(true);
@@ -191,13 +206,23 @@ class FineControllerTest extends AbstractHttpControllerTestCase
         $resCheckUnpaid->method('current')->willReturn(['cnt' => 0]);
         $stmtCheckUnpaid->method('execute')->willReturn($resCheckUnpaid);
 
+        // Mock statement for settings query
+        $stmtSettings = $this->createMock(StatementInterface::class);
+        $resSettings = $this->createMock(ResultInterface::class);
+        $resSettings->method('rewind')->willReturnCallback(function() {});
+        $resSettings->method('valid')->willReturn(false);
+        $stmtSettings->method('execute')->willReturn($resSettings);
+
         // Map statements based on SQL queries
-        $dbMock->method('createStatement')->willReturnCallback(function($sql) use ($stmtSelectFine, $stmtCheckUnpaid) {
+        $dbMock->method('createStatement')->willReturnCallback(function($sql) use ($stmtSelectFine, $stmtCheckUnpaid, $stmtSettings) {
             if (strpos($sql, 'SELECT * FROM fines WHERE fine_id') !== false) {
                 return $stmtSelectFine;
             }
             if (strpos($sql, 'SELECT COUNT(*) AS cnt FROM fines') !== false) {
                 return $stmtCheckUnpaid;
+            }
+            if (strpos($sql, 'FROM system_settings') !== false) {
+                return $stmtSettings;
             }
             throw new \RuntimeException("Unexpected createStatement call: " . $sql);
         });

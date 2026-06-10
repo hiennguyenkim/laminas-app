@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Library\Controller;
 
+use Library\Service\GmailService;
 use Library\Session\AuthSessionContainer;
 use Library\Model\Table\SystemSettingsTable;
 use Library\Model\Table\BookCategoryTable;
@@ -17,7 +18,8 @@ class SettingsController extends BaseController
         AuthSessionContainer $authSessionContainer,
         private SystemSettingsTable $systemSettingsTable,
         private BookCategoryTable $bookCategoryTable,
-        private BookTable $bookTable
+        private BookTable $bookTable,
+        private GmailService $gmailService
     ) {
         parent::__construct($authSessionContainer);
     }
@@ -65,15 +67,40 @@ class SettingsController extends BaseController
             $googleConfig['redirect_uri']  = $this->systemSettingsTable->getSetting('google_redirect_uri', '');
         } catch (\Throwable $e) {}
 
-        // 4. Fetch SMTP Configuration
-        $smtpConfig = [
-            'user' => '',
-            'has_pass' => false,
+        // 5. Fetch VietQR Config
+        $vietqrConfig = [
+            'bank_id'      => '',
+            'account_no'   => '',
+            'account_name' => '',
         ];
         try {
-            $smtpConfig['user'] = $this->systemSettingsTable->getSetting('smtp_user', '');
-            $smtpPass = $this->systemSettingsTable->getSetting('smtp_pass', '');
-            $smtpConfig['has_pass'] = !empty($smtpPass);
+            $vietqrConfig['bank_id']      = $this->systemSettingsTable->getSetting('vietqr_bank_id', 'BIDV');
+            $vietqrConfig['account_no']   = $this->systemSettingsTable->getSetting('vietqr_account_no', '1234567890');
+            $vietqrConfig['account_name'] = $this->systemSettingsTable->getSetting('vietqr_account_name', 'THU VIEN HDPE');
+        } catch (\Throwable $e) {}
+
+        // 6. Fetch Gmail API Config
+        $gmailConfig = [
+            'client_id'     => '',
+            'client_secret' => '',
+            'redirect_uri'  => '',
+            'pubsub_topic'  => '',
+            'webhook_token' => '',
+            'is_connected'  => false,
+            'auth_url'      => '',
+        ];
+        try {
+            $gmailConfig['client_id']     = $this->systemSettingsTable->getSetting('gmail_client_id', '');
+            $gmailConfig['client_secret'] = $this->systemSettingsTable->getSetting('gmail_client_secret', '');
+            $gmailConfig['redirect_uri']  = $this->systemSettingsTable->getSetting('gmail_redirect_uri', '');
+            $gmailConfig['pubsub_topic']  = $this->systemSettingsTable->getSetting('gmail_pubsub_topic', '');
+            $gmailConfig['webhook_token'] = $this->systemSettingsTable->getSetting('gmail_webhook_token', '');
+            $refreshToken = $this->systemSettingsTable->getSetting('gmail_refresh_token', '');
+            $gmailConfig['is_connected']  = !empty($refreshToken);
+
+            if (!empty($gmailConfig['client_id']) && !empty($gmailConfig['client_secret'])) {
+                $gmailConfig['auth_url'] = $this->gmailService->getAuthUrl();
+            }
         } catch (\Throwable $e) {}
 
         return new ViewModel([
@@ -82,7 +109,128 @@ class SettingsController extends BaseController
             'maintenanceUntil' => $maintenanceUntil,
             'googleConfig'     => $googleConfig,
             'smtpConfig'       => $smtpConfig,
+            'vietqrConfig'     => $vietqrConfig,
+            'gmailConfig'      => $gmailConfig,
         ]);
+    }
+
+    // ── VietQR Configuration Action ─────────────────────────────────
+    public function vietqrAction(): Response
+    {
+        if ($response = $this->requireAdmin()) {
+            return $response;
+        }
+
+        $request = $this->getRequest();
+        assert($request instanceof \Laminas\Http\Request);
+        if (!$request->isPost()) {
+            return $this->redirect()->toRoute('library/settings');
+        }
+
+        $data = $this->postData();
+        $bankId = trim((string)($data['vietqr_bank_id'] ?? ''));
+        $accountNo = trim((string)($data['vietqr_account_no'] ?? ''));
+        $accountName = trim((string)($data['vietqr_account_name'] ?? ''));
+
+        try {
+            $this->systemSettingsTable->saveSetting('vietqr_bank_id', $bankId);
+            $this->systemSettingsTable->saveSetting('vietqr_account_no', $accountNo);
+            $this->systemSettingsTable->saveSetting('vietqr_account_name', $accountName);
+
+            $this->flash()->addSuccessMessage('Đã cập nhật cấu hình tài khoản VietQR thành công.');
+        } catch (\Throwable $e) {
+            $this->flash()->addErrorMessage('Lỗi hệ thống khi cập nhật VietQR: ' . $e->getMessage());
+        }
+
+        return $this->redirect()->toRoute('library/settings');
+    }
+
+    // ── Gmail API Configuration Action ──────────────────────────────
+    public function gmailApiAction(): Response
+    {
+        if ($response = $this->requireAdmin()) {
+            return $response;
+        }
+
+        $request = $this->getRequest();
+        assert($request instanceof \Laminas\Http\Request);
+        if (!$request->isPost()) {
+            return $this->redirect()->toRoute('library/settings');
+        }
+
+        $data = $this->postData();
+        $clientId = trim((string)($data['gmail_client_id'] ?? ''));
+        $clientSecret = trim((string)($data['gmail_client_secret'] ?? ''));
+        $redirectUri = trim((string)($data['gmail_redirect_uri'] ?? ''));
+        $pubsubTopic = trim((string)($data['gmail_pubsub_topic'] ?? ''));
+        $webhookToken = trim((string)($data['gmail_webhook_token'] ?? ''));
+
+        try {
+            $this->systemSettingsTable->saveSetting('gmail_client_id', $clientId);
+            $this->systemSettingsTable->saveSetting('gmail_client_secret', $clientSecret);
+            $this->systemSettingsTable->saveSetting('gmail_redirect_uri', $redirectUri);
+            $this->systemSettingsTable->saveSetting('gmail_pubsub_topic', $pubsubTopic);
+            $this->systemSettingsTable->saveSetting('gmail_webhook_token', $webhookToken);
+
+            $this->flash()->addSuccessMessage('Đã cập nhật cấu hình Gmail API thành công.');
+        } catch (\Throwable $e) {
+            $this->flash()->addErrorMessage('Lỗi hệ thống khi cập nhật Gmail API: ' . $e->getMessage());
+        }
+
+        return $this->redirect()->toRoute('library/settings');
+    }
+
+    // ── Authenticate Google OAuth Code for Gmail ───────────────────
+    public function gmailAuthCodeAction(): Response
+    {
+        if ($response = $this->requireAdmin()) {
+            return $response;
+        }
+
+        $request = $this->getRequest();
+        assert($request instanceof \Laminas\Http\Request);
+        if (!$request->isPost()) {
+            return $this->redirect()->toRoute('library/settings');
+        }
+
+        $data = $this->postData();
+        $code = trim((string)($data['gmail_auth_code'] ?? ''));
+
+        if (empty($code)) {
+            $this->flash()->addErrorMessage('Mã Authorization Code không được để trống.');
+            return $this->redirect()->toRoute('library/settings');
+        }
+
+        try {
+            $token = $this->gmailService->authenticateCode($code);
+            if (isset($token['error'])) {
+                $this->flash()->addErrorMessage('Xác thực thất bại: ' . ($token['error_description'] ?? $token['error']));
+            } else {
+                $this->flash()->addSuccessMessage('Xác thực tài khoản Gmail thành công và đã lưu Refresh Token.');
+            }
+        } catch (\Throwable $e) {
+            $this->flash()->addErrorMessage('Lỗi kết nối xác thực Google: ' . $e->getMessage());
+        }
+
+        return $this->redirect()->toRoute('library/settings');
+    }
+
+    // ── Disconnect Gmail Account ────────────────────────────────────
+    public function gmailDisconnectAction(): Response
+    {
+        if ($response = $this->requireAdmin()) {
+            return $response;
+        }
+
+        try {
+            $this->systemSettingsTable->saveSetting('gmail_refresh_token', '');
+            $this->systemSettingsTable->saveSetting('gmail_access_token', '');
+            $this->flash()->addSuccessMessage('Đã ngắt kết nối tài khoản Gmail thành công.');
+        } catch (\Throwable $e) {
+            $this->flash()->addErrorMessage('Lỗi hệ thống: ' . $e->getMessage());
+        }
+
+        return $this->redirect()->toRoute('library/settings');
     }
 
     // ── Upload logo ───────────────────────────────────────────────────

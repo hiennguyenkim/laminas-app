@@ -143,8 +143,18 @@ class FineController extends BaseController
             }
         }
 
+        // Fetch VietQR settings
+        $settingsSql = "SELECT setting_key, setting_value FROM system_settings WHERE setting_key IN ('vietqr_bank_id', 'vietqr_account_no', 'vietqr_account_name')";
+        $settingsStmt = $this->db->createStatement($settingsSql);
+        $settingsRes = $settingsStmt->execute();
+        $bankSettings = [];
+        foreach ($settingsRes as $row) {
+            $bankSettings[$row['setting_key']] = $row['setting_value'];
+        }
+
         return new ViewModel([
             'fine' => $fine,
+            'bankSettings' => $bankSettings,
         ]);
     }
 

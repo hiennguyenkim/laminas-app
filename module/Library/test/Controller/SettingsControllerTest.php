@@ -284,6 +284,84 @@ class SettingsControllerTest extends AbstractHttpControllerTestCase
         $this->assertContains('Đã đổi tên danh mục "Công nghệ thông tin" thành "IT mới" thành công.', $flashMessenger->getCurrentSuccessMessages());
     }
 
+    public function testVietqrActionSavesSettings(): void
+    {
+        $this->mockLoginAsRole('admin');
+
+        $dbMock = $this->createMock(\Laminas\Db\Adapter\Adapter::class);
+        $stmtCheck = $this->createMock(StatementInterface::class);
+        $resCheck = $this->createMock(ResultInterface::class);
+        $resCheck->method('current')->willReturn(['count' => 1]);
+        $stmtCheck->method('execute')->willReturn($resCheck);
+
+        $stmtUpdate = $this->createMock(StatementInterface::class);
+        $resUpdate = $this->createMock(ResultInterface::class);
+        $stmtUpdate->method('execute')->willReturn($resUpdate);
+
+        $dbMock->method('query')->willReturnCallback(function($sql) use ($stmtCheck, $stmtUpdate) {
+            if (strpos($sql, 'SELECT COUNT(*)') !== false) {
+                return $stmtCheck;
+            }
+            if (strpos($sql, 'UPDATE system_settings') !== false) {
+                return $stmtUpdate;
+            }
+            throw new \Exception("Unexpected SQL: " . $sql);
+        });
+
+        $serviceLocator = $this->getApplicationServiceLocator();
+        $serviceLocator->setAllowOverride(true);
+        $serviceLocator->setService(AdapterInterface::class, $dbMock);
+
+        $this->dispatch('/admin/settings/vietqr', 'POST', [
+            'vietqr_bank_id' => 'VCB',
+            'vietqr_account_no' => '0011223344',
+            'vietqr_account_name' => 'ADMIN TEST',
+        ]);
+
+        $this->assertResponseStatusCode(302);
+        $this->assertRedirectTo('/admin/settings');
+    }
+
+    public function testGmailApiActionSavesSettings(): void
+    {
+        $this->mockLoginAsRole('admin');
+
+        $dbMock = $this->createMock(\Laminas\Db\Adapter\Adapter::class);
+        $stmtCheck = $this->createMock(StatementInterface::class);
+        $resCheck = $this->createMock(ResultInterface::class);
+        $resCheck->method('current')->willReturn(['count' => 1]);
+        $stmtCheck->method('execute')->willReturn($resCheck);
+
+        $stmtUpdate = $this->createMock(StatementInterface::class);
+        $resUpdate = $this->createMock(ResultInterface::class);
+        $stmtUpdate->method('execute')->willReturn($resUpdate);
+
+        $dbMock->method('query')->willReturnCallback(function($sql) use ($stmtCheck, $stmtUpdate) {
+            if (strpos($sql, 'SELECT COUNT(*)') !== false) {
+                return $stmtCheck;
+            }
+            if (strpos($sql, 'UPDATE system_settings') !== false) {
+                return $stmtUpdate;
+            }
+            throw new \Exception("Unexpected SQL: " . $sql);
+        });
+
+        $serviceLocator = $this->getApplicationServiceLocator();
+        $serviceLocator->setAllowOverride(true);
+        $serviceLocator->setService(AdapterInterface::class, $dbMock);
+
+        $this->dispatch('/admin/settings/gmailApi', 'POST', [
+            'gmail_client_id' => 'client_id_test',
+            'gmail_client_secret' => 'secret_test',
+            'gmail_redirect_uri' => 'uri_test',
+            'gmail_pubsub_topic' => 'topic_test',
+            'gmail_webhook_token' => 'token_test',
+        ]);
+
+        $this->assertResponseStatusCode(302);
+        $this->assertRedirectTo('/admin/settings');
+    }
+
     private function mockLoginAsRole(string $role): void
     {
         /** @var AuthSessionContainer $authSession */

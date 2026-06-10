@@ -5,11 +5,13 @@ $amount = (float)$fine['amount'];
 $reason = $fine['reason'];
 $fineId = $fine['fine_id'];
 
-// Load bank settings from environment (fallback to defaults)
-$bankId = getenv('VIETQR_BANK_ID') ?: 'BIDV';
-$accountNo = getenv('VIETQR_ACCOUNT_NO') ?: '1234567890';
-$accountName = getenv('VIETQR_ACCOUNT_NAME') ?: 'THU VIEN HDPE';
+// Load bank settings from database (fallback to environment, then defaults)
+$bankId = !empty($bankSettings['vietqr_bank_id']) ? $bankSettings['vietqr_bank_id'] : (getenv('VIETQR_BANK_ID') ?: 'BIDV');
+$accountNo = !empty($bankSettings['vietqr_account_no']) ? $bankSettings['vietqr_account_no'] : (getenv('VIETQR_ACCOUNT_NO') ?: '1234567890');
+$accountName = !empty($bankSettings['vietqr_account_name']) ? $bankSettings['vietqr_account_name'] : (getenv('VIETQR_ACCOUNT_NAME') ?: 'THU VIEN HDPE');
 ?>
+
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 
 <style>
 .checkout-grid {
@@ -404,7 +406,8 @@ function requestPaymentSession(channel) {
         $('#qrLoading').hide();
         if (data.status === 'success') {
             orderCode = data.orderCode;
-            expirationTime = new Date(data.expiredAt.replace(/-/g, "/")).getTime();
+            // Use Unix timestamp (ms) directly to avoid PHP/browser timezone mismatch
+            expirationTime = data.expiredAtMs || new Date(data.expiredAt.replace(/-/g, "/")).getTime();
             
             // Build VietQR Dynamic URL
             // Format: https://img.vietqr.io/image/<BANK_ID>-<ACCOUNT_NO>-compact2.png?amount=<AMOUNT>&addInfo=<ORDER_CODE>&accountName=<ACCOUNT_NAME>

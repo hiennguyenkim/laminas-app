@@ -63,12 +63,14 @@ class PaymentApiController extends AbstractActionController
         if (!empty($existing)) {
             // Check if any is not expired
             foreach ($existing as $session) {
-                if (strtotime($session->expiredAt) > time() && $session->channel === $channel) {
+                $expiredAtTs = strtotime($session->expiredAt);
+                if ($expiredAtTs > time() && $session->channel === $channel) {
                     return $this->jsonResponse([
                         'status' => 'success',
                         'orderCode' => $session->orderCode,
                         'amount' => $session->amount,
-                        'expiredAt' => $session->expiredAt
+                        'expiredAt' => $session->expiredAt,
+                        'expiredAtMs' => $expiredAtTs * 1000  // Unix ms for JS - timezone-safe
                     ]);
                 }
             }
@@ -85,7 +87,8 @@ class PaymentApiController extends AbstractActionController
         $session->status = 'pending';
         $session->targetId = $fineId;
         $session->targetType = 'fine';
-        $session->expiredAt = date('Y-m-d H:i:s', time() + 900); // 15 minutes from now
+        $expireTimestamp = time() + 900; // 15 minutes from now
+        $session->expiredAt = date('Y-m-d H:i:s', $expireTimestamp);
 
         $this->paymentSessionTable->saveSession($session);
 
@@ -93,7 +96,8 @@ class PaymentApiController extends AbstractActionController
             'status' => 'success',
             'orderCode' => $orderCode,
             'amount' => $amount,
-            'expiredAt' => $session->expiredAt
+            'expiredAt' => $session->expiredAt,
+            'expiredAtMs' => $expireTimestamp * 1000  // Unix ms for JS - timezone-safe
         ]);
     }
 
