@@ -9,6 +9,7 @@ use Laminas\ServiceManager\Factory\FactoryInterface;
 use Library\Controller\FineController;
 use Library\Session\AuthSessionContainer;
 use Library\Model\Table\UserTable;
+use Library\Service\MailService;
 use Laminas\Db\Adapter\AdapterInterface;
 
 class FineControllerFactory implements FactoryInterface
@@ -18,7 +19,8 @@ class FineControllerFactory implements FactoryInterface
         return new FineController(
             $container->get(AuthSessionContainer::class),
             $container->get(UserTable::class),
-            $container->get(AdapterInterface::class)
+            $container->get(AdapterInterface::class),
+            $container->has(MailService::class) ? $container->get(MailService::class) : null
         );
     }
 }

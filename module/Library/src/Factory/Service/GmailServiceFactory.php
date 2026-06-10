@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Library\Factory\Service;
 
 use Library\Service\GmailService;
+use Library\Service\MailService;
 use Library\Model\Table\PaymentSessionTable;
 use Library\Model\Table\UserTable;
 use Library\Model\Table\SystemSettingsTable;
@@ -21,7 +22,8 @@ class GmailServiceFactory
             $container->get(UserTable::class),
             $container->get(SystemSettingsTable::class),
             $container->get(AdapterInterface::class),
-            $container->get(AuthSessionContainer::class)
+            $container->get(AuthSessionContainer::class),
+            $container->has(MailService::class) ? $container->get(MailService::class) : null
         );
     }
 }

@@ -6,6 +6,7 @@ namespace Library\Controller;
 
 use Library\Session\AuthSessionContainer;
 use Library\Model\Table\UserTable;
+use Library\Service\MailService;
 use Laminas\Db\Adapter\AdapterInterface;
 use Laminas\Http\Response;
 use Laminas\View\Model\ViewModel;
@@ -20,7 +21,8 @@ class FineController extends BaseController
     public function __construct(
         AuthSessionContainer $authSessionContainer,
         private UserTable $userTable,
-        private AdapterInterface $db
+        private AdapterInterface $db,
+        private ?MailService $mailService = null
     ) {
         parent::__construct($authSessionContainer);
     }
@@ -288,7 +290,8 @@ class FineController extends BaseController
 
         try {
             $userId = (int)$fine['user_id'];
-            
+            $fineAmount = (float)$fine['amount'];
+
             // 1. Update fine status to paid
             $updateSql = "UPDATE fines SET status = 'paid', paid_at = NOW() WHERE fine_id = ?";
             $this->db->query($updateSql)->execute([$fineId]);
@@ -299,23 +302,61 @@ class FineController extends BaseController
             $checkRes = $checkStmt->execute([$userId])->current();
             $unpaidCount = (int)($checkRes['cnt'] ?? 0);
 
+            // 3. Bell notification: payment confirmed (always)
+            try {
+                $payNotiMsg = "Khoản phạt #" . $fineId . " (" . number_format($fineAmount, 0, ',', '.') . " VNĐ) đã được Thủ thư xác nhận thanh toán tiền mặt thành công.";
+                $this->db->query("INSERT INTO notifications (user_id, sender_id, title, message, type, related_id, created_at) VALUES (?, 0, 'Thanh toán khoản phạt thành công', ?, 'system', ?, NOW())")
+                         ->execute([$userId, $payNotiMsg, $fineId]);
+            } catch (\Throwable) {}
+
             $unlocked = false;
             if ($unpaidCount === 0) {
-                // 3. Unlock student account in database
+                // 4. Unlock student account in database
                 $this->userTable->unlockUser($userId);
 
-                // 4. Restore standard borrow limit to 5
+                // 5. Restore standard borrow limit to 5
                 $userObj = $this->userTable->getUser($userId);
                 $userObj->borrowLimit = 5;
                 $this->userTable->saveUser($userObj);
 
-                // 5. Insert notification for account unlocking
-                $notifySql = "INSERT INTO notifications (user_id, sender_id, title, message, type, related_id, created_at) 
-                              VALUES (?, 0, 'Tài khoản đã mở khóa', ?, 'system', ?, NOW())";
-                $notifyMessage = "Tài khoản của bạn đã được mở khóa và khôi phục hạn mức mượn 5 cuốn sau khi hoàn tất nộp phạt.";
-                $this->db->query($notifySql)->execute([$userId, $notifyMessage, $fineId]);
+                // 6. Bell notification: account unlocked
+                try {
+                    $this->db->query("INSERT INTO notifications (user_id, sender_id, title, message, type, related_id, created_at) VALUES (?, 0, 'Tài khoản đã mở khóa', ?, 'system', ?, NOW())")
+                             ->execute([$userId, "Tài khoản của bạn đã được mở khóa và khôi phục hạn mức mượn 5 cuốn sau khi hoàn tất nộp phạt.", $fineId]);
+                } catch (\Throwable) {}
+
+                // 7. Email: unlocked
+                if ($this->mailService !== null && $userObj) {
+                    try {
+                        $subject = "[Thư viện HDPE] Thanh toán phạt & Mở khóa tài khoản thành công";
+                        $body = "Chào " . $userObj->fullName . ",\n\n"
+                              . "Thủ thư đã xác nhận thu tiền mặt khoản phạt #" . $fineId . ".\n"
+                              . "Số tiền: " . number_format($fineAmount, 0, ',', '.') . " VNĐ.\n\n"
+                              . "Tài khoản thư viện của bạn đã được mở khóa và hạn mức mượn được khôi phục về 5 cuốn.\n"
+                              . "Bạn có thể tiếp tục đăng nhập và sử dụng các dịch vụ của thư viện bình thường.\n\n"
+                              . "Trân trọng,\nThư viện HDPE";
+                        $this->mailService->sendEmail($userObj->email, $userObj->fullName, $subject, $body);
+                    } catch (\Throwable) {}
+                }
 
                 $unlocked = true;
+            } else {
+                // 8. Email: payment confirmed but still has fines
+                if ($this->mailService !== null) {
+                    $userForMail = $this->userTable->getUser($userId);
+                    if ($userForMail) {
+                        try {
+                            $subject = "[Thư viện HDPE] Xác nhận thanh toán khoản phạt #" . $fineId;
+                            $body = "Chào " . $userForMail->fullName . ",\n\n"
+                                  . "Thủ thư đã xác nhận thu tiền mặt khoản phạt #" . $fineId . ".\n"
+                                  . "Số tiền: " . number_format($fineAmount, 0, ',', '.') . " VNĐ.\n\n"
+                                  . "Tuy nhiên, tài khoản của bạn vẫn đang bị tạm khóa vì còn " . $unpaidCount . " khoản phạt chưa được thanh toán.\n"
+                                  . "Vui lòng đăng nhập để xem và thanh toán các khoản phạt còn lại.\n\n"
+                                  . "Trân trọng,\nThư viện HDPE";
+                            $this->mailService->sendEmail($userForMail->email, $userForMail->fullName, $subject, $body);
+                        } catch (\Throwable) {}
+                    }
+                }
             }
 
             $connection->commit();

@@ -24,25 +24,41 @@ class MailService
         return (string)($row['setting_value'] ?? '');
     }
 
+    /**
+     * Resolve a potentially-fake email address to a deliverable one.
+     * If the domain has no MX or A DNS record (e.g. student.hdpe.edu.vn),
+     * falls back to the admin SMTP from-email so emails are still delivered.
+     */
+    public function resolveEmailAddress(string $email): string
+    {
+        $email = trim($email);
+        if ($email === '' || filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
+            return $this->getSetting('smtp_from_email');
+        }
+        $parts  = explode('@', $email);
+        $domain = array_pop($parts);
+        if (!checkdnsrr($domain, 'MX') && !checkdnsrr($domain, 'A')) {
+            // Domain doesn't exist — use admin email as fallback
+            return $this->getSetting('smtp_from_email');
+        }
+        return $email;
+    }
+
     public function sendEmail(string $toEmail, string $toName, string $subject, string $body): bool
     {
-        $toEmail = trim($toEmail);
-        if ($toEmail === '' || filter_var($toEmail, FILTER_VALIDATE_EMAIL) === false) {
+        // Resolve fake / internal domains to admin email so mail is always delivered
+        $toEmail = $this->resolveEmailAddress($toEmail);
+
+        if ($toEmail === '') {
             return false;
         }
 
-        // Kiểm tra xem tên miền của email có thực sự tồn tại thông qua bản ghi MX hoặc A
-        $parts = explode('@', $toEmail);
-        $domain = array_pop($parts);
-        if (!checkdnsrr($domain, 'MX') && !checkdnsrr($domain, 'A')) {
-            return false;
-        }
-        $host = $this->getSetting('smtp_host');
-        $port = (int)$this->getSetting('smtp_port');
-        $user = $this->getSetting('smtp_user');
-        $pass = $this->getSetting('smtp_pass');
+        $host      = $this->getSetting('smtp_host');
+        $port      = (int) $this->getSetting('smtp_port');
+        $user      = $this->getSetting('smtp_user');
+        $pass      = $this->getSetting('smtp_pass');
         $fromEmail = $this->getSetting('smtp_from_email') ?: $user;
-        $fromName = $this->getSetting('smtp_from_name') ?: 'Thư Viện HDPE';
+        $fromName  = $this->getSetting('smtp_from_name') ?: 'Thư Viện HDPE';
 
         if (empty($user) || empty($pass)) {
             throw new \RuntimeException("Cấu hình SMTP chưa hoàn tất. Vui lòng vào Cài đặt hệ thống để cập nhật Email và Mật khẩu ứng dụng.");
