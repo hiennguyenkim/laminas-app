@@ -22,6 +22,7 @@ class DashboardController extends BaseController
     private UserTable $userTable;
     private \Library\Model\Table\PublicChatTable $publicChatTable;
     private \Library\Service\GeminiService $geminiService;
+    private \Library\Service\MailService $mailService;
 
     public function __construct(
         AuthSessionContainer $authSessionContainer,
@@ -29,7 +30,8 @@ class DashboardController extends BaseController
         BorrowTable $borrowTable,
         UserTable $userTable,
         \Library\Model\Table\PublicChatTable $publicChatTable,
-        \Library\Service\GeminiService $geminiService
+        \Library\Service\GeminiService $geminiService,
+        \Library\Service\MailService $mailService
     ) {
         parent::__construct($authSessionContainer);
         $this->bookTable   = $bookTable;
@@ -37,6 +39,7 @@ class DashboardController extends BaseController
         $this->userTable   = $userTable;
         $this->publicChatTable = $publicChatTable;
         $this->geminiService = $geminiService;
+        $this->mailService = $mailService;
     }
 
     /**
@@ -96,9 +99,14 @@ class DashboardController extends BaseController
             try {
                 $sqlFines = "SELECT COUNT(*) AS cnt, SUM(amount) AS total FROM fines WHERE user_id = ? AND status = 'unpaid'";
                 $db = $this->userTable->getAdapter();
-                $fineRow = $db->query($sqlFines)->execute([$userId])->current();
-                $unpaidFinesCount = (int)($fineRow['cnt'] ?? 0);
-                $unpaidFinesSum = (float)($fineRow['total'] ?? 0);
+                if ($db instanceof \Laminas\Db\Adapter\Adapter) {
+                    $fineRow = $db->query($sqlFines)->execute([$userId])->current();
+                    $unpaidFinesCount = (int)($fineRow['cnt'] ?? 0);
+                    $unpaidFinesSum = (float)($fineRow['total'] ?? 0);
+                } else {
+                    $unpaidFinesCount = 0;
+                    $unpaidFinesSum = 0.0;
+                }
             } catch (\Throwable $e) {}
         } else {
             $categoryStats = $this->bookTable->getCategoryStats(null);
@@ -146,7 +154,7 @@ class DashboardController extends BaseController
     {
         $currentUser = $this->currentUser();
 
-        if ($this->getRequest()->isPost()) {
+        if ($this->httpRequest()->isPost()) {
             if (!$currentUser) {
                 return $this->jsonResponse(['error' => 'Unauthorized'], 401);
             }
@@ -265,7 +273,41 @@ class DashboardController extends BaseController
 
             // Gemini Moderation
             if (!$this->geminiService->checkContent($message)) {
-                return $this->jsonResponse(['error' => 'Tin nhắn chứa nội dung không phù hợp và đã bị chặn.'], 400);
+                $warningSession = new \Laminas\Session\Container('discussion_chat_warnings');
+                $warningSession->count = ($warningSession->count ?? 0) + 1;
+                
+                $remaining = 3 - $warningSession->count;
+                if ($warningSession->count >= 3) {
+                    $warningSession->count = 0; // reset
+                    
+                    try {
+                        // Lock user for 7 days
+                        $this->userTable->lockUser($userId, 'Vi phạm nguyên tắc cộng đồng Public Discussion Board (gửi tin nhắn không phù hợp quá 3 lần).', date('Y-m-d H:i:s', time() + 7 * 86400), 1);
+                        
+                        // Send warning email to administrator
+                        $smtpFrom = $this->userTable->getSystemSetting('smtp_from_email');
+                        if (!empty($smtpFrom)) {
+                            $userObj = $this->userTable->getUser($userId);
+                            $subject = "[Cảnh báo bảo mật] Khóa tài khoản do vi phạm nguyên tắc Public Chat";
+                            $body = "Chào quản trị viên,\n\nTài khoản sinh viên sau đây đã bị hệ thống tự động khóa 7 ngày do gửi tin nhắn chứa nội dung không phù hợp (vi phạm kiểm duyệt Public Discussion Board) quá 3 lần liên tiếp:\n\n"
+                                . "- Họ tên: {$userObj->fullName}\n"
+                                . "- Username: {$userObj->username}\n"
+                                . "- Email: {$userObj->email}\n"
+                                . "- Tin nhắn vi phạm cuối: \"{$message}\"\n\n"
+                                . "Trân trọng,\nHệ thống Thư viện HDPE";
+                            
+                            $this->mailService->sendEmail($smtpFrom, 'Quản trị viên Thư viện', $subject, $body);
+                        }
+                    } catch (\Throwable $e) {}
+                    
+                    return $this->jsonResponse([
+                        'error' => 'Tài khoản của bạn đã bị khóa tính năng thảo luận 7 ngày do vi phạm chính sách cộng đồng quá 3 lần.'
+                    ], 403);
+                }
+                
+                return $this->jsonResponse([
+                    'error' => "Tin nhắn chứa nội dung không phù hợp và đã bị chặn. Cảnh báo: Bạn còn {$remaining} lần vi phạm trước khi tài khoản bị khóa."
+                ], 400);
             }
 
             $userId = (int)$currentUser['id'];
@@ -451,8 +493,10 @@ class DashboardController extends BaseController
         $isAdmin = $this->isAdmin();
         if (!$isAdmin) {
             $response = $this->getResponse();
-            $response->setStatusCode(403);
-            $response->setContent('Access denied');
+            if ($response instanceof Response) {
+                $response->setStatusCode(403);
+                $response->setContent('Access denied');
+            }
             return $response;
         }
 
@@ -638,14 +682,16 @@ class DashboardController extends BaseController
         $content = ob_get_clean();
 
         $response = $this->getResponse();
-        $response->getHeaders()->addHeaders([
-            'Content-Type'        => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
-            'Cache-Control'       => 'max-age=0',
-            'Pragma'              => 'no-cache',
-            'Expires'             => '0',
-        ]);
-        $response->setContent($content !== false ? $content : '');
+        if ($response instanceof Response) {
+            $response->getHeaders()->addHeaders([
+                'Content-Type'        => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+                'Cache-Control'       => 'max-age=0',
+                'Pragma'              => 'no-cache',
+                'Expires'             => '0',
+            ]);
+            $response->setContent($content !== false ? $content : '');
+        }
 
         return $response;
     }

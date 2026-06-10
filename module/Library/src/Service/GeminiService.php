@@ -5,27 +5,146 @@ declare(strict_types=1);
 namespace Library\Service;
 
 use Laminas\Http\Client;
-use RuntimeException;
 
 class GeminiService
 {
     private string $apiKey;
     private \Laminas\Db\Adapter\AdapterInterface $adapter;
     private \Laminas\Db\Adapter\Adapter $db;
+
+    // Gemini (Google) endpoint — fallback nếu không cấu hình provider khác
     private string $apiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+
+    // OpenAI-compatible provider (Kimi, OpenAI, v.v.)
+    private string $openaiApiKey  = '';
+    private string $openaiModel   = '';
+    private string $openaiBaseUrl = 'https://api.moonshot.cn/v1';  // Kimi default
 
     public function __construct(string $apiKey, \Laminas\Db\Adapter\AdapterInterface $adapter)
     {
-        $this->apiKey = $apiKey;
+        $this->apiKey  = $apiKey;
         $this->adapter = $adapter;
         assert($adapter instanceof \Laminas\Db\Adapter\Adapter);
         $this->db = $adapter;
+
+        // Load OpenAI-compatible provider settings from DB
+        $this->loadOpenAiSettings();
     }
 
     /**
-     * Gửi yêu cầu đến Gemini API (có cơ chế Cache)
+     * Load OpenAI-compatible AI provider settings from system_settings table.
      */
-    public function generateResponse(string $prompt, string $systemInstruction = ''): string
+    private function loadOpenAiSettings(): void
+    {
+        try {
+            $rows = $this->db->query(
+                "SELECT setting_key, setting_value FROM system_settings WHERE setting_key IN ('ai_provider','ai_openai_key','ai_openai_model','ai_openai_base_url')"
+            )->execute();
+
+            $settings = [];
+            foreach ($rows as $row) {
+                $key   = $row['setting_key']   ?? null;
+                $value = $row['setting_value'] ?? null;
+                if ($key !== null) {
+                    $settings[(string)$key] = (string)($value ?? '');
+                }
+            }
+
+            if (($settings['ai_provider'] ?? '') === 'openai') {
+                $this->openaiApiKey  = $settings['ai_openai_key']     ?? '';
+                $this->openaiModel   = $settings['ai_openai_model']   ?? 'Kimi-K2.5-FW';
+                $this->openaiBaseUrl = rtrim($settings['ai_openai_base_url'] ?? 'https://api.poe.com/v1', '/');
+            }
+        } catch (\Throwable) {
+            // Non-critical: fall back to Gemini
+        }
+    }
+
+    /**
+     * Gửi yêu cầu đến AI API.
+     * Nếu provider = openai → dùng OpenAI-compatible API (Kimi, OpenAI, v.v.)
+     * Ngược lại → dùng Google Gemini.
+     */
+    public function generateResponse(string $prompt, string $systemInstruction = '', array $chatHistory = []): string
+    {
+        // Use OpenAI-compatible provider if configured
+        if ($this->openaiApiKey !== '' && $this->openaiModel !== '') {
+            return $this->generateOpenAiResponse($prompt, $systemInstruction, $chatHistory);
+        }
+
+        // Fallback: Google Gemini
+        return $this->generateGeminiResponse($prompt, $systemInstruction, $chatHistory);
+    }
+
+    /**
+     * Gọi OpenAI-compatible API (Kimi-K2.5, OpenAI GPT, v.v.)
+     */
+    private function generateOpenAiResponse(string $prompt, string $systemInstruction = '', array $chatHistory = []): string
+    {
+        if (empty($this->openaiApiKey)) {
+            return "Cấu hình AI API Key chưa hoàn tất.";
+        }
+
+        // Check cache
+        $historyJson = json_encode($chatHistory);
+        $promptHash = hash('sha256', $this->openaiModel . '|' . $systemInstruction . '|' . $historyJson . '|' . $prompt);
+        $cached = $this->getCache($promptHash);
+        if ($cached !== null) {
+            return $cached;
+        }
+
+        $messages = [];
+        if ($systemInstruction !== '') {
+            $messages[] = ['role' => 'system', 'content' => $systemInstruction];
+        }
+        foreach ($chatHistory as $msg) {
+            $messages[] = [
+                'role'    => (string)($msg['role'] ?? 'user'),
+                'content' => (string)($msg['content'] ?? ''),
+            ];
+        }
+        $messages[] = ['role' => 'user', 'content' => $prompt];
+
+        $data = [
+            'model'       => $this->openaiModel,
+            'messages'    => $messages,
+            'temperature' => 0.3,
+            'max_tokens'  => 2048,
+        ];
+
+        $client = new Client();
+        $client->setOptions(['timeout' => 20]);
+        $client->setUri($this->openaiBaseUrl . '/chat/completions');
+        $client->setMethod('POST');
+        $client->setHeaders([
+            'Content-Type'  => 'application/json',
+            'Authorization' => 'Bearer ' . $this->openaiApiKey,
+        ]);
+        $client->setRawBody((string) json_encode($data));
+
+        try {
+            $response = $client->send();
+            if (!$response->isSuccess()) {
+                return "Lỗi từ AI API (Code: " . $response->getStatusCode() . "): " . substr($response->getBody(), 0, 200);
+            }
+
+            $result = json_decode($response->getBody(), true);
+            $responseText = $result['choices'][0]['message']['content']
+                ?? $result['choices'][0]['text']
+                ?? "Xin lỗi, tôi không thể trả lời lúc này.";
+
+            $this->saveCache($promptHash, $prompt, $responseText);
+            return $responseText;
+
+        } catch (\Throwable $e) {
+            return "Lỗi kết nối AI: " . $e->getMessage();
+        }
+    }
+
+    /**
+     * Gọi Google Gemini API (legacy).
+     */
+    private function generateGeminiResponse(string $prompt, string $systemInstruction = '', array $chatHistory = []): string
     {
         if (empty($this->apiKey)) {
             return "Cấu hình Gemini API Key chưa hoàn tất.";
@@ -35,41 +154,45 @@ class GeminiService
             $this->cleanupOldCache(30);
         }
 
-        // 1. Kiểm tra Cache trước
-        $promptHash = hash('sha256', $systemInstruction . '|' . $prompt);
-        try {
-            $sqlCache = "SELECT response_text FROM ai_responses_cache WHERE prompt_hash = ? LIMIT 1";
-            $cacheRow = $this->db->query($sqlCache)->execute([$promptHash])->current();
-            if ($cacheRow) {
-                return $cacheRow['response_text'];
-            }
-        } catch (\Throwable $e) {
+        $historyJson = json_encode($chatHistory);
+        $promptHash = hash('sha256', $systemInstruction . '|' . $historyJson . '|' . $prompt);
+        $cached = $this->getCache($promptHash);
+        if ($cached !== null) {
+            return $cached;
         }
 
-        // 2. Nếu không có cache, gọi API
         $client = new Client();
         $client->setOptions(['timeout' => 15]);
-        // Dùng query string cho chắc chắn nhất
         $client->setUri($this->apiUrl . '?key=' . $this->apiKey);
         $client->setMethod('POST');
-        $client->setHeaders([
-            'Content-Type' => 'application/json'
-        ]);
+        $client->setHeaders(['Content-Type' => 'application/json']);
 
-        // Gộp system instruction vào prompt
-        $fullPrompt = $prompt;
-        if ($systemInstruction !== '') {
-            $fullPrompt = "SYSTEM INSTRUCTION: $systemInstruction\n\nUSER MESSAGE: $prompt";
+        $contents = [];
+        $first = true;
+        foreach ($chatHistory as $msg) {
+            $role = (($msg['role'] ?? 'user') === 'user') ? 'user' : 'model';
+            $text = (string)($msg['content'] ?? '');
+            if ($first && $systemInstruction !== '') {
+                $text = "SYSTEM INSTRUCTION: $systemInstruction\n\nUSER MESSAGE: $text";
+                $first = false;
+            }
+            $contents[] = [
+                'role'  => $role,
+                'parts' => [['text' => $text]]
+            ];
         }
 
+        $lastText = $prompt;
+        if ($first && $systemInstruction !== '') {
+            $lastText = "SYSTEM INSTRUCTION: $systemInstruction\n\nUSER MESSAGE: $lastText";
+        }
+        $contents[] = [
+            'role'  => 'user',
+            'parts' => [['text' => $lastText]]
+        ];
+
         $data = [
-            'contents' => [
-                [
-                    'parts' => [
-                        ['text' => $fullPrompt]
-                    ]
-                ]
-            ]
+            'contents' => $contents
         ];
 
         $client->setRawBody((string) json_encode($data));
@@ -81,22 +204,44 @@ class GeminiService
             }
 
             $result = json_decode($response->getBody(), true);
-            $responseText = $result['candidates'][0]['content']['parts'][0]['text'] ?? "Xin lỗi, tôi không thể trả lời lúc này.";
+            $responseText = $result['candidates'][0]['content']['parts'][0]['text']
+                ?? "Xin lỗi, tôi không thể trả lời lúc này.";
 
-            // 3. Lưu vào Cache nếu thành công
-            if ($responseText !== "Xin lỗi, tôi không thể trả lời lúc này.") {
-                try {
-                    $sqlInsert = "INSERT IGNORE INTO ai_responses_cache (prompt_hash, prompt_text, response_text) VALUES (?, ?, ?)";
-                    $this->db->query($sqlInsert)->execute([$promptHash, mb_substr($prompt, 0, 500), $responseText]);
-                } catch (\Throwable $e) {
-                }
-            }
-
+            $this->saveCache($promptHash, $prompt, $responseText);
             return $responseText;
+
         } catch (\Throwable $e) {
             return "Lỗi kết nối AI: " . $e->getMessage();
         }
     }
+
+    // ── Cache helpers ────────────────────────────────────────────────────────
+
+    private function getCache(string $hash): ?string
+    {
+        try {
+            $row = $this->db->query(
+                "SELECT response_text FROM ai_responses_cache WHERE prompt_hash = ? LIMIT 1"
+            )->execute([$hash])->current();
+            return $row ? (string)$row['response_text'] : null;
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    private function saveCache(string $hash, string $promptText, string $responseText): void
+    {
+        if ($responseText === "Xin lỗi, tôi không thể trả lời lúc này.") {
+            return;
+        }
+        try {
+            $this->db->query(
+                "INSERT IGNORE INTO ai_responses_cache (prompt_hash, prompt_text, response_text) VALUES (?, ?, ?)"
+            )->execute([$hash, mb_substr($promptText, 0, 500), $responseText]);
+        } catch (\Throwable) {}
+    }
+
+    // ── Public API ───────────────────────────────────────────────────────────
 
     /**
      * Kiểm duyệt nội dung (Moderation)
@@ -116,67 +261,38 @@ class GeminiService
         if (
             str_starts_with($trimmedResponse, 'Lỗi kết nối AI')
             || str_starts_with($trimmedResponse, 'Lỗi từ Gemini')
+            || str_starts_with($trimmedResponse, 'Lỗi từ AI')
             || str_starts_with($trimmedResponse, 'Cấu hình Gemini')
+            || str_starts_with($trimmedResponse, 'Cấu hình AI')
         ) {
             $badWords = [
-                'đm',
-                'đéo',
-                'vcl',
-                'clm',
-                'chó',
-                'mẹ mày',
-                'bố mày',
-                'lìn',
-                'lồn',
-                'cặc',
-                'buồi',
-                'đmm',
-                'dkm',
-                'đkm',
-                'vkl',
-                'đcm',
-                'súc vật',
-                'óc chó',
-                'ăn cứt',
-                'ăn phân',
-                'đĩ',
-                'phò',
-                'điếm',
-                'chịch',
-                'xoạc',
-                'cút',
-                'ngu lờ'
+                'đm', 'đéo', 'vcl', 'clm', 'chó', 'mẹ mày', 'bố mày',
+                'lìn', 'lồn', 'cặc', 'buồi', 'đmm', 'dkm', 'đkm', 'vkl',
+                'đcm', 'súc vật', 'óc chó', 'ăn cứt', 'ăn phân',
+                'đĩ', 'phò', 'điếm', 'chịch', 'xoạc', 'cút', 'ngu lờ'
             ];
             $cleanText = mb_strtolower($text, 'UTF-8');
             foreach ($badWords as $word) {
-                $pattern = '/(?<![\p{L}\p{N}])' . preg_quote($word, '/') . '(?![\p{L}\p{N}])/u';
+                $pattern = '/(?<![\\p{L}\\p{N}])' . preg_quote($word, '/') . '(?![\\p{L}\\p{N}])/u';
                 if (preg_match($pattern, $cleanText)) {
-                    return false; // Phát hiện từ cấm cục bộ
+                    return false;
                 }
             }
-            return true; // Cho phép đi qua nếu không chứa từ cấm cục bộ
+            return true;
         }
 
-        // Loại bỏ mọi ký tự đặc biệt/markdown từ AI phản hồi
         $cleanResponse = preg_replace('/[^A-Z]/', '', strtoupper($trimmedResponse));
-
-        // Kiểm tra xem phản hồi đã chuẩn hóa chứa từ khóa tương ứng
-        if (str_contains($cleanResponse, 'UNSAFE')) {
-            return false; // Chặn nếu phát hiện UNSAFE
-        }
-        if (str_contains($cleanResponse, 'SAFE')) {
-            return true; // Cho qua nếu phát hiện SAFE
-        }
-
-        return true; // Mặc định cho qua
+        if (str_contains($cleanResponse, 'UNSAFE')) return false;
+        if (str_contains($cleanResponse, 'SAFE'))   return true;
+        return true;
     }
 
     public function cleanupOldCache(int $days = 30): void
     {
         try {
-            $sql = "DELETE FROM ai_responses_cache WHERE created_at < DATE_SUB(NOW(), INTERVAL ? DAY)";
-            $this->db->query($sql)->execute([$days]);
-        } catch (\Throwable $e) {
-        }
+            $this->db->query(
+                "DELETE FROM ai_responses_cache WHERE created_at < DATE_SUB(NOW(), INTERVAL ? DAY)"
+            )->execute([$days]);
+        } catch (\Throwable) {}
     }
 }

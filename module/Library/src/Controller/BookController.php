@@ -250,7 +250,7 @@ class BookController extends BaseController
 
         try {
             $book = $this->bookTable->getBook($id);
-        } catch (\RuntimeException $exception) {
+        } catch (RuntimeException $exception) {
             $this->flash()->addErrorMessage($exception->getMessage());
             $route = $currentUser ? $this->routeForRole('book') : 'catalog';
 
@@ -388,7 +388,10 @@ class BookController extends BaseController
         if (! $form instanceof BookForm) {
             throw new RuntimeException('Không thể khởi tạo biểu mẫu sách.');
         }
-        $form->get('category')->setValueOptions($this->getCategoryOptions());
+        $categoryElement = $form->get('category');
+        if ($categoryElement instanceof \Laminas\Form\Element\Select) {
+            $categoryElement->setValueOptions($this->getCategoryOptions());
+        }
 
         if ($this->httpRequest()->isPost()) {
             $form->setData($this->postData());
@@ -430,7 +433,7 @@ class BookController extends BaseController
         $id   = $this->routeInt('id');
         try {
             $book = $this->bookTable->getBook($id);
-        } catch (\RuntimeException $exception) {
+        } catch (RuntimeException $exception) {
             $this->flash()->addErrorMessage($exception->getMessage());
 
             return $this->redirect()->toRoute('library/book');
@@ -440,7 +443,10 @@ class BookController extends BaseController
         if (! $form instanceof BookForm) {
             throw new RuntimeException('Không thể khởi tạo biểu mẫu sách.');
         }
-        $form->get('category')->setValueOptions($this->getCategoryOptions());
+        $categoryElement = $form->get('category');
+        if ($categoryElement instanceof \Laminas\Form\Element\Select) {
+            $categoryElement->setValueOptions($this->getCategoryOptions());
+        }
         $form->bind($book);
 
         if ($this->httpRequest()->isPost()) {
@@ -690,20 +696,67 @@ class BookController extends BaseController
     private function performSemanticSearch(string $query): array
     {
         $adapter = $this->bookTable->getAdapter();
+        if (! $adapter instanceof \Laminas\Db\Adapter\Adapter) {
+            return [];
+        }
         
-        // Fetch all available books
-        $allBooks = [];
+        $cleanQuery = trim($query);
+        // Fetch candidate books matching query keywords (max 40) or fall back to recent ones
+        $candidateBooks = [];
+        $candidateIds = [];
         try {
-            $results = $adapter->query("SELECT book_id, title, author, category FROM books WHERE status = 'available'")->execute();
+            $terms = array_filter(explode(' ', $cleanQuery), function($t) { return mb_strlen(trim($t)) >= 2; });
+            $likeClauses = [];
+            $params = [];
+            foreach ($terms as $term) {
+                $likeClauses[] = "(title LIKE ? OR author LIKE ? OR category LIKE ?)";
+                $params[] = "%$term%";
+                $params[] = "%$term%";
+                $params[] = "%$term%";
+            }
+            
+            $sql = "SELECT book_id, title, author, category FROM books WHERE status = 'available'";
+            if (!empty($likeClauses)) {
+                $sql .= " AND (" . implode(" OR ", $likeClauses) . ")";
+            }
+            $sql .= " LIMIT 40";
+            
+            $results = $adapter->query($sql)->execute($params);
             foreach ($results as $row) {
-                $allBooks[] = [
-                    'id' => (int)$row['book_id'],
+                $id = (int)$row['book_id'];
+                $candidateBooks[$id] = [
+                    'id' => $id,
                     'title' => $row['title'],
                     'author' => $row['author'],
                     'category' => $row['category'],
                 ];
+                $candidateIds[] = $id;
             }
         } catch (\Throwable $e) {}
+
+        // Fill up to 40 books with most recent available books if match count is low
+        $fillCount = 40 - count($candidateBooks);
+        if ($fillCount > 0) {
+            try {
+                $sqlFill = "SELECT book_id, title, author, category FROM books WHERE status = 'available'";
+                if (!empty($candidateIds)) {
+                    $sqlFill .= " AND book_id NOT IN (" . implode(',', $candidateIds) . ")";
+                }
+                $sqlFill .= " ORDER BY created_at DESC LIMIT " . (int)$fillCount;
+                $resultsFill = $adapter->query($sqlFill)->execute();
+                foreach ($resultsFill as $row) {
+                    $id = (int)$row['book_id'];
+                    $candidateBooks[$id] = [
+                        'id' => $id,
+                        'title' => $row['title'],
+                        'author' => $row['author'],
+                        'category' => $row['category'],
+                    ];
+                }
+            } catch (\Throwable $e) {}
+        }
+
+        $allBooks = array_values($candidateBooks);
 
         if (empty($allBooks)) {
             return [];

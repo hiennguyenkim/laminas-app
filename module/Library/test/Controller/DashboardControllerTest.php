@@ -268,9 +268,12 @@ class DashboardControllerTest extends AbstractHttpControllerTestCase
             ->with(self::stringContains('DELETE FROM public_chats WHERE id = ?'), [5])
             ->willReturn($this->createMock(ResultInterface::class));
 
+        $geminiMock = $this->createMock(\Library\Service\GeminiService::class);
+
         $serviceLocator = $this->getApplicationServiceLocator();
         $serviceLocator->setAllowOverride(true);
         $serviceLocator->setService(AdapterInterface::class, $dbMock);
+        $serviceLocator->setService(\Library\Service\GeminiService::class, $geminiMock);
 
         $this->dispatch('/admin/dashboard/chat', 'POST', ['action' => 'delete', 'id' => 5]);
         $this->assertResponseStatusCode(200);
@@ -286,9 +289,12 @@ class DashboardControllerTest extends AbstractHttpControllerTestCase
             ->with(self::stringContains('DELETE FROM public_chats WHERE id = ? AND user_id = ?'), [5, 2])
             ->willReturn($this->createMock(ResultInterface::class));
 
+        $geminiMock = $this->createMock(\Library\Service\GeminiService::class);
+
         $serviceLocator = $this->getApplicationServiceLocator();
         $serviceLocator->setAllowOverride(true);
         $serviceLocator->setService(AdapterInterface::class, $dbMock);
+        $serviceLocator->setService(\Library\Service\GeminiService::class, $geminiMock);
 
         $this->dispatch('/student/dashboard/chat', 'POST', ['action' => 'delete', 'id' => 5]);
         $this->assertResponseStatusCode(200);
@@ -312,9 +318,12 @@ class DashboardControllerTest extends AbstractHttpControllerTestCase
                 return $this->createMock(ResultInterface::class);
             });
 
+        $geminiMock = $this->createMock(\Library\Service\GeminiService::class);
+
         $serviceLocator = $this->getApplicationServiceLocator();
         $serviceLocator->setAllowOverride(true);
         $serviceLocator->setService(AdapterInterface::class, $dbMock);
+        $serviceLocator->setService(\Library\Service\GeminiService::class, $geminiMock);
 
         $this->dispatch('/admin/dashboard/chat', 'POST', ['action' => 'pin', 'id' => 15]);
         $this->assertResponseStatusCode(200);
@@ -338,9 +347,12 @@ class DashboardControllerTest extends AbstractHttpControllerTestCase
             ->with(self::stringContains('UPDATE public_chats SET is_pinned = 0'))
             ->willReturn($this->createMock(ResultInterface::class));
 
+        $geminiMock = $this->createMock(\Library\Service\GeminiService::class);
+
         $serviceLocator = $this->getApplicationServiceLocator();
         $serviceLocator->setAllowOverride(true);
         $serviceLocator->setService(AdapterInterface::class, $dbMock);
+        $serviceLocator->setService(\Library\Service\GeminiService::class, $geminiMock);
 
         $this->dispatch('/admin/dashboard/chat', 'POST', ['action' => 'unpin']);
         $this->assertResponseStatusCode(200);

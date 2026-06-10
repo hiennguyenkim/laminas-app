@@ -11,7 +11,11 @@ $accountNo = !empty($bankSettings['vietqr_account_no']) ? $bankSettings['vietqr_
 $accountName = !empty($bankSettings['vietqr_account_name']) ? $bankSettings['vietqr_account_name'] : (getenv('VIETQR_ACCOUNT_NAME') ?: 'THU VIEN HDPE');
 ?>
 
+<link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+<link rel="preconnect" href="https://img.vietqr.io" crossorigin>
+<link rel="dns-prefetch" href="https://img.vietqr.io">
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" integrity="sha512-CNgIRecGo7nphbeZ04Sc13ka07paqdeTu0WR1IM4kNcpmBAUSHSQX0FslNhTDadL4O5SAGapGt4FodqL8My0mA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
 <style>
 .checkout-grid {
@@ -264,7 +268,7 @@ $accountName = !empty($bankSettings['vietqr_account_name']) ? $bankSettings['vie
                 <div id="qrLoading" style="position: absolute; color: var(--text-muted);">
                     <div class="spinner-border spinner-border-sm" role="status"></div> Đang khởi tạo...
                 </div>
-                <img src="" alt="QR Code" class="qr-image" id="qrCodeImage" style="opacity: 0;">
+                <div id="qrCodeDiv" style="opacity: 0; width: 200px; height: 200px; display: flex; align-items: center; justify-content: center; transition: opacity 0.3s;"></div>
             </div>
 
             <div style="margin: 15px 0;">
@@ -315,28 +319,7 @@ $accountName = !empty($bankSettings['vietqr_account_name']) ? $bankSettings['vie
     </div>
 </div>
 
-<!-- Webhook Simulator Card (Collapsible, Developer only) -->
-<div class="card simulator-card">
-    <div class="card-header" style="cursor: pointer;" onclick="$('#simulatorBody').slideToggle(200)">
-        <div class="card-title" style="font-size: 13.5px;"><i class="bi bi-bug"></i> Simulator: Bảng giả lập Gmail Push (Môi trường Dev) <i class="bi bi-chevron-down float-end"></i></div>
-    </div>
-    <div class="card-body" id="simulatorBody" style="display: none;">
-        <div style="font-size: 12.5px; color: var(--text-secondary); margin-bottom: 12px;">
-            Nhập hoặc chỉnh sửa email biến động số dư giả định dưới đây. Hệ thống sẽ giải mã và gửi trực tiếp tới endpoint Webhook không thông qua bảo mật Google Pub/Sub để test nhanh.
-        </div>
-        <div class="mb-3">
-            <label class="form-label" style="font-size: 12px; color: var(--text-muted);">Nội dung email BIDV giả định:</label>
-            <textarea class="form-control" id="simEmailContent" rows="3" style="background: rgba(0,0,0,0.2); border-color: var(--border-color); color: var(--text-primary); font-family: monospace; font-size: 12px;"></textarea>
-        </div>
-        <div class="d-flex justify-content-between align-items-center">
-            <button class="btn" style="background: #ef4444; border: none; color: #fff; padding: 6px 16px; font-size: 12.5px; font-weight: 600;" onclick="triggerSimulatedWebhook()">
-                <span id="simBtnSpinner" class="spinner-border spinner-border-sm" role="status" style="display: none; margin-right: 5px;"></span>
-                <i class="bi bi-lightning-charge"></i> Gửi giả lập Webhook
-            </button>
-            <div id="simResponseStatus" style="font-size: 12.5px; font-weight: 600;"></div>
-        </div>
-    </div>
-</div>
+
 
 <script>
 // State Management
@@ -346,20 +329,127 @@ let targetAmount = <?= $amount ?>;
 let expirationTime = 0;
 let pollingInterval = null;
 let countdownInterval = null;
+let qrCodeInstance = null;
 
 // VietQR Bank Config passed from PHP
 const bankId = "<?= $this->escapeJs($bankId) ?>";
 const accountNo = "<?= $this->escapeJs($accountNo) ?>";
-const accountName = encodeURIComponent("<?= $this->escapeJs($accountName) ?>");
+const accountName = "<?= $this->escapeJs($accountName) ?>";
 
 // API Endpoints
 const createSessionUrl = "<?= $this->url('api/payment', ['action' => 'create-session']) ?>";
 const checkStatusUrl = "<?= $this->url('api/payment', ['action' => 'check-status']) ?>";
 const webhookUrl = "<?= $this->url('api/payment', ['action' => 'gmail-webhook']) ?>";
 
-$(document).ready(function() {
-    initPayment();
-});
+// Bank code mapping dictionary
+const bankBinMap = {
+    'BIDV': '970418',
+    'VCB': '970436',
+    'VIETCOMBANK': '970436',
+    'CTG': '970415',
+    'VIETINBANK': '970415',
+    'TCB': '970407',
+    'TECHCOMBANK': '970407',
+    'MB': '970422',
+    'MBBANK': '970422',
+    'VBA': '970405',
+    'AGRIBANK': '970405',
+    'ACB': '970416',
+    'VPB': '970432',
+    'VPBANK': '970432',
+    'STB': '970403',
+    'SACOMBANK': '970403',
+    'TPB': '970423',
+    'TPBANK': '970423',
+    'SHB': '970443',
+    'HDB': '970437',
+    'HDBANK': '970437',
+    'VIB': '970441',
+    'MSB': '970426'
+};
+
+function getBankBin(bankName) {
+    const key = bankName.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    return bankBinMap[key] || '970418'; // Fallback to BIDV if not found
+}
+
+function calculateCRC16(str) {
+    let crc = 0xFFFF;
+    const poly = 0x1021;
+    for (let i = 0; i < str.length; i++) {
+        let code = str.charCodeAt(i);
+        crc ^= (code << 8);
+        for (let j = 0; j < 8; j++) {
+            if ((crc & 0x8000) !== 0) {
+                crc = ((crc << 1) ^ poly) & 0xFFFF;
+            } else {
+                crc = (crc << 1) & 0xFFFF;
+            }
+        }
+    }
+    let hex = crc.toString(16).toUpperCase();
+    return hex.padStart(4, '0');
+}
+
+const padVal = (val) => val.toString().length.toString().padStart(2, '0');
+
+function generateVietQrString(bankId, accountNo, amount, orderCode) {
+    const bin = getBankBin(bankId);
+    
+    // Sub-tag 01 details:
+    // Sub-tag 00: Bank Code (BIN)
+    const sub00 = `0006${bin}`;
+    // Sub-tag 01: Account Number
+    const sub01 = `01${padVal(accountNo)}${accountNo}`;
+    const accountInfo = sub00 + sub01;
+    
+    // Tag 38 details:
+    // Sub-tag 00: GUID
+    const tag38Sub00 = `0010A000000727`;
+    // Sub-tag 01: Account Info Template
+    const tag38Sub01 = `01${padVal(accountInfo)}${accountInfo}`;
+    // Sub-tag 02: Service Code
+    const tag38Sub02 = `0208QRIBFTTA`;
+    
+    const tag38Content = tag38Sub00 + tag38Sub01 + tag38Sub02;
+    const tag38 = `38${padVal(tag38Content)}${tag38Content}`;
+    
+    // Tag 62 (Additional Data Field Template)
+    const tag62Sub08 = `08${padVal(orderCode)}${orderCode}`;
+    const tag62 = `62${padVal(tag62Sub08)}${tag62Sub08}`;
+    
+    // Main Payload
+    let payload = 
+        `000201` +                  // Format Indicator
+        `010212` +                  // Point of Initiation (12 = Dynamic)
+        tag38 +                     // Merchant Account Info
+        `5303704` +                 // Currency (VND = 704)
+        `54${padVal(amount)}${amount}` + // Amount
+        `5802VN` +                  // Country Code
+        tag62 +                     // Additional Data (Description)
+        `6304`;                     // CRC Tag and placeholder length
+        
+    const crc = calculateCRC16(payload);
+    return payload + crc;
+}
+
+function renderQrCode(qrData) {
+    $('#qrCodeDiv').html(''); // Clear previous QR
+    qrCodeInstance = new QRCode(document.getElementById("qrCodeDiv"), {
+        text: qrData,
+        width: 200,
+        height: 200,
+        colorDark : "#000000",
+        colorLight : "#ffffff",
+        correctLevel : QRCode.CorrectLevel.M
+    });
+    // Fade in
+    $('#qrLoading').hide();
+    $('#qrCodeDiv').css('opacity', '1');
+}
+
+// Trigger payment initialization eagerly
+initPayment();
 
 function initPayment() {
     // Generate session
@@ -398,8 +488,8 @@ function selectMethod(methodId, methodName, bgCol) {
 }
 
 function requestPaymentSession(channel) {
-    $('#qrLoading').show();
-    $('#qrCodeImage').css('opacity', '0');
+    $('#qrLoading').html('<div class="spinner-border spinner-border-sm" role="status"></div> Đang khởi tạo...').show();
+    $('#qrCodeDiv').css('opacity', '0').html('');
     $('#expiredOverlay').hide();
     $('#paidOverlay').hide();
     $('#timer').text('--:--');
@@ -416,28 +506,24 @@ function requestPaymentSession(channel) {
     })
     .then(res => res.json())
     .then(data => {
-        $('#qrLoading').hide();
         if (data.status === 'success') {
             orderCode = data.orderCode;
             // Use Unix timestamp (ms) directly to avoid PHP/browser timezone mismatch
             expirationTime = data.expiredAtMs || new Date(data.expiredAt.replace(/-/g, "/")).getTime();
             
-            // Build VietQR Dynamic URL
-            // Format: https://img.vietqr.io/image/<BANK_ID>-<ACCOUNT_NO>-compact2.png?amount=<AMOUNT>&addInfo=<ORDER_CODE>&accountName=<ACCOUNT_NAME>
-            const vietQrUrl = `https://img.vietqr.io/image/${bankId}-${accountNo}-compact2.png?amount=${targetAmount}&addInfo=${orderCode}&accountName=${accountName}`;
+            // Build VietQR Dynamic EMVCo string locally
+            const qrString = generateVietQrString(bankId, accountNo, targetAmount, orderCode);
             
-            $('#qrCodeImage').attr('src', vietQrUrl);
-            $('#qrCodeImage').css('opacity', '1');
+            // Render QR Code instantly using the local library
+            renderQrCode(qrString);
+            
             $('#qrContentField').text(orderCode);
-            
-            // Generate mock email in simulator textbox
-            const mockEmail = `BIDV: ${new Date().toLocaleString('vi-VN')}. TK: ${accountNo}. Giao dich: +${targetAmount.toLocaleString()} VND. Noi dung: ${orderCode}`;
-            $('#simEmailContent').val(mockEmail);
 
             // Start countdown & polling
             startCountdown();
             startPolling();
         } else {
+            $('#qrLoading').hide();
             alert('Lỗi khởi tạo phiên thanh toán: ' + (data.error || 'Vui lòng thử lại.'));
         }
     })
@@ -512,18 +598,11 @@ function recreateSession() {
 }
 
 /**
- * One-click payment confirmation — uses the simulator endpoint.
- * Works in dev/demo environments where Gmail Pub/Sub is not set up.
+ * One-click payment confirmation — queries check-status directly.
  */
 function confirmPayment() {
     if (!orderCode) {
         $('#confirmBtnFeedback').css('color', '#ef4444').text('Chưa có mã phiên. Vui lòng chờ QR tải xong.');
-        return;
-    }
-
-    const emailBody = $('#simEmailContent').val();
-    if (!emailBody || !emailBody.trim()) {
-        $('#confirmBtnFeedback').css('color', '#ef4444').text('Nội dung xác nhận chưa sẵn sàng. Thử tải lại trang.');
         return;
     }
 
@@ -533,70 +612,33 @@ function confirmPayment() {
     $('#confirmPayBtn').prop('disabled', true);
     $('#confirmBtnFeedback').text('');
 
-    fetch(webhookUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ simulate_email_body: emailBody })
-    })
+    fetch(`${checkStatusUrl}?orderCode=${orderCode}`)
     .then(res => res.json())
     .then(data => {
         $('#confirmBtnSpinner').hide();
         $('#confirmBtnIcon').show();
-        if (data.status === 'success' && data.processedCodes && data.processedCodes.length > 0) {
-            $('#confirmPayBtn').css('background', 'linear-gradient(135deg, #059669, #047857)');
-            $('#confirmBtnLabel').text('Đã xác nhận! Đang cập nhật...');
-            $('#confirmBtnFeedback').css('color', '#10b981').text('✓ Giao dịch hợp lệ — trang sẽ tự cập nhật trong giây lát.');
-        } else if (data.processedCodes && data.processedCodes.length === 0) {
-            $('#confirmBtnLabel').text('Tôi đã chuyển khoản xong');
-            $('#confirmPayBtn').prop('disabled', false);
-            $('#confirmBtnFeedback').css('color', '#f59e0b').html('<i class="bi bi-exclamation-triangle"></i> Không khớp mã hoặc số tiền. Kiểm tra lại nội dung chuyển khoản đúng với mã QR.');
+        $('#confirmPayBtn').prop('disabled', false);
+        $('#confirmBtnLabel').text('Tôi đã chuyển khoản xong');
+
+        if (data.status === 'success') {
+            if (data.paymentStatus === 'paid') {
+                $('#paidOverlay').css('display', 'flex');
+                setTimeout(() => {
+                    window.location.href = "<?= $this->url('student/fine') ?>";
+                }, 3000);
+            } else {
+                $('#confirmBtnFeedback').css('color', '#f59e0b').text('Giao dịch chưa được ghi nhận trên hệ thống. Vui lòng chờ từ 1-3 phút hoặc kiểm tra lại.');
+            }
         } else {
-            $('#confirmBtnLabel').text('Tôi đã chuyển khoản xong');
-            $('#confirmPayBtn').prop('disabled', false);
             $('#confirmBtnFeedback').css('color', '#ef4444').text('Lỗi xác nhận: ' + (data.error || 'Thử lại sau.'));
         }
     })
     .catch(err => {
         $('#confirmBtnSpinner').hide();
         $('#confirmBtnIcon').show();
-        $('#confirmBtnLabel').text('Tôi đã chuyển khoản xong');
         $('#confirmPayBtn').prop('disabled', false);
+        $('#confirmBtnLabel').text('Tôi đã chuyển khoản xong');
         $('#confirmBtnFeedback').css('color', '#ef4444').text('Lỗi kết nối. Vui lòng thử lại.');
-    });
-}
-
-function triggerSimulatedWebhook() {
-    const emailBody = $('#simEmailContent').val();
-    if (!emailBody.trim()) {
-        alert('Vui lòng nhập nội dung email giả lập.');
-        return;
-    }
-
-    $('#simBtnSpinner').show();
-    $('#simResponseStatus').text('');
-    
-    fetch(webhookUrl, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            simulate_email_body: emailBody
-        })
-    })
-    .then(res => res.json())
-    .then(data => {
-        $('#simBtnSpinner').hide();
-        if (data.status === 'success') {
-            $('#simResponseStatus').css('color', '#10b981').html('<i class="bi bi-check-circle"></i> Đã kích hoạt webhook! Mã khớp: ' + (data.processedCodes.join(', ') || 'Không khớp'));
-        } else {
-            $('#simResponseStatus').css('color', '#ef4444').text('Lỗi Webhook: ' + (data.error || 'Thử lại'));
-        }
-    })
-    .catch(err => {
-        $('#simBtnSpinner').hide();
-        $('#simResponseStatus').css('color', '#ef4444').text('Lỗi kết nối Webhook.');
-        console.error(err);
     });
 }
 

@@ -4,23 +4,25 @@ declare(strict_types=1);
 
 namespace Library\Factory\Controller\Api;
 
-use Interop\Container\ContainerInterface;
+use Psr\Container\ContainerInterface;
 use Laminas\ServiceManager\Factory\FactoryInterface;
 use Library\Controller\Api\BookApiController;
 use Library\Model\Table\BookTable;
 use Library\Model\Table\ChatLogTable;
 use Library\Model\Table\UserTable;
 use Library\Service\GeminiService;
+use Library\Service\MailService;
 
 class BookApiControllerFactory implements FactoryInterface
 {
-    public function __invoke(ContainerInterface $container, $requestedName, array $options = null)
+    public function __invoke(ContainerInterface $container, $requestedName, ?array $options = null)
     {
         return new BookApiController(
             $container->get(BookTable::class),
             $container->get(ChatLogTable::class),
             $container->get(GeminiService::class),
-            $container->get(UserTable::class)
+            $container->get(UserTable::class),
+            $container->get(MailService::class)
         );
     }
 }

@@ -201,6 +201,18 @@ $activeCat = (string)($filters['category'] ?? '');
 <div class="catalog-layout-wrap">
     <div class="catalog-main-panel">
         <div id="book-list-container" class="catalog-list-container">
+            <?php if (($filters['ai_search'] ?? '0') === '1' && !empty($filters['search'])): ?>
+                <div class="alert alert-info d-flex align-center justify-between" style="background: rgba(124, 106, 255, 0.08); border: 1px dashed rgba(124, 106, 255, 0.25); border-radius: 8px; padding: 12px 18px; margin-bottom: 20px; font-size: 13.5px; box-shadow: 0 4px 12px rgba(124, 106, 255, 0.05); width: 100%;">
+                    <div class="d-flex align-center gap-2">
+                        <i class="bi bi-cpu" style="color: var(--accent-purple); font-size: 16px;"></i>
+                        <span style="color: var(--text-primary);">Kết quả tìm kiếm thông minh được tối ưu hóa bởi <strong>Kimi AI</strong> cho từ khóa: <em>"<?= htmlspecialchars($filters['search']) ?>"</em></span>
+                    </div>
+                    <a href="?ai_search=0&search=<?= urlencode($filters['search']) ?>" class="btn-text" style="color: var(--accent-purple); font-size: 13px; text-decoration: underline; font-weight: 600;">
+                        Quay lại tìm kiếm thường
+                    </a>
+                </div>
+            <?php endif; ?>
+
             <div class="book-grid">
                 <?php if (empty($books)): ?>
                     <div class="catalog-empty">

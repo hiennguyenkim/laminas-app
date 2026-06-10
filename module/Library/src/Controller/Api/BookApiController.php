@@ -24,7 +24,8 @@ class BookApiController extends AbstractRestfulController
         private BookTable $table,
         private ChatLogTable $chatLogTable,
         private \Library\Service\GeminiService $geminiService,
-        private UserTable $userTable
+        private UserTable $userTable,
+        private \Library\Service\MailService $mailService
     ) {
     }
 
@@ -239,7 +240,64 @@ class BookApiController extends AbstractRestfulController
         Hãy ƯU TIÊN sử dụng thông tin từ 'Sách khớp với câu hỏi của người dùng' ở trên để trả lời chính xác thông tin sách (bao gồm tên sách, tác giả, thể loại, số lượng, trạng thái) nếu người dùng có hỏi hoặc tìm kiếm. Nếu không có sách khớp hoặc sách đó không tồn tại, hãy gợi ý các cuốn sách mới và đang có sẵn hoặc khuyên họ tìm theo các thể loại trên.
         Câu trả lời nên ngắn gọn, súc tích và bằng tiếng Việt.";
 
-        $responseMsg = $this->geminiService->generateResponse($message, $systemPrompt);
+        // AI content moderation check
+        if (!$this->geminiService->checkContent($message)) {
+            $warningSession = new \Laminas\Session\Container('ai_chat_warnings');
+            $warningSession->count = ($warningSession->count ?? 0) + 1;
+            
+            $remaining = 3 - $warningSession->count;
+            if ($warningSession->count >= 3) {
+                $warningSession->count = 0; // reset
+                
+                if ($userId !== null) {
+                    try {
+                        // Lock user for 7 days
+                        $this->userTable->lockUser($userId, 'Vi phạm nguyên tắc cộng đồng AI Chatbot (gửi từ ngữ không phù hợp quá 3 lần).', date('Y-m-d H:i:s', time() + 7 * 86400), 1);
+                        
+                        // Send warning email to administrator
+                        $smtpFrom = $this->userTable->getSystemSetting('smtp_from_email');
+                        if (!empty($smtpFrom)) {
+                            $userObj = $this->userTable->getUser($userId);
+                            $subject = "[Cảnh báo bảo mật] Khóa tài khoản do vi phạm nguyên tắc AI Chatbot";
+                            $body = "Chào quản trị viên,\n\nTài khoản sinh viên sau đây đã bị hệ thống tự động khóa 7 ngày do gửi tin nhắn chứa nội dung không phù hợp (vi phạm kiểm duyệt AI Chatbot) quá 3 lần liên tiếp:\n\n"
+                                . "- Họ tên: {$userObj->fullName}\n"
+                                . "- Username: {$userObj->username}\n"
+                                . "- Email: {$userObj->email}\n"
+                                . "- Tin nhắn vi phạm cuối: \"{$message}\"\n\n"
+                                . "Trân trọng,\nHệ thống Thư viện HDPE";
+                            
+                            $this->mailService->sendEmail($smtpFrom, 'Quản trị viên Thư viện', $subject, $body);
+                        }
+                    } catch (\Throwable $e) {}
+                }
+                
+                return $this->jsonResponse([
+                    'error' => 'Tài khoản của bạn đã bị khóa tính năng thảo luận 7 ngày do vi phạm chính sách cộng đồng quá 3 lần.'
+                ], 403);
+            }
+            
+            return $this->jsonResponse([
+                'error' => "Tin nhắn chứa nội dung không phù hợp và đã bị chặn. Cảnh báo: Bạn còn {$remaining} lần vi phạm trước khi tài khoản bị khóa."
+            ], 400);
+        }
+
+        // Conversational Memory (Session)
+        $chatSession = new \Laminas\Session\Container('ai_chat_memory');
+        if (!isset($chatSession->history)) {
+            $chatSession->history = [];
+        }
+        $chatHistory = $chatSession->history;
+
+        // Generate response with context of chat history
+        $responseMsg = $this->geminiService->generateResponse($message, $systemPrompt, $chatHistory);
+
+        // Update history
+        $chatHistory[] = ['role' => 'user', 'content' => $message];
+        $chatHistory[] = ['role' => 'assistant', 'content' => $responseMsg];
+        if (count($chatHistory) > 6) {
+            $chatHistory = array_slice($chatHistory, -6);
+        }
+        $chatSession->history = $chatHistory;
         
         // Extract suggestions from AI response or manual search if AI mentions a book
         $suggestions = [];
@@ -307,19 +365,63 @@ class BookApiController extends AbstractRestfulController
         $adapter = $this->table->getAdapter();
         assert($adapter instanceof \Laminas\Db\Adapter\Adapter);
 
-        // Fetch all available books
-        $allBooks = [];
+        $cleanQuery = trim($message);
+        // Fetch candidate books matching query keywords (max 40) or fall back to recent ones
+        $candidateBooks = [];
+        $candidateIds = [];
         try {
-            $results = $adapter->query("SELECT book_id, title, author, category FROM books WHERE status = 'available'")->execute();
+            $terms = array_filter(explode(' ', $cleanQuery), function($t) { return mb_strlen(trim($t)) >= 2; });
+            $likeClauses = [];
+            $params = [];
+            foreach ($terms as $term) {
+                $likeClauses[] = "(title LIKE ? OR author LIKE ? OR category LIKE ?)";
+                $params[] = "%$term%";
+                $params[] = "%$term%";
+                $params[] = "%$term%";
+            }
+            
+            $sql = "SELECT book_id, title, author, category FROM books WHERE status = 'available'";
+            if (!empty($likeClauses)) {
+                $sql .= " AND (" . implode(" OR ", $likeClauses) . ")";
+            }
+            $sql .= " LIMIT 40";
+            
+            $results = $adapter->query($sql)->execute($params);
             foreach ($results as $row) {
-                $allBooks[] = [
-                    'id' => (int)$row['book_id'],
+                $id = (int)$row['book_id'];
+                $candidateBooks[$id] = [
+                    'id' => $id,
                     'title' => $row['title'],
                     'author' => $row['author'],
                     'category' => $row['category'],
                 ];
+                $candidateIds[] = $id;
             }
         } catch (\Throwable $e) {}
+
+        // Fill up to 40 books with most recent available books if match count is low
+        $fillCount = 40 - count($candidateBooks);
+        if ($fillCount > 0) {
+            try {
+                $sqlFill = "SELECT book_id, title, author, category FROM books WHERE status = 'available'";
+                if (!empty($candidateIds)) {
+                    $sqlFill .= " AND book_id NOT IN (" . implode(',', $candidateIds) . ")";
+                }
+                $sqlFill .= " ORDER BY created_at DESC LIMIT " . (int)$fillCount;
+                $resultsFill = $adapter->query($sqlFill)->execute();
+                foreach ($resultsFill as $row) {
+                    $id = (int)$row['book_id'];
+                    $candidateBooks[$id] = [
+                        'id' => $id,
+                        'title' => $row['title'],
+                        'author' => $row['author'],
+                        'category' => $row['category'],
+                    ];
+                }
+            } catch (\Throwable $e) {}
+        }
+
+        $allBooks = array_values($candidateBooks);
 
         if (empty($allBooks)) {
             return $this->jsonResponse([]);

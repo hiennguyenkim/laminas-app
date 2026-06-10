@@ -7,6 +7,7 @@ namespace LibraryTest\Controller;
 use Library\Controller\Api\BookApiController;
 use Library\Model\Table\BookTable;
 use Library\Session\AuthSessionContainer;
+use Library\Service\GeminiService;
 use Laminas\Db\Adapter\AdapterInterface;
 use Laminas\Db\Adapter\Driver\StatementInterface;
 use Laminas\Db\Adapter\Driver\ResultInterface;
@@ -96,7 +97,8 @@ class BookApiControllerTest extends AbstractHttpControllerTestCase
 
         $bookTableMock->method('getAdapter')->willReturn($dbMock);
 
-        $geminiMock = $this->createMock(\Library\Service\GeminiService::class);
+        $geminiMock = $this->createMock(GeminiService::class);
+        $geminiMock->method('checkContent')->willReturn(true);
         $geminiMock->expects(self::once())
             ->method('generateResponse')
             ->willReturn('Chào bạn! Đây là gợi ý sách Chí Phèo và Tắt Đèn là các tiểu thuyết và sách văn học hay.');
@@ -104,8 +106,8 @@ class BookApiControllerTest extends AbstractHttpControllerTestCase
         $serviceLocator = $this->getApplicationServiceLocator();
         $serviceLocator->setAllowOverride(true);
         $serviceLocator->setService(BookTable::class, $bookTableMock);
-        $serviceLocator->setService(\Laminas\Db\Adapter\AdapterInterface::class, $dbMock);
-        $serviceLocator->setService(\Library\Service\GeminiService::class, $geminiMock);
+        $serviceLocator->setService(AdapterInterface::class, $dbMock);
+        $serviceLocator->setService(GeminiService::class, $geminiMock);
 
         // Laminas Test uses post body as JSON when dispatching JSON payload. 
         // We set the raw request body in the request object directly.
@@ -167,7 +169,8 @@ class BookApiControllerTest extends AbstractHttpControllerTestCase
 
         $bookTableMock->method('getAdapter')->willReturn($dbMock);
 
-        $geminiMock = $this->createMock(\Library\Service\GeminiService::class);
+        $geminiMock = $this->createMock(GeminiService::class);
+        $geminiMock->method('checkContent')->willReturn(true);
         $geminiMock->expects(self::once())
             ->method('generateResponse')
             ->willReturn('Chào bạn! Đây là gợi ý sách Lập trình PHP thuộc danh mục Công nghệ thông tin.');
@@ -175,8 +178,8 @@ class BookApiControllerTest extends AbstractHttpControllerTestCase
         $serviceLocator = $this->getApplicationServiceLocator();
         $serviceLocator->setAllowOverride(true);
         $serviceLocator->setService(BookTable::class, $bookTableMock);
-        $serviceLocator->setService(\Laminas\Db\Adapter\AdapterInterface::class, $dbMock);
-        $serviceLocator->setService(\Library\Service\GeminiService::class, $geminiMock);
+        $serviceLocator->setService(AdapterInterface::class, $dbMock);
+        $serviceLocator->setService(GeminiService::class, $geminiMock);
 
         $this->getRequest()->setContent(json_encode(['message' => 'Lập trình']));
         
@@ -208,13 +211,13 @@ class BookApiControllerTest extends AbstractHttpControllerTestCase
             ->willReturn($user);
 
         $bookTableMock = $this->createMock(BookTable::class);
-        $geminiMock = $this->createMock(\Library\Service\GeminiService::class);
+        $geminiMock = $this->createMock(GeminiService::class);
 
         $serviceLocator = $this->getApplicationServiceLocator();
         $serviceLocator->setAllowOverride(true);
         $serviceLocator->setService(\Library\Model\Table\UserTable::class, $userTableMock);
         $serviceLocator->setService(BookTable::class, $bookTableMock);
-        $serviceLocator->setService(\Library\Service\GeminiService::class, $geminiMock);
+        $serviceLocator->setService(GeminiService::class, $geminiMock);
 
         $this->getRequest()->setContent(json_encode([
             'message' => 'Tôi muốn tìm sách',
