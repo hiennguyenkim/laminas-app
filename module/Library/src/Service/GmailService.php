@@ -225,6 +225,29 @@ class GmailService
                                 $this->handlePaymentSuccess((int)$session->targetId, $msgId);
                                 $processedCodes[] = $orderCode;
                             }
+                        } else {
+                            // Amount mismatched! Set status to failed
+                            $session->status = 'failed';
+                            $session->transactionId = $msgId;
+                            $this->paymentSessionTable->saveSession($session);
+
+                            // Add student notification
+                            $userIdSql = "SELECT user_id FROM fines WHERE fine_id = ? LIMIT 1";
+                            $fineRow = $this->db->query($userIdSql)->execute([(int)$session->targetId])->current();
+                            if ($fineRow) {
+                                $userId = (int)$fineRow['user_id'];
+                                $notifySql = "INSERT INTO notifications (user_id, sender_id, title, message, type, related_id, created_at)
+                                               VALUES (?, 0, 'Thanh toán thất bại: Sai số tiền', ?, 'system', ?, NOW())";
+                                $msg = sprintf("Giao dịch chuyển tiền với nội dung %s có số tiền không khớp với khoản phạt #%d. Vui lòng liên hệ thủ thư.", $orderCode, $session->targetId);
+                                $this->db->query($notifySql)->execute([$userId, $msg, $session->targetId]);
+                            }
+
+                            // Write warning to cron log
+                            $logDir = dirname(__DIR__, 4) . '/data/logs';
+                            if (is_dir($logDir)) {
+                                $line = '[' . date('Y-m-d H:i:s') . '] WARNING: Amount mismatch for order code: ' . $orderCode . ' (Expected: ' . $session->amount . ')' . PHP_EOL;
+                                @file_put_contents($logDir . '/cron-gmail.log', $line, FILE_APPEND | LOCK_EX);
+                            }
                         }
                     }
                 }
@@ -265,6 +288,29 @@ class GmailService
 
                         $this->handlePaymentSuccess((int)$session->targetId, $msgId);
                         $processedCodes[] = $orderCode;
+                    }
+                } else {
+                    $msgId = 'MOCK_TXT_' . uniqid();
+                    $session->status = 'failed';
+                    $session->transactionId = $msgId;
+                    $this->paymentSessionTable->saveSession($session);
+                    
+                    // Add student notification
+                    $userIdSql = "SELECT user_id FROM fines WHERE fine_id = ? LIMIT 1";
+                    $fineRow = $this->db->query($userIdSql)->execute([(int)$session->targetId])->current();
+                    if ($fineRow) {
+                        $userId = (int)$fineRow['user_id'];
+                        $notifySql = "INSERT INTO notifications (user_id, sender_id, title, message, type, related_id, created_at)
+                                       VALUES (?, 0, 'Thanh toán thất bại: Sai số tiền', ?, 'system', ?, NOW())";
+                        $msg = sprintf("Giao dịch chuyển tiền với nội dung %s có số tiền không khớp với khoản phạt #%d. Vui lòng liên hệ thủ thư.", $orderCode, $session->targetId);
+                        $this->db->query($notifySql)->execute([$userId, $msg, $session->targetId]);
+                    }
+
+                    // Write warning to cron log
+                    $logDir = dirname(__DIR__, 4) . '/data/logs';
+                    if (is_dir($logDir)) {
+                        $line = '[' . date('Y-m-d H:i:s') . '] WARNING: Amount mismatch for order code: ' . $orderCode . ' (Expected: ' . $session->amount . ')' . PHP_EOL;
+                        @file_put_contents($logDir . '/cron-gmail.log', $line, FILE_APPEND | LOCK_EX);
                     }
                 }
             }

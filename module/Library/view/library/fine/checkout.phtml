@@ -98,6 +98,12 @@ $accountName = !empty($bankSettings['vietqr_account_name']) ? $bankSettings['vie
                     <div style="font-weight: 700;">THANH TOÁN THÀNH CÔNG</div>
                     <div style="font-size: 12px; margin-top: 5px; color: var(--text-muted);">Đang quay lại trang phạt...</div>
                 </div>
+                <div class="qr-expired-overlay" id="failedOverlay" style="display: none; background: rgba(220, 38, 38, 0.95); color: #fff;">
+                    <i class="bi bi-x-circle" style="font-size: 40px; margin-bottom: 10px;"></i>
+                    <div style="font-weight: 700; margin-bottom: 5px;">SAI SỐ TIỀN THANH TOÁN</div>
+                    <div style="font-size: 12px; margin-bottom: 15px; color: #fee2e2; max-width: 180px; margin-left: auto; margin-right: auto;">Số tiền chuyển khoản không khớp với hóa đơn phạt. Vui lòng liên hệ thủ thư.</div>
+                    <button class="btn" style="background: #fff; color: #dc2626; border: none; font-size: 12.5px; font-weight: 700;" onclick="recreateSession()">Thử lại</button>
+                </div>
                 <!-- Loading indicator -->
                 <div id="qrLoading" style="position: absolute; color: var(--text-muted);">
                     <div class="spinner-border spinner-border-sm" role="status"></div> Đang khởi tạo...
@@ -110,6 +116,24 @@ $accountName = !empty($bankSettings['vietqr_account_name']) ? $bankSettings['vie
                 <div style="font-size: 26px; font-weight: 800; color: var(--text-primary); margin: 4px 0; font-family: 'Outfit', sans-serif;" id="displayAmount">
                     <?= number_format($amount) ?>đ
                 </div>
+            </div>
+
+            <!-- Item 1: Hướng dẫn sao chép nội dung chuyển khoản & cảnh báo -->
+            <div style="background: rgba(239, 68, 68, 0.08); border: 1px dashed #ef4444; padding: 12px; border-radius: 8px; margin: 15px auto; max-width: 320px; text-align: left; font-size: 12px; color: #ef4444; line-height: 1.5;">
+                <div style="font-weight: 700; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
+                    <i class="bi bi-exclamation-triangle-fill"></i> QUAN TRỌNG:
+                </div>
+                Vui lòng không tự ý thay đổi hoặc thêm bớt ký tự trong nội dung chuyển khoản để hệ thống ghi nhận tự động.
+            </div>
+            
+            <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-color); padding: 12px 15px; border-radius: 10px; margin: 15px auto; max-width: 320px; display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+                <div style="text-align: left;">
+                    <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Nội dung chuyển khoản</div>
+                    <div id="qrContentFieldMain" style="font-size: 17px; font-weight: 800; font-family: monospace; color: var(--text-primary); letter-spacing: 0.5px; margin-top: 2px;">---</div>
+                </div>
+                <button class="btn" style="background: var(--accent-color, #a50064); border: none; color: #fff; padding: 8px 16px; font-size: 12.5px; font-weight: 700; border-radius: 6px; display: flex; align-items: center; gap: 6px; cursor: pointer; transition: background 0.2s;" id="copyBtnMain" onclick="copyContentMain()">
+                    <i class="bi bi-clipboard" id="copyIconMain"></i> <span id="copyTextMain">Sao chép</span>
+                </button>
             </div>
 
             <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-color); padding: 12px; border-radius: 8px; margin: 15px auto; max-width: 320px; display: grid; grid-template-columns: 1fr 1.2fr; gap: 8px; font-size: 12.5px; text-align: left;">
@@ -286,6 +310,8 @@ function renderQrCode(qrData) {
 initPayment();
 
 function initPayment() {
+    // Set default accent color for Momo
+    document.documentElement.style.setProperty('--accent-color', '#a50064');
     // Generate session
     requestPaymentSession(currentChannel);
 }
@@ -326,7 +352,9 @@ function requestPaymentSession(channel) {
     $('#qrCodeDiv').css('opacity', '0').html('');
     $('#expiredOverlay').hide();
     $('#paidOverlay').hide();
+    $('#failedOverlay').hide();
     $('#timer').text('--:--');
+    $('#qrContentFieldMain').text('---');
     
     fetch(createSessionUrl, {
         method: 'POST',
@@ -352,6 +380,7 @@ function requestPaymentSession(channel) {
             renderQrCode(qrString);
             
             $('#qrContentField').text(orderCode);
+            $('#qrContentFieldMain').text(orderCode);
 
             // Start countdown & polling
             startCountdown();
@@ -419,6 +448,11 @@ function startPolling() {
                         clearInterval(countdownInterval);
                         document.getElementById('timer').textContent = "HẾT HẠN";
                         $('#expiredOverlay').css('display', 'flex');
+                    } else if (data.paymentStatus === 'failed') {
+                        // Amount mismatch / Failed
+                        clearInterval(pollingInterval);
+                        clearInterval(countdownInterval);
+                        $('#failedOverlay').css('display', 'flex');
                     }
                 }
             })
@@ -428,6 +462,7 @@ function startPolling() {
 
 function recreateSession() {
     $('#expiredOverlay').hide();
+    $('#failedOverlay').hide();
     requestPaymentSession(currentChannel);
 }
 
@@ -460,6 +495,10 @@ function confirmPayment() {
                 setTimeout(() => {
                     window.location.href = "<?= $this->url('student/fine') ?>";
                 }, 3000);
+            } else if (data.paymentStatus === 'failed') {
+                clearInterval(pollingInterval);
+                clearInterval(countdownInterval);
+                $('#failedOverlay').css('display', 'flex');
             } else {
                 $('#confirmBtnFeedback').css('color', '#f59e0b').text('Giao dịch chưa được ghi nhận trên hệ thống. Vui lòng chờ từ 1-3 phút hoặc kiểm tra lại.');
             }
@@ -483,6 +522,26 @@ function copyContent() {
         btn.html('<i class="bi bi-check"></i>').css('background', '#10b981');
         setTimeout(() => {
             btn.html('<i class="bi bi-clipboard"></i>').css('background', '');
+        }, 1500);
+    });
+}
+
+function copyContentMain() {
+    const content = $('#qrContentFieldMain').text();
+    if (!content || content === '---') return;
+    navigator.clipboard.writeText(content).then(() => {
+        const btn = $('#copyBtnMain');
+        const icon = $('#copyIconMain');
+        const text = $('#copyTextMain');
+        
+        btn.css('background', '#10b981');
+        icon.attr('class', 'bi bi-check-lg');
+        text.text('Đã sao chép');
+        
+        setTimeout(() => {
+            btn.css('background', 'var(--accent-color, #a50064)');
+            icon.attr('class', 'bi bi-clipboard');
+            text.text('Sao chép');
         }, 1500);
     });
 }
