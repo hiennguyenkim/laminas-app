@@ -4,33 +4,37 @@ declare(strict_types=1);
 
 namespace Library\Model\Table;
 
-use Laminas\Db\TableGateway\TableGatewayInterface;
+use Laminas\Db\TableGateway\TableGateway;
 use Library\Model\Entity\PaymentSession;
 use RuntimeException;
 
 class PaymentSessionTable
 {
-    public function __construct(private TableGatewayInterface $tableGateway)
+    public function __construct(private TableGateway $tableGateway)
     {
     }
 
     public function getSession(string $orderCode): ?PaymentSession
     {
+        /** @var \Laminas\Db\ResultSet\ResultSet $rowset */
         $rowset = $this->tableGateway->select(['order_code' => $orderCode]);
         $row = $rowset->current();
         if (!$row) {
             return null;
         }
+        /** @var PaymentSession $row */
         return $row;
     }
 
     public function getSessionById(int $sessionId): ?PaymentSession
     {
+        /** @var \Laminas\Db\ResultSet\ResultSet $rowset */
         $rowset = $this->tableGateway->select(['session_id' => $sessionId]);
         $row = $rowset->current();
         if (!$row) {
             return null;
         }
+        /** @var PaymentSession $row */
         return $row;
     }
 

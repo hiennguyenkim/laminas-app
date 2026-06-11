@@ -77,20 +77,26 @@ class Module
                 // Let it proceed (will check maintenance route redirection below)
             } else {
                 // Check if maintenance mode is active
+                /** @var \Laminas\Db\Adapter\Adapter $dbAdapter */
                 $dbAdapter = $container->get(\Laminas\Db\Adapter\AdapterInterface::class);
                 $maintenanceMode = false;
 
                 try {
-                    $statement = $dbAdapter->query("SELECT setting_value FROM system_settings WHERE setting_key = ? LIMIT 1");
+                    /** @var \Laminas\Db\Adapter\Driver\StatementInterface $statement */
+                    $statement = $dbAdapter->query("SELECT setting_value FROM system_settings WHERE setting_key = ? LIMIT 1", \Laminas\Db\Adapter\Adapter::QUERY_MODE_PREPARE);
                     
-                    $resultMode = iterator_to_array($statement->execute(['maintenance_mode']));
-                    $isModeEnabled = count($resultMode) > 0 && $resultMode[0]['setting_value'] === '1';
+                    /** @var \Laminas\Db\Adapter\Driver\ResultInterface $resultModeRes */
+                    $resultModeRes = $statement->execute(['maintenance_mode']);
+                    $resultMode = iterator_to_array($resultModeRes);
+                    $isModeEnabled = count($resultMode) > 0 && isset($resultMode[0]['setting_value']) && $resultMode[0]['setting_value'] === '1';
 
                     if ($isModeEnabled) {
-                        $resultUntil = iterator_to_array($statement->execute(['maintenance_until']));
-                        $untilVal = count($resultUntil) > 0 ? $resultUntil[0]['setting_value'] : null;
+                        /** @var \Laminas\Db\Adapter\Driver\ResultInterface $resultUntilRes */
+                        $resultUntilRes = $statement->execute(['maintenance_until']);
+                        $resultUntil = iterator_to_array($resultUntilRes);
+                        $untilVal = count($resultUntil) > 0 && isset($resultUntil[0]['setting_value']) ? (string)$resultUntil[0]['setting_value'] : null;
 
-                        if ($untilVal) {
+                        if ($untilVal !== null) {
                             $now = time();
                             $untilTime = strtotime($untilVal);
                             if ($untilTime > $now) {
@@ -112,6 +118,7 @@ class Module
                         $router = $e->getRouter();
                         $url = $router->assemble([], ['name' => 'maintenance']);
                         
+                        /** @var \Laminas\Http\PhpEnvironment\Response $response */
                         $response = $e->getResponse();
                         $response->getHeaders()->addHeaderLine('Location', $url);
                         $response->setStatusCode(302);
@@ -124,19 +131,26 @@ class Module
             // If visiting /maintenance, verify if it is active.
             // If maintenance is NOT active or current user IS admin, redirect them away to home page!
             if ($matchedRouteName === 'maintenance') {
+                /** @var \Laminas\Db\Adapter\Adapter $dbAdapter */
                 $dbAdapter = $container->get(\Laminas\Db\Adapter\AdapterInterface::class);
                 $maintenanceMode = false;
 
                 try {
-                    $statement = $dbAdapter->query("SELECT setting_value FROM system_settings WHERE setting_key = ? LIMIT 1");
-                    $resultMode = iterator_to_array($statement->execute(['maintenance_mode']));
-                    $isModeEnabled = count($resultMode) > 0 && $resultMode[0]['setting_value'] === '1';
+                    /** @var \Laminas\Db\Adapter\Driver\StatementInterface $statement */
+                    $statement = $dbAdapter->query("SELECT setting_value FROM system_settings WHERE setting_key = ? LIMIT 1", \Laminas\Db\Adapter\Adapter::QUERY_MODE_PREPARE);
+                    
+                    /** @var \Laminas\Db\Adapter\Driver\ResultInterface $resultModeRes */
+                    $resultModeRes = $statement->execute(['maintenance_mode']);
+                    $resultMode = iterator_to_array($resultModeRes);
+                    $isModeEnabled = count($resultMode) > 0 && isset($resultMode[0]['setting_value']) && $resultMode[0]['setting_value'] === '1';
 
                     if ($isModeEnabled) {
-                        $resultUntil = iterator_to_array($statement->execute(['maintenance_until']));
-                        $untilVal = count($resultUntil) > 0 ? $resultUntil[0]['setting_value'] : null;
+                        /** @var \Laminas\Db\Adapter\Driver\ResultInterface $resultUntilRes */
+                        $resultUntilRes = $statement->execute(['maintenance_until']);
+                        $resultUntil = iterator_to_array($resultUntilRes);
+                        $untilVal = count($resultUntil) > 0 && isset($resultUntil[0]['setting_value']) ? (string)$resultUntil[0]['setting_value'] : null;
 
-                        if ($untilVal) {
+                        if ($untilVal !== null) {
                             $now = time();
                             $untilTime = strtotime($untilVal);
                             if ($untilTime > $now) {
@@ -154,11 +168,11 @@ class Module
                 if (!$maintenanceMode || $isAdmin) {
                     $router = $e->getRouter();
                     $url = $router->assemble([], ['name' => 'home']);
-                    
-                    $response = $e->getResponse();
-                    $response->getHeaders()->addHeaderLine('Location', $url);
-                    $response->setStatusCode(302);
-                    $response->sendHeaders();
+                                        /** @var \Laminas\Http\PhpEnvironment\Response $response */
+                     $response = $e->getResponse();
+                     $response->getHeaders()->addHeaderLine('Location', (string)$url);
+                     $response->setStatusCode(302);
+                     $response->sendHeaders();
                     return $response;
                 }
             }
@@ -171,19 +185,26 @@ class Module
             }
 
             try {
+                /** @var \Laminas\Db\Adapter\Adapter $dbAdapter */
                 $dbAdapter = $container->get(\Laminas\Db\Adapter\AdapterInterface::class);
-                $stmt = $dbAdapter->query("SELECT setting_value FROM system_settings WHERE setting_key = 'last_cron_run' LIMIT 1");
-                $result = $stmt->execute()->current();
-                
-                $lastRun = $result ? (int) $result['setting_value'] : 0;
-                $now = time();
-                
-                $cronIntervalSeconds = 300; // 5 minutes
-
-                // Run every 5 minutes so expired OTP accounts are cleaned promptly.
-                if ($now - $lastRun >= $cronIntervalSeconds) {
-                    // Update timestamp immediately to prevent race conditions
-                    $dbAdapter->query("UPDATE system_settings SET setting_value = ? WHERE setting_key = 'last_cron_run'")->execute([$now]);
+                 /** @var \Laminas\Db\Adapter\Driver\StatementInterface $stmt */
+                 $stmt = $dbAdapter->query("SELECT setting_value FROM system_settings WHERE setting_key = 'last_cron_run' LIMIT 1", \Laminas\Db\Adapter\Adapter::QUERY_MODE_PREPARE);
+                 /** @var \Laminas\Db\Adapter\Driver\ResultInterface $cronResult */
+                 $cronResult = $stmt->execute();
+                 /** @var array|null $result */
+                 $result = $cronResult->current();
+                 
+                 $lastRun = $result && isset($result['setting_value']) ? (int) $result['setting_value'] : 0;
+                 $now = time();
+                 
+                 $cronIntervalSeconds = 300; // 5 minutes
+ 
+                 // Run every 5 minutes so expired OTP accounts are cleaned promptly.
+                 if ($now - $lastRun >= $cronIntervalSeconds) {
+                     // Update timestamp immediately to prevent race conditions
+                     /** @var \Laminas\Db\Adapter\Driver\StatementInterface $updateStmt */
+                     $updateStmt = $dbAdapter->query("UPDATE system_settings SET setting_value = ? WHERE setting_key = 'last_cron_run'", \Laminas\Db\Adapter\Adapter::QUERY_MODE_PREPARE);
+                     $updateStmt->execute([$now]);
                     
                     // Trigger background script (Windows compatible)
                     $scriptPath = realpath(__DIR__ . '/../../../bin/cron-cancel-pending.php');

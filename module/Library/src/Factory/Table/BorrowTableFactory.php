@@ -17,7 +17,9 @@ class BorrowTableFactory
     {
         $adapter            = $container->get(AdapterInterface::class);
         $resultSetPrototype = new ResultSet();
-        $resultSetPrototype->setArrayObjectPrototype(new BorrowRecord());
+        /** @var \ArrayObject $prototype */
+        $prototype = new BorrowRecord();
+        $resultSetPrototype->setArrayObjectPrototype($prototype);
         $tableGateway       = new TableGateway('borrow_records', $adapter, null, $resultSetPrototype);
         return new BorrowTable($tableGateway);
     }

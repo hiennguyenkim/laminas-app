@@ -21,7 +21,7 @@ class FineController extends BaseController
     public function __construct(
         AuthSessionContainer $authSessionContainer,
         private UserTable $userTable,
-        private AdapterInterface $db,
+        private \Laminas\Db\Adapter\Adapter $db,
         private ?MailService $mailService = null
     ) {
         parent::__construct($authSessionContainer);

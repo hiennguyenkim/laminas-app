@@ -19,7 +19,7 @@ class GmailService
         private PaymentSessionTable $paymentSessionTable,
         private UserTable $userTable,
         private SystemSettingsTable $systemSettingsTable,
-        private AdapterInterface $db,
+        private \Laminas\Db\Adapter\Adapter $db,
         private AuthSessionContainer $authSessionContainer,
         private ?MailService $mailService = null
     ) {
@@ -177,7 +177,7 @@ class GmailService
             // Filter to bank notification emails only + limit to 20 most recent
             // This prevents hanging when mailbox has many unread emails
             $response = $gmail->users_messages->listUsersMessages('me', [
-                'q'          => 'is:unread subject:(biến động OR giao dịch OR thanh toán OR BIDV OR VCB OR Vietcombank OR MB OR Techcombank OR ACB OR Sacombank OR HDPE)',
+                'q'          => 'is:unread subject:("biến động" OR "giao dịch" OR "thanh toán" OR "BIDV" OR "VCB" OR "Vietcombank" OR "MB" OR "Techcombank" OR "ACB" OR "Sacombank" OR "HDPE")',
                 'maxResults' => 20,
             ]);
 

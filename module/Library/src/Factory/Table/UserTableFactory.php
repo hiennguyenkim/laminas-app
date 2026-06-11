@@ -17,7 +17,9 @@ class UserTableFactory
     {
         $adapter            = $container->get(AdapterInterface::class);
         $resultSetPrototype = new ResultSet();
-        $resultSetPrototype->setArrayObjectPrototype(new User());
+        /** @var \ArrayObject $prototype */
+        $prototype = new User();
+        $resultSetPrototype->setArrayObjectPrototype($prototype);
         $tableGateway       = new TableGateway('users', $adapter, null, $resultSetPrototype);
         return new UserTable($tableGateway);
     }

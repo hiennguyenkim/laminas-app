@@ -749,8 +749,8 @@ canvas { max-width: 100%; }
 .overflow-hidden { overflow: hidden; }
 
 /* ── TEXT TRUNCATION (New) ─────────────────────────── */
-.line-clamp-1 { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
-.line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.line-clamp-1 { display: -webkit-box; -webkit-line-clamp: 1; line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+.line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 
 [data-tooltip] { position: relative; cursor: help; }
 [data-tooltip]:hover::after {
@@ -779,6 +779,7 @@ canvas { max-width: 100%; }
   opacity: 0.15;
   background: linear-gradient(135deg, var(--text-muted), var(--accent-purple));
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 .ui-empty-title {

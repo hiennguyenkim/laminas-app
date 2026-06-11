@@ -121,8 +121,11 @@ class AuthController extends BaseController
 
         // Dọn dẹp tài khoản chưa kích hoạt OTP đã hết hạn trước khi đăng ký mới
         try {
+            /** @var \Laminas\Db\Adapter\Adapter $adapter */
             $adapter = $this->userTable->getAdapter();
-            $adapter->query("DELETE FROM users WHERE is_approved = 0 AND otp_expires_at < NOW()")->execute();
+            /** @var \Laminas\Db\Adapter\Driver\StatementInterface $stmt */
+            $stmt = $adapter->query("DELETE FROM users WHERE is_approved = 0 AND otp_expires_at < NOW()", \Laminas\Db\Adapter\Adapter::QUERY_MODE_PREPARE);
+            $stmt->execute();
         } catch (\Throwable $e) {}
 
         if ($this->httpRequest()->isPost()) {
@@ -580,7 +583,7 @@ class AuthController extends BaseController
               
         $sent = $this->mailService->sendEmail($user->email, $user->fullName, $subject, $body);
         if (!$sent) {
-            throw new \RuntimeException('Địa chỉ email không hợp lệ hoặc không thể gửi thư.');
+            throw new RuntimeException('Địa chỉ email không hợp lệ hoặc không thể gửi thư.');
         }
     }
 
@@ -605,7 +608,7 @@ class AuthController extends BaseController
               
         $sent = $this->mailService->sendEmail($user->email, $user->fullName, $subject, $body);
         if (!$sent) {
-            throw new \RuntimeException('Địa chỉ email không hợp lệ hoặc không thể gửi thư.');
+            throw new RuntimeException('Địa chỉ email không hợp lệ hoặc không thể gửi thư.');
         }
     }
 

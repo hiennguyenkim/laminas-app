@@ -17,7 +17,9 @@ class BookTableFactory
     {
         $adapter       = $container->get(AdapterInterface::class);
         $resultSetPrototype = new ResultSet();
-        $resultSetPrototype->setArrayObjectPrototype(new Book());
+        /** @var \ArrayObject $prototype */
+        $prototype = new Book();
+        $resultSetPrototype->setArrayObjectPrototype($prototype);
         $tableGateway  = new TableGateway('books', $adapter, null, $resultSetPrototype);
         return new BookTable($tableGateway);
     }

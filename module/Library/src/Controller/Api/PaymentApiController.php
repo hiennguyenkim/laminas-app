@@ -18,8 +18,15 @@ class PaymentApiController extends AbstractActionController
         private PaymentSessionTable $paymentSessionTable,
         private GmailService $gmailService,
         private SystemSettingsTable $systemSettingsTable,
-        private AdapterInterface $db
+        private \Laminas\Db\Adapter\Adapter $db
     ) {
+    }
+
+    private function httpRequest(): \Laminas\Http\PhpEnvironment\Request
+    {
+        /** @var \Laminas\Http\PhpEnvironment\Request $request */
+        $request = $this->getRequest();
+        return $request;
     }
 
     /**
@@ -27,7 +34,7 @@ class PaymentApiController extends AbstractActionController
      */
     public function createSessionAction(): Response
     {
-        $request = $this->getRequest();
+        $request = $this->httpRequest();
         if (!$request->isPost()) {
             return $this->jsonResponse(['error' => 'Method not allowed'], 405);
         }
@@ -46,7 +53,9 @@ class PaymentApiController extends AbstractActionController
 
         // Fetch the fine
         $sql = "SELECT * FROM fines WHERE fine_id = ? LIMIT 1";
-        $fine = $this->db->query($sql)->execute([$fineId])->current();
+        /** @var \Laminas\Db\Adapter\Driver\StatementInterface $stmt */
+        $stmt = $this->db->query($sql, \Laminas\Db\Adapter\Adapter::QUERY_MODE_PREPARE);
+        $fine = $stmt->execute([$fineId])->current();
 
         if (!$fine) {
             return $this->jsonResponse(['error' => 'Fine not found'], 404);
@@ -109,7 +118,7 @@ class PaymentApiController extends AbstractActionController
      */
     public function checkStatusAction(): Response
     {
-        $request = $this->getRequest();
+        $request = $this->httpRequest();
         $orderCode = (string) $request->getQuery('orderCode', '');
 
         if (empty($orderCode)) {
@@ -140,7 +149,7 @@ class PaymentApiController extends AbstractActionController
      */
     public function gmailWebhookAction(): Response
     {
-        $request = $this->getRequest();
+        $request = $this->httpRequest();
         
         // Token verification to prevent abuse
         $token = (string) $request->getQuery('token', '');
@@ -181,10 +190,10 @@ class PaymentApiController extends AbstractActionController
 
     private function requestJsonBody(): array
     {
-        $content = $this->getRequest()->getContent();
+        $content = $this->httpRequest()->getContent();
         if (!is_string($content) || $content === '') {
             // Fallback to standard POST array if content is form-encoded
-            $post = $this->getRequest()->getPost();
+            $post = $this->httpRequest()->getPost();
             if (is_object($post) && method_exists($post, 'toArray')) {
                 return $post->toArray();
             }

@@ -16,9 +16,11 @@ class NotificationTable
         $this->tableGateway = $tableGateway;
     }
 
-    private function getAdapter(): AdapterInterface
+    private function getAdapter(): \Laminas\Db\Adapter\Adapter
     {
-        return $this->tableGateway->getAdapter();
+        /** @var \Laminas\Db\Adapter\Adapter $adapter */
+        $adapter = $this->tableGateway->getAdapter();
+        return $adapter;
     }
 
     public function cleanupOldNotifications(int $days = 30): void

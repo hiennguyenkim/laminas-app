@@ -10,9 +10,9 @@ use PHPMailer\PHPMailer\Exception as PHPMailerException;
 
 class MailService
 {
-    private AdapterInterface $adapter;
+    private \Laminas\Db\Adapter\Adapter $adapter;
 
-    public function __construct(AdapterInterface $adapter)
+    public function __construct(\Laminas\Db\Adapter\Adapter $adapter)
     {
         $this->adapter = $adapter;
     }
@@ -20,26 +20,28 @@ class MailService
     private function getSetting(string $key): string
     {
         $sql = "SELECT setting_value FROM system_settings WHERE setting_key = ? LIMIT 1";
-        $row = $this->adapter->query($sql)->execute([$key])->current();
+        /** @var \Laminas\Db\Adapter\Driver\StatementInterface $stmt */
+        $stmt = $this->adapter->query($sql, \Laminas\Db\Adapter\Adapter::QUERY_MODE_PREPARE);
+        $row = $stmt->execute([$key])->current();
         return (string)($row['setting_value'] ?? '');
     }
 
     /**
      * Resolve a potentially-fake email address to a deliverable one.
      * If the domain has no MX or A DNS record (e.g. student.hdpe.edu.vn),
-     * falls back to the admin SMTP from-email so emails are still delivered.
+     * returns an empty string to skip sending.
      */
     public function resolveEmailAddress(string $email): string
     {
         $email = trim($email);
         if ($email === '' || filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
-            return $this->getSetting('smtp_from_email');
+            return '';
         }
         $parts  = explode('@', $email);
         $domain = array_pop($parts);
         if (!checkdnsrr($domain, 'MX') && !checkdnsrr($domain, 'A')) {
-            // Domain doesn't exist — use admin email as fallback
-            return $this->getSetting('smtp_from_email');
+            // Domain doesn't exist — return empty string so we skip sending
+            return '';
         }
         return $email;
     }

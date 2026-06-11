@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Library\Factory\Controller;
 
-use Interop\Container\ContainerInterface;
+use Psr\Container\ContainerInterface;
 use Laminas\ServiceManager\Factory\FactoryInterface;
 use Library\Controller\FineController;
 use Library\Session\AuthSessionContainer;
@@ -14,7 +14,7 @@ use Laminas\Db\Adapter\AdapterInterface;
 
 class FineControllerFactory implements FactoryInterface
 {
-    public function __invoke(ContainerInterface $container, $requestedName, array $options = null): FineController
+    public function __invoke(ContainerInterface $container, $requestedName, ?array $options = null): FineController
     {
         return new FineController(
             $container->get(AuthSessionContainer::class),

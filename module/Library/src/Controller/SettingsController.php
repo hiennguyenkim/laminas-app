@@ -67,6 +67,16 @@ class SettingsController extends BaseController
             $googleConfig['redirect_uri']  = $this->systemSettingsTable->getSetting('google_redirect_uri', '');
         } catch (\Throwable $e) {}
 
+        // 4. Fetch SMTP Config
+        $smtpConfig = [
+            'user'     => '',
+            'has_pass' => false,
+        ];
+        try {
+            $smtpConfig['user']     = $this->systemSettingsTable->getSetting('smtp_user', '');
+            $smtpConfig['has_pass'] = !empty($this->systemSettingsTable->getSetting('smtp_pass', ''));
+        } catch (\Throwable $e) {}
+
         // 5. Fetch VietQR Config
         $vietqrConfig = [
             'bank_id'      => '',

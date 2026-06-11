@@ -17,7 +17,9 @@ class PaymentSessionTableFactory
     {
         $adapter            = $container->get(AdapterInterface::class);
         $resultSetPrototype = new ResultSet();
-        $resultSetPrototype->setArrayObjectPrototype(new PaymentSession());
+        /** @var \ArrayObject $prototype */
+        $prototype = new PaymentSession();
+        $resultSetPrototype->setArrayObjectPrototype($prototype);
         $tableGateway       = new TableGateway('payment_sessions', $adapter, null, $resultSetPrototype);
         return new PaymentSessionTable($tableGateway);
     }

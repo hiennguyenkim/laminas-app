@@ -204,7 +204,7 @@ class UserController extends BaseController
 
         try {
             $user = $this->userTable->getUser($id);
-        } catch (\RuntimeException $exception) {
+        } catch (RuntimeException $exception) {
             $this->flash()->addErrorMessage($exception->getMessage());
 
             return $this->redirect()->toRoute('library/user');
@@ -241,7 +241,11 @@ class UserController extends BaseController
                     LEFT JOIN users u ON pl.admin_id = u.user_id 
                     WHERE pl.user_id = ? 
                     ORDER BY pl.created_at DESC";
-            $penaltyLogs = iterator_to_array($this->userTable->getAdapter()->query($sql)->execute([$id]));
+            /** @var \Laminas\Db\Adapter\Adapter $adapter */
+            $adapter = $this->userTable->getAdapter();
+            /** @var \Laminas\Db\Adapter\Driver\StatementInterface $stmt */
+            $stmt = $adapter->query($sql, \Laminas\Db\Adapter\Adapter::QUERY_MODE_PREPARE);
+            $penaltyLogs = iterator_to_array($stmt->execute([$id]));
         } catch (\Throwable $e) {}
 
         return new ViewModel([
@@ -319,7 +323,7 @@ class UserController extends BaseController
 
         try {
             $user = $this->userTable->getUser($id);
-        } catch (\RuntimeException $exception) {
+        } catch (RuntimeException $exception) {
             $this->flash()->addErrorMessage($exception->getMessage());
 
             return $this->redirect()->toRoute('library/user');
@@ -415,7 +419,7 @@ class UserController extends BaseController
 
         try {
             $user = $this->userTable->getUser($id);
-        } catch (\RuntimeException $exception) {
+        } catch (RuntimeException $exception) {
             $this->flash()->addErrorMessage($exception->getMessage());
 
             return $this->redirect()->toRoute('library/user');
@@ -489,7 +493,11 @@ class UserController extends BaseController
                 $currentUser = $this->currentUser();
                 $sqlNoti = "INSERT INTO notifications (user_id, sender_id, title, message, type, related_id) 
                             VALUES (?, ?, 'Tài khoản đã bị khóa', ?, 'borrow_alert', ?)";
-                $this->userTable->getAdapter()->query($sqlNoti)->execute([
+                /** @var \Laminas\Db\Adapter\Adapter $adapter */
+                $adapter = $this->userTable->getAdapter();
+                /** @var \Laminas\Db\Adapter\Driver\StatementInterface $stmt */
+                $stmt = $adapter->query($sqlNoti, \Laminas\Db\Adapter\Adapter::QUERY_MODE_PREPARE);
+                $stmt->execute([
                     $id,
                     $currentUser['id'],
                     "Tài khoản của bạn đã bị quản trị viên khóa. Lý do: <em>" . htmlspecialchars($reason) . "</em>.",
@@ -540,7 +548,11 @@ class UserController extends BaseController
                 $currentUser = $this->currentUser();
                 $sqlNoti = "INSERT INTO notifications (user_id, sender_id, title, message, type, related_id) 
                             VALUES (?, ?, 'Tài khoản đã được mở khóa', ?, 'borrow_approved', ?)";
-                $this->userTable->getAdapter()->query($sqlNoti)->execute([
+                /** @var \Laminas\Db\Adapter\Adapter $adapter */
+                $adapter = $this->userTable->getAdapter();
+                /** @var \Laminas\Db\Adapter\Driver\StatementInterface $stmt */
+                $stmt = $adapter->query($sqlNoti, \Laminas\Db\Adapter\Adapter::QUERY_MODE_PREPARE);
+                $stmt->execute([
                     $id,
                     $currentUser['id'],
                     "Tài khoản của bạn đã được quản trị viên mở khóa. Bạn có thể tiếp tục sử dụng các dịch vụ của thư viện.",

@@ -208,7 +208,7 @@ class AnnouncementController extends BaseController
             return $response;
         }
 
-        if ($this->getRequest()->isPost()) {
+        if ($this->httpRequest()->isPost()) {
             $currentUser = $this->currentUser();
             $data = $this->postData();
 
@@ -258,10 +258,14 @@ class AnnouncementController extends BaseController
                 // Gửi thông báo cho tất cả người dùng (user_id = NULL)
                 if ($isActive) {
                     try {
-                        $newId = (int)$this->announcementTable->getAdapter()->getDriver()->getLastGeneratedValue();
+                        /** @var \Laminas\Db\Adapter\Adapter $adapter */
+                        $adapter = $this->announcementTable->getAdapter();
+                        $newId = (int)$adapter->getDriver()->getLastGeneratedValue();
                         $sqlNoti = "INSERT INTO notifications (user_id, sender_id, title, message, type, related_id) 
                                     VALUES (NULL, ?, 'Bảng tin mới', ?, 'borrow_approved', ?)";
-                        $this->announcementTable->getAdapter()->query($sqlNoti)->execute([
+                        /** @var \Laminas\Db\Adapter\Driver\StatementInterface $stmt */
+                        $stmt = $adapter->query($sqlNoti, \Laminas\Db\Adapter\Adapter::QUERY_MODE_PREPARE);
+                        $stmt->execute([
                             $currentUser['id'],
                             "Thư viện vừa đăng bản tin mới: <strong>" . htmlspecialchars($title) . "</strong>.",
                             $newId
@@ -300,7 +304,7 @@ class AnnouncementController extends BaseController
             return $this->redirect()->toRoute('library/announcements');
         }
 
-        if ($this->getRequest()->isPost()) {
+        if ($this->httpRequest()->isPost()) {
             $data = $this->postData();
 
             $title     = trim((string)($data['title'] ?? ''));
@@ -341,12 +345,16 @@ class AnnouncementController extends BaseController
                 ]);
 
                 // Nếu từ chưa kích hoạt chuyển sang kích hoạt, gửi thông báo mới
-                if ($isActive && (int)$ann->isActive === 0) {
+                if ($isActive && (int)($ann['is_active'] ?? 0) === 0) {
                     try {
                         $currentUser = $this->currentUser();
+                        /** @var \Laminas\Db\Adapter\Adapter $adapter */
+                        $adapter = $this->announcementTable->getAdapter();
                         $sqlNoti = "INSERT INTO notifications (user_id, sender_id, title, message, type, related_id) 
                                     VALUES (NULL, ?, 'Bảng tin mới', ?, 'borrow_approved', ?)";
-                        $this->announcementTable->getAdapter()->query($sqlNoti)->execute([
+                        /** @var \Laminas\Db\Adapter\Driver\StatementInterface $stmt */
+                        $stmt = $adapter->query($sqlNoti, \Laminas\Db\Adapter\Adapter::QUERY_MODE_PREPARE);
+                        $stmt->execute([
                             $currentUser['id'],
                             "Thư viện vừa cập nhật bản tin mới: <strong>" . htmlspecialchars($title) . "</strong>.",
                             $id

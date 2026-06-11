@@ -17,6 +17,13 @@ class NotificationApiController extends AbstractActionController
     ) {
     }
 
+    private function httpRequest(): \Laminas\Http\PhpEnvironment\Request
+    {
+        /** @var \Laminas\Http\PhpEnvironment\Request $request */
+        $request = $this->getRequest();
+        return $request;
+    }
+
     public function indexAction(): Response
     {
         $currentUser = $this->authSessionContainer->user ?? null;
@@ -66,8 +73,8 @@ class NotificationApiController extends AbstractActionController
             // Ignore
         }
 
-        if ($this->getRequest()->isPost()) {
-            $rawBody = $this->getRequest()->getContent();
+        if ($this->httpRequest()->isPost()) {
+            $rawBody = $this->httpRequest()->getContent();
             $params = json_decode($rawBody, true) ?: [];
             $idStr = $params['id'] ?? null;
             $action = $params['action'] ?? null;

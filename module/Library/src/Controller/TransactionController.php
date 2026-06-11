@@ -397,6 +397,7 @@ class TransactionController extends BaseController
 
         $filename = 'bao-cao-muon-tra-' . $periodLabel . '-' . date('Ymd-His') . '.xlsx';
 
+        /** @var \Laminas\Http\Response $response */
         $response = $this->getResponse();
         $response->getHeaders()->addHeaders([
             'Content-Type'        => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',

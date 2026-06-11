@@ -9,13 +9,14 @@ use Library\Session\AuthSessionContainer;
 use Laminas\Http\Response;
 use Laminas\View\Model\ViewModel;
 use Laminas\Db\Adapter\AdapterInterface;
+use Laminas\Db\Adapter\Adapter;
 
 class BookImportController extends BaseController
 {
     public function __construct(
         AuthSessionContainer $authSessionContainer,
         private BookTable $bookTable,
-        private AdapterInterface $dbAdapter
+        private Adapter $dbAdapter
     ) {
         parent::__construct($authSessionContainer);
     }
@@ -74,7 +75,9 @@ class BookImportController extends BaseController
         }
         $typeCountSql .= " GROUP BY import_type";
 
-        $typeCountRaw = iterator_to_array($this->dbAdapter->query($typeCountSql)->execute($paramsTypeCounts));
+        /** @var \Laminas\Db\Adapter\Driver\StatementInterface $typeCountStmt */
+        $typeCountStmt = $this->dbAdapter->query($typeCountSql, Adapter::QUERY_MODE_PREPARE);
+        $typeCountRaw = iterator_to_array($typeCountStmt->execute($paramsTypeCounts));
         $typeCounts = ['all' => 0, 'purchase' => 0, 'donation' => 0, 'other' => 0];
         foreach ($typeCountRaw as $row) {
             if (isset($typeCounts[$row['import_type']])) {
@@ -109,7 +112,11 @@ class BookImportController extends BaseController
         }
 
         $totalSql   = "SELECT COUNT(*) AS cnt FROM book_imports i WHERE " . implode(" AND ", $whereList);
-        $totalCount = (int)(($this->dbAdapter->query($totalSql)->execute($paramsList)->current()['cnt']) ?? 0);
+        /** @var \Laminas\Db\Adapter\Driver\StatementInterface $totalStmt */
+        $totalStmt = $this->dbAdapter->query($totalSql, Adapter::QUERY_MODE_PREPARE);
+        /** @var array|null $totalRow */
+        $totalRow = $totalStmt->execute($paramsList)->current();
+        $totalCount = (int)(($totalRow['cnt']) ?? 0);
         $totalPages = max(1, (int)ceil($totalCount / $perPage));
         $page       = min($page, $totalPages);
         $offset     = ($page - 1) * $perPage;
@@ -142,7 +149,9 @@ class BookImportController extends BaseController
         $bindParams[] = $perPage;
         $bindParams[] = $offset;
 
-        $imports = iterator_to_array($this->dbAdapter->query($sql)->execute($bindParams));
+        /** @var \Laminas\Db\Adapter\Driver\StatementInterface $importsStmt */
+        $importsStmt = $this->dbAdapter->query($sql, Adapter::QUERY_MODE_PREPARE);
+        $imports = iterator_to_array($importsStmt->execute($bindParams));
 
         // Fetch stats for the selected year grouped by Quarter — filter by status = 'approved'
         $statsSql = "SELECT
@@ -152,7 +161,9 @@ class BookImportController extends BaseController
                      FROM book_imports
                      WHERE status = 'approved' AND YEAR(import_date) = ?
                      GROUP BY QUARTER(import_date)";
-        $statsRaw = iterator_to_array($this->dbAdapter->query($statsSql)->execute([$selectedYear]));
+        /** @var \Laminas\Db\Adapter\Driver\StatementInterface $statsStmt */
+        $statsStmt = $this->dbAdapter->query($statsSql, Adapter::QUERY_MODE_PREPARE);
+        $statsRaw = iterator_to_array($statsStmt->execute([$selectedYear]));
 
         $quarterlyStats = [
             1 => ['count' => 0, 'spend' => 0.0],
@@ -208,7 +219,8 @@ class BookImportController extends BaseController
         }
 
         // Get import record
-        $stmt = $this->dbAdapter->query("SELECT * FROM book_imports WHERE import_id = ? LIMIT 1");
+        /** @var \Laminas\Db\Adapter\Driver\StatementInterface $stmt */
+        $stmt = $this->dbAdapter->query("SELECT * FROM book_imports WHERE import_id = ? LIMIT 1", Adapter::QUERY_MODE_PREPARE);
         $imports = iterator_to_array($stmt->execute([$id]));
         if (count($imports) === 0) {
             $this->flash()->addErrorMessage('Không tìm thấy yêu cầu nhập sách.');
@@ -220,19 +232,23 @@ class BookImportController extends BaseController
             try {
                 $bookId = $this->syncImportToBooks($import);
                 // Update import request to approved
-                $this->dbAdapter->query(
+                /** @var \Laminas\Db\Adapter\Driver\StatementInterface $approveStmt */
+                $approveStmt = $this->dbAdapter->query(
                     "UPDATE book_imports SET status = 'approved', book_id = ?, import_date = CURDATE(), updated_at = NOW() WHERE import_id = ?",
-                    [$bookId, $id]
+                    Adapter::QUERY_MODE_PREPARE
                 );
+                $approveStmt->execute([$bookId, $id]);
                 $this->flash()->addSuccessMessage('Đã phê duyệt nhập kho và cập nhật số lượng sách #' . $id);
             } catch (\Throwable $e) {
                 $this->flash()->addErrorMessage('Lỗi phê duyệt: ' . $e->getMessage());
             }
         } elseif ($status === 'rejected' && $import['status'] === 'pending') {
-            $this->dbAdapter->query(
+            /** @var \Laminas\Db\Adapter\Driver\StatementInterface $rejectStmt */
+            $rejectStmt = $this->dbAdapter->query(
                 "UPDATE book_imports SET status = 'rejected', updated_at = NOW() WHERE import_id = ?",
-                [$id]
+                Adapter::QUERY_MODE_PREPARE
             );
+            $rejectStmt->execute([$id]);
             $this->flash()->addSuccessMessage('Đã từ chối yêu cầu nhập sách #' . $id);
         } else {
             $this->flash()->addErrorMessage('Hành động hoặc trạng thái không hợp lệ.');
@@ -319,7 +335,9 @@ class BookImportController extends BaseController
                 LEFT JOIN books b ON i.book_id = b.book_id 
                 WHERE " . implode(" AND ", $whereList) . "
                 ORDER BY " . $orderBy;
-        $imports = iterator_to_array($this->dbAdapter->query($sql)->execute($paramsList));
+        /** @var \Laminas\Db\Adapter\Driver\StatementInterface $exportStmt */
+        $exportStmt = $this->dbAdapter->query($sql, Adapter::QUERY_MODE_PREPARE);
+        $imports = iterator_to_array($exportStmt->execute($paramsList));
 
         // Fetch quarterly stats for the selected year (unfiltered by quarter/month so it gives full context)
         $statsSql = "SELECT 
@@ -329,7 +347,9 @@ class BookImportController extends BaseController
                      FROM book_imports
                      WHERE status = 'approved' AND YEAR(import_date) = ?
                      GROUP BY QUARTER(import_date)";
-        $statsRaw = iterator_to_array($this->dbAdapter->query($statsSql)->execute([$selectedYear]));
+        /** @var \Laminas\Db\Adapter\Driver\StatementInterface $exportStatsStmt */
+        $exportStatsStmt = $this->dbAdapter->query($statsSql, Adapter::QUERY_MODE_PREPARE);
+        $statsRaw = iterator_to_array($exportStatsStmt->execute([$selectedYear]));
 
         $quarterlyStats = [
             1 => ['count' => 0, 'spend' => 0.0],
@@ -513,6 +533,7 @@ class BookImportController extends BaseController
 
         $filename = 'bao-cao-nhap-kho-' . $periodLabel . '-' . $selectedYear . ($type !== '' ? '-' . $type : '') . '.xlsx';
 
+        /** @var \Laminas\Http\PhpEnvironment\Response $response */
         $response = $this->getResponse();
         $response->getHeaders()->addHeaders([
             'Content-Type'        => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -534,7 +555,7 @@ class BookImportController extends BaseController
 
         $currentUser = $this->currentUser();
 
-        if ($this->getRequest()->isPost()) {
+        if ($this->httpRequest()->isPost()) {
             $data = $this->postData();
             $title = trim((string)($data['title'] ?? ''));
             $author = trim((string)($data['author'] ?? ''));
@@ -568,7 +589,9 @@ class BookImportController extends BaseController
 
                     $sql = "INSERT INTO book_imports (book_id, invoice_code, title, author, isbn, category, publisher, published_year, quantity, import_type, invoice_url, price, note, imported_by, status, import_date, created_at, updated_at)
                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'approved', CURDATE(), NOW(), NOW())";
-                    $this->dbAdapter->query($sql, [
+                    /** @var \Laminas\Db\Adapter\Driver\StatementInterface $addStmt */
+                    $addStmt = $this->dbAdapter->query($sql, Adapter::QUERY_MODE_PREPARE);
+                    $addStmt->execute([
                         $bookId,
                         $generatedCode,
                         $title,
@@ -668,6 +691,7 @@ class BookImportController extends BaseController
 
         $filename = 'mau_nhap_kho_sach.xlsx';
 
+        /** @var \Laminas\Http\PhpEnvironment\Response $response */
         $response = $this->getResponse();
         $response->getHeaders()->addHeaders([
             'Content-Type'        => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -689,8 +713,8 @@ class BookImportController extends BaseController
 
         $currentUser = $this->currentUser();
 
-        if ($this->getRequest()->isPost()) {
-            $files = $this->getRequest()->getFiles();
+        if ($this->httpRequest()->isPost()) {
+            $files = $this->httpRequest()->getFiles();
             $file = $files->get('excel_file');
 
             if (! $file || empty($file['tmp_name']) || $file['error'] !== UPLOAD_ERR_OK) {
@@ -754,7 +778,9 @@ class BookImportController extends BaseController
 
                     $sql = "INSERT INTO book_imports (book_id, invoice_code, title, author, isbn, category, publisher, published_year, quantity, import_type, invoice_url, price, note, imported_by, status, import_date, created_at, updated_at)
                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'approved', CURDATE(), NOW(), NOW())";
-                    $this->dbAdapter->query($sql, [
+                    /** @var \Laminas\Db\Adapter\Driver\StatementInterface $excelInsertStmt */
+                    $excelInsertStmt = $this->dbAdapter->query($sql, Adapter::QUERY_MODE_PREPARE);
+                    $excelInsertStmt->execute([
                         $bookId,
                         $invoiceCode,
                         $title,
@@ -793,7 +819,8 @@ class BookImportController extends BaseController
         // Try to find matching book by ISBN first
         $matchingBookId = null;
         if ($isbn !== null) {
-            $checkStmt = $this->dbAdapter->query("SELECT book_id FROM books WHERE isbn = ? LIMIT 1");
+            /** @var \Laminas\Db\Adapter\Driver\StatementInterface $checkStmt */
+            $checkStmt = $this->dbAdapter->query("SELECT book_id FROM books WHERE isbn = ? LIMIT 1", Adapter::QUERY_MODE_PREPARE);
             $books = iterator_to_array($checkStmt->execute([$isbn]));
             if (count($books) > 0) {
                 $matchingBookId = (int)$books[0]['book_id'];
@@ -802,7 +829,8 @@ class BookImportController extends BaseController
 
         // Fallback: match by title
         if ($matchingBookId === null) {
-            $checkStmt = $this->dbAdapter->query("SELECT book_id FROM books WHERE title = ? LIMIT 1");
+            /** @var \Laminas\Db\Adapter\Driver\StatementInterface $checkStmt */
+            $checkStmt = $this->dbAdapter->query("SELECT book_id FROM books WHERE title = ? LIMIT 1", Adapter::QUERY_MODE_PREPARE);
             $books = iterator_to_array($checkStmt->execute([$title]));
             if (count($books) > 0) {
                 $matchingBookId = (int)$books[0]['book_id'];
@@ -811,15 +839,19 @@ class BookImportController extends BaseController
 
         if ($matchingBookId !== null) {
             // Existing book — increment quantity and ensure status = available
-            $this->dbAdapter->query(
+            /** @var \Laminas\Db\Adapter\Driver\StatementInterface $updateQtyStmt */
+            $updateQtyStmt = $this->dbAdapter->query(
                 "UPDATE books SET quantity = quantity + ?, status = 'available' WHERE book_id = ?",
-                [$quantity, $matchingBookId]
+                Adapter::QUERY_MODE_PREPARE
             );
+            $updateQtyStmt->execute([$quantity, $matchingBookId]);
         } else {
             // New book — insert into catalog
             $insertSql = "INSERT INTO books (title, author, isbn, category, publisher, published_year, quantity, status, import_date, created_at)
                           VALUES (?, ?, ?, ?, ?, ?, ?, 'available', CURDATE(), NOW())";
-            $this->dbAdapter->query($insertSql, [
+            /** @var \Laminas\Db\Adapter\Driver\StatementInterface $insertBookStmt */
+            $insertBookStmt = $this->dbAdapter->query($insertSql, Adapter::QUERY_MODE_PREPARE);
+            $insertBookStmt->execute([
                 $title,
                 ! empty($import['author']) ? $import['author'] : 'Khác',
                 $isbn,

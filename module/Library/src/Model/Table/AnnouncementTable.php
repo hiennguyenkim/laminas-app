@@ -16,9 +16,11 @@ class AnnouncementTable
         $this->tableGateway = $tableGateway;
     }
 
-    private function getAdapter(): AdapterInterface
+    public function getAdapter(): \Laminas\Db\Adapter\Adapter
     {
-        return $this->tableGateway->getAdapter();
+        /** @var \Laminas\Db\Adapter\Adapter $adapter */
+        $adapter = $this->tableGateway->getAdapter();
+        return $adapter;
     }
 
     public function getGlobalCounts(): array
