@@ -16,15 +16,24 @@ require 'vendor/autoload.php';
 // ── Timezone ────────────────────────────────────────────────────────────────
 date_default_timezone_set('Asia/Ho_Chi_Minh');
 
-// ── Log file (giữ lại tối đa 500 KB, tự xoay vòng) ─────────────────────────
+// ── Log file (tự động giữ tối đa 1000 dòng mới nhất) ──────────────────────
 $logFile = __DIR__ . '/../data/logs/cron-gmail.log';
 if (!is_dir(dirname($logFile))) {
     @mkdir(dirname($logFile), 0755, true);
 }
-// Rotate log nếu > 500 KB
-if (file_exists($logFile) && filesize($logFile) > 512000) {
-    rename($logFile, $logFile . '.bak');
+
+function rotateLog(string $file, int $maxLines = 1000): void
+{
+    if (!file_exists($file)) {
+        return;
+    }
+    $lines = file($file);
+    if ($lines !== false && count($lines) > $maxLines) {
+        $trimmed = array_slice($lines, -$maxLines);
+        file_put_contents($file, implode('', $trimmed), LOCK_EX);
+    }
 }
+rotateLog($logFile, 1000);
 
 function cronLog(string $msg): void
 {
@@ -45,31 +54,42 @@ if (!$lockFp || !flock($lockFp, LOCK_EX | LOCK_NB)) {
 // ── PHP execution timeout (max 55s — safely under 1-minute Task interval) ───
 set_time_limit(55);
 
-// ── Main ─────────────────────────────────────────────────────────────────────
+// ── Main with Retry Logic ───────────────────────────────────────────────────
 cronLog('=== Gmail Polling START ===');
 
-try {
-    $container = require 'config/container.php';
+$maxRetries = 3;
+$retryDelay = 2; // seconds
+$processed = null;
 
-    /** @var \Library\Service\GmailService $gmailService */
-    $gmailService = $container->get(\Library\Service\GmailService::class);
+for ($attempt = 1; $attempt <= $maxRetries; $attempt++) {
+    try {
+        $container = require 'config/container.php';
 
-    $processed = $gmailService->processEmails();
+        /** @var \Library\Service\GmailService $gmailService */
+        $gmailService = $container->get(\Library\Service\GmailService::class);
 
-    $count = count($processed);
-    if ($count > 0) {
-        cronLog("SUCCESS: Processed {$count} payment(s): " . implode(', ', $processed));
-    } else {
-        cronLog("OK: No new payments found.");
+        $processed = $gmailService->processEmails();
+
+        $count = count($processed);
+        if ($count > 0) {
+            cronLog("SUCCESS: Processed {$count} payment(s): " . implode(', ', $processed));
+        } else {
+            cronLog("OK: No new payments found.");
+        }
+        break; // Success!
+    } catch (\Throwable $e) {
+        $isDbError = str_contains($e->getMessage(), 'SQLSTATE') || str_contains($e->getMessage(), 'connection');
+        cronLog("ERROR (Attempt {$attempt}/{$maxRetries}): " . $e->getMessage());
+        if ($attempt < $maxRetries && $isDbError) {
+            cronLog("Database connection error, waiting {$retryDelay}s before retry...");
+            sleep($retryDelay);
+        } else {
+            cronLog('Trace: ' . $e->getFile() . ':' . $e->getLine());
+            flock($lockFp, LOCK_UN);
+            fclose($lockFp);
+            exit(1);
+        }
     }
-
-} catch (\Throwable $e) {
-    cronLog('ERROR: ' . $e->getMessage());
-    cronLog('Trace: ' . $e->getFile() . ':' . $e->getLine());
-    // Release lock before exit
-    flock($lockFp, LOCK_UN);
-    fclose($lockFp);
-    exit(1);
 }
 
 cronLog('=== Gmail Polling END ===');

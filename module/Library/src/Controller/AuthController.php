@@ -79,6 +79,7 @@ class AuthController extends BaseController
                         }
                     }
 
+                    $this->sessionManager->regenerateId(true);
                     $this->authSession()->user = [
                         'id'             => $user->id,
                         'username'       => $user->username,
@@ -311,6 +312,7 @@ class AuthController extends BaseController
             }
 
             // 5. Log in
+            $this->sessionManager->regenerateId(true);
             $this->authSession()->user = [
                 'id'             => $user->id,
                 'username'       => $user->username,
@@ -403,6 +405,7 @@ class AuthController extends BaseController
                 } catch (\Throwable $e) {}
 
                 // Establish session
+                $this->sessionManager->regenerateId(true);
                 $this->authSession()->user = [
                     'id'             => $user->id,
                     'username'       => $user->username,

@@ -141,3 +141,55 @@
 [2026-06-11 23:27:10] SUCCESS: Processed 1 payment(s): HDPE9XB696608E
 [2026-06-11 23:27:10] === Gmail Polling END ===
 [2026-06-11 23:28:05] === Gmail Polling START ===
+[2026-06-12 14:36:30] === Gmail Polling START ===
+[2026-06-12 14:36:53] ERROR: Connect Error: SQLSTATE[HY000] [2002] No connection could be made because the target machine actively refused it
+[2026-06-12 14:36:53] Trace: C:\xampp\htdocs\laminas-app\vendor\laminas\laminas-db\src\Adapter\Driver\Pdo\Connection.php:280
+[2026-06-12 14:37:05] === Gmail Polling START ===
+[2026-06-12 14:37:11] ERROR: Connect Error: SQLSTATE[HY000] [2002] No connection could be made because the target machine actively refused it
+[2026-06-12 14:37:12] Trace: C:\xampp\htdocs\laminas-app\vendor\laminas\laminas-db\src\Adapter\Driver\Pdo\Connection.php:280
+[2026-06-12 14:38:39] === Gmail Polling START ===
+[2026-06-12 14:38:45] ERROR: Connect Error: SQLSTATE[HY000] [2002] No connection could be made because the target machine actively refused it
+[2026-06-12 14:38:45] Trace: C:\xampp\htdocs\laminas-app\vendor\laminas\laminas-db\src\Adapter\Driver\Pdo\Connection.php:280
+[2026-06-12 14:39:04] === Gmail Polling START ===
+[2026-06-12 14:39:24] OK: No new payments found.
+[2026-06-12 14:39:24] === Gmail Polling END ===
+[2026-06-12 14:40:11] === Gmail Polling START ===
+[2026-06-12 14:40:19] OK: No new payments found.
+[2026-06-12 14:40:19] === Gmail Polling END ===
+[2026-06-12 14:41:05] === Gmail Polling START ===
+[2026-06-12 14:41:09] OK: No new payments found.
+[2026-06-12 14:41:09] === Gmail Polling END ===
+[2026-06-12 14:42:06] === Gmail Polling START ===
+[2026-06-12 14:42:09] OK: No new payments found.
+[2026-06-12 14:42:09] === Gmail Polling END ===
+[2026-06-12 14:43:12] === Gmail Polling START ===
+[2026-06-12 14:43:17] OK: No new payments found.
+[2026-06-12 14:43:17] === Gmail Polling END ===
+[2026-06-12 14:44:04] === Gmail Polling START ===
+[2026-06-12 14:44:08] OK: No new payments found.
+[2026-06-12 14:44:08] === Gmail Polling END ===
+[2026-06-12 14:45:06] === Gmail Polling START ===
+[2026-06-12 14:45:09] OK: No new payments found.
+[2026-06-12 14:45:09] === Gmail Polling END ===
+[2026-06-12 14:46:05] === Gmail Polling START ===
+[2026-06-12 14:46:06] OK: No new payments found.
+[2026-06-12 14:46:06] === Gmail Polling END ===
+[2026-06-12 14:47:04] === Gmail Polling START ===
+[2026-06-12 14:47:07] WARNING: Amount mismatch for order code: HDPE17X29FECBAA (Expected: 100000)
+[2026-06-12 14:47:07] OK: No new payments found.
+[2026-06-12 14:47:07] === Gmail Polling END ===
+[2026-06-12 14:48:09] === Gmail Polling START ===
+[2026-06-12 14:48:17] SUCCESS: Processed 1 payment(s): HDPE17XD03C265C
+[2026-06-12 14:48:17] === Gmail Polling END ===
+[2026-06-12 14:49:09] === Gmail Polling START ===
+[2026-06-12 14:49:12] OK: No new payments found.
+[2026-06-12 14:49:12] === Gmail Polling END ===
+[2026-06-12 14:50:10] === Gmail Polling START ===
+[2026-06-12 14:50:14] OK: No new payments found.
+[2026-06-12 14:50:14] === Gmail Polling END ===
+[2026-06-12 14:51:09] === Gmail Polling START ===
+[2026-06-12 14:51:18] OK: No new payments found.
+[2026-06-12 14:51:18] === Gmail Polling END ===
+[2026-06-12 14:52:05] === Gmail Polling START ===
+[2026-06-12 14:52:07] OK: No new payments found.
+[2026-06-12 14:52:07] === Gmail Polling END ===

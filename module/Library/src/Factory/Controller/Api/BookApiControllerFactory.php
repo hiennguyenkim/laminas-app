@@ -12,6 +12,7 @@ use Library\Model\Table\ChatLogTable;
 use Library\Model\Table\UserTable;
 use Library\Service\GeminiService;
 use Library\Service\MailService;
+use Library\Session\AuthSessionContainer;
 
 class BookApiControllerFactory implements FactoryInterface
 {
@@ -22,7 +23,8 @@ class BookApiControllerFactory implements FactoryInterface
             $container->get(ChatLogTable::class),
             $container->get(GeminiService::class),
             $container->get(UserTable::class),
-            $container->get(MailService::class)
+            $container->get(MailService::class),
+            $container->get(AuthSessionContainer::class)
         );
     }
 }

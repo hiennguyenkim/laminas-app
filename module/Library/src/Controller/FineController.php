@@ -90,9 +90,18 @@ class FineController extends BaseController
             $connection->beginTransaction();
 
             try {
-                // 1. Update fine status to paid
-                $updateSql = "UPDATE fines SET status = 'paid', paid_at = NOW() WHERE fine_id = ?";
-                $this->db->query($updateSql)->execute([$fineId]);
+                // 1. Update fine status to paid — atomic: chỉ thành công nếu status ĐANG là 'unpaid'
+                //    Tránh race condition khi cron Gmail và manual checkout chạy đồng thời
+                $updateSql = "UPDATE fines SET status = 'paid', paid_at = NOW() WHERE fine_id = ? AND status = 'unpaid'";
+                $updateResult = $this->db->query($updateSql)->execute([$fineId]);
+                $affectedRows = $updateResult->getAffectedRows();
+
+                if ($affectedRows === 0) {
+                    // Khoản phạt đã được thanh toán từ nguồn khác (cron, admin, v.v.)
+                    $connection->rollback();
+                    $this->flash()->addInfoMessage('Khoản phạt này đã được thanh toán trước đó.');
+                    return $this->redirect()->toRoute('student/fine');
+                }
 
                 // 2. Check if student still has any other unpaid fines
                 $checkSql = "SELECT COUNT(*) AS cnt FROM fines WHERE user_id = ? AND status = 'unpaid'";
@@ -429,7 +438,8 @@ class FineController extends BaseController
                 FROM fines f 
                 JOIN users u ON f.user_id = u.user_id 
                 $whereSql 
-                ORDER BY $sortCol $dir";
+                ORDER BY $sortCol $dir 
+                LIMIT 10000";
         $stmt = $this->db->createStatement($sql);
         $fines = iterator_to_array($stmt->execute($params));
 

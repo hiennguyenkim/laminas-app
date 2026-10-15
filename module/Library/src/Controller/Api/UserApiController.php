@@ -8,6 +8,7 @@ use Laminas\Http\Response;
 use Laminas\Mvc\Controller\AbstractRestfulController;
 use Library\Model\Entity\User;
 use Library\Model\Table\UserTable;
+use Library\Session\AuthSessionContainer;
 
 /**
  * @psalm-suppress PropertyNotSetInConstructor
@@ -15,14 +16,60 @@ use Library\Model\Table\UserTable;
 class UserApiController extends AbstractRestfulController
 {
     private UserTable $table;
-    public function __construct(UserTable $table)
+    private AuthSessionContainer $authSessionContainer;
+
+    public function __construct(UserTable $table, AuthSessionContainer $authSessionContainer)
     {
         $this->table = $table;
+        $this->authSessionContainer = $authSessionContainer;
     }
 
-    // GET /api/users
+    // ── Auth helpers ──────────────────────────────────────────────────────────
+
+    /**
+     * @return array{id:int,role:string}|null
+     */
+    private function currentUser(): ?array
+    {
+        $user = $this->authSessionContainer->user ?? null;
+        if (!is_array($user)) {
+            return null;
+        }
+        return [
+            'id'   => (int)($user['id'] ?? 0),
+            'role' => (string)($user['role'] ?? ''),
+        ];
+    }
+
+    private function requireAdmin(): ?Response
+    {
+        $user = $this->currentUser();
+        if ($user === null) {
+            return $this->jsonResponse(['error' => 'Unauthorized: Login required'], 401);
+        }
+        if ($user['role'] !== 'admin') {
+            return $this->jsonResponse(['error' => 'Forbidden: Admin access required'], 403);
+        }
+        return null;
+    }
+
+    private function requireLogin(): ?Response
+    {
+        if ($this->currentUser() === null) {
+            return $this->jsonResponse(['error' => 'Unauthorized: Login required'], 401);
+        }
+        return null;
+    }
+
+    // ── REST actions (admin-only write, login-only read) ──────────────────────
+
+    // GET /api/users — chỉ admin
     public function getList()
     {
+        if ($guard = $this->requireAdmin()) {
+            return $guard;
+        }
+
         $users = $this->table->fetchAll();
         $data = [];
         foreach ($users as $user) {
@@ -35,9 +82,12 @@ class UserApiController extends AbstractRestfulController
         return $this->jsonResponse($data);
     }
 
-    // GET /api/users/:id
+    // GET /api/users/:id — chỉ admin
     public function get(mixed $id)
     {
+        if ($guard = $this->requireAdmin()) {
+            return $guard;
+        }
 
         try {
             $user = $this->table->getUser((int) $id);
@@ -47,9 +97,13 @@ class UserApiController extends AbstractRestfulController
         }
     }
 
-    // POST /api/users
+    // POST /api/users — chỉ admin
     public function create(mixed $data)
     {
+        if ($guard = $this->requireAdmin()) {
+            return $guard;
+        }
+
         $data = $this->resolvePayload($data);
         if (! isset($data['username']) || ! isset($data['password']) || ! isset($data['email'])) {
             return $this->jsonResponse(['error' => 'Missing username, password, or email'], 400);
@@ -86,9 +140,13 @@ class UserApiController extends AbstractRestfulController
         }
     }
 
-    // PUT /api/users/:id
+    // PUT /api/users/:id — chỉ admin
     public function update(mixed $id, mixed $data)
     {
+        if ($guard = $this->requireAdmin()) {
+            return $guard;
+        }
+
         $data = $this->resolvePayload($data);
         try {
             $user = $this->table->getUser((int) $id);
@@ -106,7 +164,7 @@ class UserApiController extends AbstractRestfulController
         }
     }
 
-    // DELETE /api/users/:id
+    // DELETE /api/users/:id — không cho phép
     public function delete(mixed $id)
     {
         return $this->jsonResponse(['error' => 'Delete operation not implemented for users'], 501);
@@ -116,9 +174,14 @@ class UserApiController extends AbstractRestfulController
      * GET /api/users/search?q=...&role=student&limit=20
      *
      * Endpoint AJAX autocomplete cho thành viên trong form mượn sách.
+     * Yêu cầu đăng nhập (admin hoặc staff dùng).
      */
     public function searchAction(): Response
     {
+        if ($guard = $this->requireLogin()) {
+            return $guard;
+        }
+
         /** @var \Laminas\Http\Request $request */
         $request = $this->getRequest();
 

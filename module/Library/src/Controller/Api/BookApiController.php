@@ -8,12 +8,9 @@ use Laminas\Http\Response;
 use Laminas\Mvc\Controller\AbstractRestfulController;
 use Library\Model\Entity\Book;
 use Library\Model\Table\BookTable;
-
-/**
- * @psalm-suppress PropertyNotSetInConstructor
- */
 use Library\Model\Table\ChatLogTable;
 use Library\Model\Table\UserTable;
+use Library\Session\AuthSessionContainer;
 
 /**
  * @psalm-suppress PropertyNotSetInConstructor
@@ -25,8 +22,38 @@ class BookApiController extends AbstractRestfulController
         private ChatLogTable $chatLogTable,
         private \Library\Service\GeminiService $geminiService,
         private UserTable $userTable,
-        private \Library\Service\MailService $mailService
+        private \Library\Service\MailService $mailService,
+        private AuthSessionContainer $authSessionContainer
     ) {
+    }
+
+    // ── Auth helpers ────────────────────────────────────────────────────────
+
+    /**
+     * @return array{id:int,role:string}|null
+     */
+    private function currentUser(): ?array
+    {
+        $user = $this->authSessionContainer->user ?? null;
+        if (!is_array($user)) {
+            return null;
+        }
+        return [
+            'id'   => (int)($user['id'] ?? 0),
+            'role' => (string)($user['role'] ?? ''),
+        ];
+    }
+
+    private function requireAdmin(): ?Response
+    {
+        $user = $this->currentUser();
+        if ($user === null) {
+            return $this->jsonResponse(['error' => 'Unauthorized: Login required'], 401);
+        }
+        if ($user['role'] !== 'admin') {
+            return $this->jsonResponse(['error' => 'Forbidden: Admin access required'], 403);
+        }
+        return null;
     }
 
     // GET /api/books
@@ -54,9 +81,12 @@ class BookApiController extends AbstractRestfulController
         }
     }
 
-    // POST /api/books
+    // POST /api/books — chỉ admin
     public function create(mixed $data)
     {
+        if ($guard = $this->requireAdmin()) {
+            return $guard;
+        }
         $data = $this->requestJsonBody();
         $book = new Book();
         $book->exchangeArray($data);
@@ -68,9 +98,12 @@ class BookApiController extends AbstractRestfulController
         }
     }
 
-    // PUT /api/books/:id
+    // PUT /api/books/:id — chỉ admin
     public function update(mixed $id, mixed $data)
     {
+        if ($guard = $this->requireAdmin()) {
+            return $guard;
+        }
         $data = $this->requestJsonBody();
         try {
             $book = $this->table->getBook((int) $id);
@@ -83,9 +116,12 @@ class BookApiController extends AbstractRestfulController
         }
     }
 
-    // DELETE /api/books/:id
+    // DELETE /api/books/:id — chỉ admin
     public function delete(mixed $id)
     {
+        if ($guard = $this->requireAdmin()) {
+            return $guard;
+        }
         try {
             $this->table->deleteBook((int) $id);
             return $this->jsonResponse(['status' => 'success', 'message' => 'Book deleted']);

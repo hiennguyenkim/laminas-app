@@ -155,10 +155,14 @@ class PaymentApiController extends AbstractActionController
         $token = (string) $request->getQuery('token', '');
         $expectedToken = getenv('GMAIL_WEBHOOK_TOKEN') ?: $this->systemSettingsTable->getSetting('gmail_webhook_token');
 
-        // Accept request if token is correct or if it is a local simulator payload
+        // Accept request if token is correct or if it is a local simulator payload (disabled in production)
         $isSimulator = false;
         $body = $this->requestJsonBody();
+        $appEnv = strtolower((string)(getenv('APP_ENV') ?: 'development'));
         if (isset($body['simulate_email_body'])) {
+            if ($appEnv === 'production') {
+                return $this->jsonResponse(['error' => 'Simulator is disabled in production'], 403);
+            }
             $isSimulator = true;
         }
 

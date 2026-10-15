@@ -371,8 +371,8 @@ class GmailService
 
     private function parseOrderCode(string $body): ?string
     {
-        if (preg_match('/HDPE(?:_FINE_)?\d+[A-Za-z0-9_]*/i', $body, $matches)) {
-            return $matches[0];
+        if (preg_match('/\bHDPE\d+X[A-Za-z0-9]+\b/i', $body, $matches)) {
+            return strtoupper($matches[0]);
         }
         return null;
     }
